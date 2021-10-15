@@ -1,6 +1,7 @@
 import empkins_io.sensors  # noqa: F401
+import empkins_io.signal_alignment  # noqa: F401
 
-__all__ = ["sensors"]
+__all__ = ["sensors", "signal_alignment"]
 
 
-__version__ = "0.1.1"
+__version__ = "0.1.0"
