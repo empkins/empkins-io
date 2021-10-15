@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "empkins-io"
+version = "0.1.1"
+description = "A Python package to load and convert data from EmpkinS sensors."
+authors = ["Robert Richer <robert.richer@fau.de>"]
+
+[tool.poetry.dependencies]
+python = ">=3.8,<3.10"
+biopsykit = {path = "../../../BioPsyKit", develop = true, extras = ["mne", "jupyter"]}
+ffmpeg-python = "^0.2.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+doit = "^0.33.1"
+poethepoet = "^0.10.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.poe.tasks]
+_black = "black ."
+_black_check = "black . --check"
+_isort = "isort **/*.py"
+_isort_check = "isort **/*.py --check-only"
+
+# Reformat all files using black and sort import
+format = ["_black", "_isort"]
+format_check = ["_black_check", "_isort_check"]
+lint = "prospector"
+test = "pytest --cov=empkins_io --cov-report=xml"
+docs = {"script" = "_tasks:task_docs"}
+update_version = {"script" = "_tasks:task_update_version"}
+
+# register_ipykernel = ["python -m ipykernel install --user --name empkins --display-name empkins"]
