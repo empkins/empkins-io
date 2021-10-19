@@ -1,11 +1,10 @@
-from typing import Union, Dict, Optional, Sequence
-
-from tqdm.auto import tqdm
+from typing import Dict, Optional, Sequence, Union
 
 import pandas as pd
 from biopsykit.signals.ecg import EcgProcessor
 from biopsykit.utils.data_processing import split_data
-from biopsykit.utils.datatype_helper import RPeakDataFrame, is_r_peak_dataframe, HeartRatePhaseDict
+from biopsykit.utils.datatype_helper import HeartRatePhaseDict, RPeakDataFrame, is_r_peak_dataframe
+from tqdm.auto import tqdm
 
 
 def _assert_input(a04_processor, key, rpeaks):

@@ -1,6 +1,5 @@
-import matplotlib.pyplot as plt
-
 import biopsykit.colors as colors
+import matplotlib.pyplot as plt
 import numpy as np
 from biopsykit.signals.ecg.plotting import hr_plot
 from biopsykit.utils.datatype_helper import HeartRateDataFrame, RPeakDataFrame

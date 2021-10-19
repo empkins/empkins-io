@@ -2,19 +2,17 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
-
 from biopsykit.utils._datatype_validation_helper import _assert_is_dtype
 from biopsykit.utils.time import get_time_from_date, timedelta_to_time
 
-__all__ = ["align_to_reference_data"]
+__all__ = ["cut_data_to_overlap"]
 
 
-def align_to_reference_data(
-    radar_data: pd.DataFrame, ref_data: pd.DataFrame
+def cut_data_to_overlap(
+    reference: pd.DataFrame,
+    target: pd.DataFrame,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """Align radar data to simultaneously collected reference data.
-
-    This function aligns both dataframes according to their time axis and cuts data to the overlapping region.
+    """Cut target data and simultaneously collected reference data to overlapping regions according to their time axis.
 
     .. note::
         Both dataframes are expected to have an :class:`~pandas.DatetimeIndex` with absolute time information.
@@ -22,26 +20,24 @@ def align_to_reference_data(
 
     Parameters
     ----------
-    radar_data : :class:`~pandas.DataFrame`
-        dataframe with radar heart rate data, as returned by :func:`~empkins-io.sensors.sensors.a04.load_data`
-    ref_data : :class:`~pandas.DataFrame`
+    reference : :class:`~pandas.DataFrame`
         dataframe with reference data
+    target : :class:`~pandas.DataFrame`
+        dataframe with target data, typically radar data
 
     Returns
     -------
-    radar_data : :class:`~pandas.DataFrame`
-        aligned radar data
-    ref_data : :class:`~pandas.DataFrame`
-        aligned reference data
+    reference : :class:`~pandas.DataFrame`
+        reference data cut to overlapping region
+    target : :class:`~pandas.DataFrame`
+        aligned target cut to overlapping region
 
     """
-    _assert_is_dtype(radar_data.index, pd.DatetimeIndex)
-    _assert_is_dtype(ref_data.index, pd.DatetimeIndex)
-    radar_time = timedelta_to_time(get_time_from_date(radar_data.index.to_series()))
-    ref_time = timedelta_to_time(get_time_from_date(ref_data.index.to_series()))
-    start_idx = np.max([radar_time[0], ref_time[0]])
-    end_idx = np.min([radar_time[-1], ref_time[-1]])
+    _assert_is_dtype(reference.index, pd.DatetimeIndex)
+    _assert_is_dtype(target.index, pd.DatetimeIndex)
+    reference_time = timedelta_to_time(get_time_from_date(reference.index.to_series()))
+    target_time = timedelta_to_time(get_time_from_date(target.index.to_series()))
+    start_idx = np.max([target_time[0], reference_time[0]])
+    end_idx = np.min([target_time[-1], reference_time[-1]])
 
-    return radar_data.between_time(start_idx, end_idx), ref_data.between_time(
-        start_idx, end_idx
-    )
+    return reference.between_time(start_idx, end_idx), target.between_time(start_idx, end_idx)
