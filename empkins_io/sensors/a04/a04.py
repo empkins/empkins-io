@@ -1,0 +1,155 @@
+from typing import Union, Dict, Optional, Sequence
+
+from tqdm.auto import tqdm
+
+import pandas as pd
+from biopsykit.signals.ecg import EcgProcessor
+from biopsykit.utils.data_processing import split_data
+from biopsykit.utils.datatype_helper import RPeakDataFrame, is_r_peak_dataframe, HeartRatePhaseDict
+
+
+def _assert_input(a04_processor, key, rpeaks):
+    if all(x is None for x in [a04_processor, key, rpeaks]):
+        raise ValueError("Either 'a04_processor' and 'key', or 'rpeaks' must be passed as arguments!")
+    if a04_processor is not None and key is None:
+        raise ValueError("Both of 'a04_processor' and 'key' must be passed as arguments!")
+
+
+class A04Processor:
+    def __init__(
+        self,
+        rpeaks: Union[RPeakDataFrame, Dict[str, RPeakDataFrame]],
+        sampling_rate: Optional[float] = None,
+        time_intervals: Optional[Union[pd.Series, Dict[str, Sequence[str]]]] = None,
+        include_start: Optional[bool] = False,
+    ):
+        if sampling_rate is None:
+            sampling_rate = 2000
+        self.sampling_rate: float = sampling_rate
+        """Sampling rate of recorded data."""
+
+        if isinstance(rpeaks, dict):
+            for _, df in rpeaks.items():
+                is_r_peak_dataframe(df)
+            rpeaks_dict = rpeaks
+        else:
+            is_r_peak_dataframe(rpeaks)
+            if time_intervals is not None:
+                # split data into subphases if time_intervals are passed
+                rpeaks_dict = split_data(
+                    data=rpeaks,
+                    time_intervals=time_intervals,
+                    include_start=include_start,
+                )
+            else:
+                rpeaks_dict = {"Data": rpeaks}
+
+        self.rpeaks: Dict[str, RPeakDataFrame] = rpeaks_dict
+        """Dictionary with R peak location indices, split into different phases.
+
+        See Also
+        --------
+        :obj:`~biopsykit.utils.datatype_helper.RPeakDataFrame`
+            dictionary format
+
+        """
+
+        self.heart_rate: HeartRatePhaseDict = {key: df[["Heart_Rate"]] for key, df in self.rpeaks.items()}
+        """Dictionary with time-series heart rate data, split into different phases.
+
+        See Also
+        --------
+        :obj:`~biopsykit.utils.datatype_helper.HeartRatePhaseDict`
+            dictionary format
+
+        """
+
+    def process(
+        self,
+        outlier_correction: Optional[Union[str, Sequence[str]]] = "all",
+        outlier_params: Optional[Dict[str, Union[float, Sequence[float]]]] = None,
+    ):
+        """Process Radar signal.
+
+        The Radar processing pipeline consists of the following steps:
+
+        * ``Outlier correction`` (optional): Uses :meth:`~biopsykit.signals.ecg.EcgProcessor.correct_outlier`
+          to check detected R peaks for outlier and impute removed outlier by linear interpolation.
+
+
+        Parameters
+        ----------
+        outlier_correction : list, ``all`` or ``None``, optional
+            List containing outlier correction methods to be applied. Alternatively, pass ``all`` to apply all
+            available outlier correction methods, or ``None`` to not apply any outlier correction.
+            See :meth:`~biopsykit.signals.ecg.EcgProcessor.outlier_corrections` to get a list of possible
+            outlier correction methods. Default: ``all``
+        outlier_params : dict
+            Dictionary of outlier correction parameters or ``None`` for default parameters.
+            See :meth:`~biopsykit.signals.ecg.EcgProcessor.outlier_params_default` for the default parameters.
+            Default: ``None``
+
+
+        See Also
+        --------
+        :meth:`~biopsykit.signals.ecg.EcgProcessor.correct_outlier`
+            function to perform R peak outlier correction
+        :meth:`~biopsykit.signals.ecg.EcgProcessor.outlier_corrections`
+            list of all available outlier correction methods
+        :meth:`~biopsykit.signals.ecg.EcgProcessor.outlier_params_default`
+            dictionary with default parameters for outlier correction
+
+
+        Examples
+        --------
+        >>> from biopsykit.signals.ecg import EcgProcessor
+        >>> # initialize A04Processor instance
+        >>> radar_processor = A04Processor(...)
+
+        >>> # Option 1: don't apply any outlier correction
+        >>> radar_processor.process(outlier_correction=None)
+
+        >>> # Option 2: use default outlier correction pipeline
+        >>> radar_processor.process()
+
+        >>> # Option 3: use custom outlier correction pipeline: only physiological and statistical outlier with custom
+        >>> # thresholds
+        >>> methods = ["physiological", "statistical"]
+        >>> params = {
+        >>>    'physiological': (50, 150),
+        >>>    'statistical': 2.576
+        >>>}
+        >>> radar_processor.process(outlier_correction=methods, outlier_params=params)
+
+        >>> # Print available results from ECG processing
+        >>> print(radar_processor.rpeaks)
+
+        """
+        for name, rpeaks in tqdm(self.rpeaks.items()):
+            rpeaks_corr = self.correct_outlier(
+                rpeaks=rpeaks,
+                outlier_correction=outlier_correction,
+                outlier_params=outlier_params,
+                sampling_rate=self.sampling_rate,
+            )
+            self.rpeaks[name] = rpeaks_corr
+            self.heart_rate[name] = rpeaks_corr[["Heart_Rate"]]
+
+    @classmethod
+    def correct_outlier(
+        cls,
+        a04_processor: Optional["A04Processor"] = None,
+        key: Optional[str] = None,
+        rpeaks: Optional[RPeakDataFrame] = None,
+        sampling_rate: Optional[float] = 2000.0,
+        **kwargs,
+    ):
+        _assert_input(a04_processor, key, rpeaks)
+        if a04_processor is not None:
+            rpeaks = a04_processor.rpeaks[key]
+            sampling_rate = a04_processor.sampling_rate
+
+        rpeaks = rpeaks.copy()
+        kwargs.setdefault("sampling_rate", sampling_rate)
+        _, rpeaks = EcgProcessor.correct_outlier(rpeaks=rpeaks, **kwargs)
+        return rpeaks
