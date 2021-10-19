@@ -7,11 +7,10 @@ from typing import Dict, Literal, Optional, Sequence, Tuple, Union
 import neurokit2 as nk
 import numpy as np
 import pandas as pd
-from scipy.io import loadmat
-
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 from biopsykit.utils._types import path_t
 from biopsykit.utils.time import tz
+from scipy.io import loadmat
 
 DATASTREAMS = Literal["hr", "resp"]
 
@@ -58,9 +57,7 @@ def load_data(
     return result_dict, fs
 
 
-def load_data_raw(
-    path: path_t, timezone: Optional[Union[datetime.tzinfo, str]] = None
-) -> Tuple[pd.DataFrame, float]:
+def load_data_raw(path: path_t, timezone: Optional[Union[datetime.tzinfo, str]] = None) -> Tuple[pd.DataFrame, float]:
     """Load raw radar data from the A04 "cardiovascular pulmonary microwave interferometer" sensor.
 
     Parameters
@@ -110,8 +107,7 @@ def load_data_raw(
     )
 
     data_radar.index = (
-        pd.TimedeltaIndex(np.arange(0, len(data_radar)) / fs, unit="s", name="time")
-        + start_date
+        pd.TimedeltaIndex(np.arange(0, len(data_radar)) / fs, unit="s", name="time") + start_date
     ).tz_localize(timezone)
     return data_radar, fs
 
@@ -136,20 +132,16 @@ def _load_hr(data: pd.DataFrame, fs: float) -> pd.DataFrame:
     return hr_radar_raw
 
 
-def _load_resp(
-    data: pd.DataFrame, fs: float, fs_out: Optional[float] = 100
-) -> pd.DataFrame:
+def _load_resp(data: pd.DataFrame, fs: float, fs_out: Optional[float] = 100) -> pd.DataFrame:
     ds_factor = int(fs // fs_out)
     in_cols = ["resp", "respStates"]
     out_cols = ["Respiration", "Respiration_State"]
     resp_raw = data[in_cols]
-    index_old = resp_raw.index.astype(int)
+    index_old = resp_raw.index.view(int)
     index_new = index_old[::ds_factor]
     resp_raw = pd.DataFrame(
         {
-            out_col: nk.signal_interpolate(
-                index_old, resp_raw[in_col].values, index_new
-            )
+            out_col: nk.signal_interpolate(index_old, resp_raw[in_col].values, index_new)
             for out_col, in_col in zip(out_cols, in_cols)
         },
         index=index_new,
