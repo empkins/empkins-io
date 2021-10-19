@@ -35,9 +35,7 @@ def update_version_strings(file_path, new_version):
 def update_version(version):
     subprocess.run(["poetry", "version", version], shell=False, check=True)
     new_version = (
-        subprocess.run(
-            ["poetry", "version"], shell=False, check=True, capture_output=True
-        )
+        subprocess.run(["poetry", "version"], shell=False, check=True, capture_output=True)
         .stdout.decode()
         .strip()
         .split(" ", 1)[1]
