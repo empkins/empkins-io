@@ -7,13 +7,6 @@ from biopsykit.utils.datatype_helper import HeartRatePhaseDict, RPeakDataFrame, 
 from tqdm.auto import tqdm
 
 
-def _assert_input(a04_processor, key, rpeaks):
-    if all(x is None for x in [a04_processor, key, rpeaks]):
-        raise ValueError("Either 'a04_processor' and 'key', or 'rpeaks' must be passed as arguments!")
-    if a04_processor is not None and key is None:
-        raise ValueError("Both of 'a04_processor' and 'key' must be passed as arguments!")
-
-
 class A04Processor:
     def __init__(
         self,
@@ -67,6 +60,7 @@ class A04Processor:
         self,
         outlier_correction: Optional[Union[str, Sequence[str]]] = "all",
         outlier_params: Optional[Dict[str, Union[float, Sequence[float]]]] = None,
+        title: Optional[str] = None,
     ):
         """Process Radar signal.
 
@@ -101,15 +95,15 @@ class A04Processor:
 
         Examples
         --------
-        >>> from biopsykit.signals.ecg import EcgProcessor
+        >>> from empkins_io.processing.mis import MISProcessor
         >>> # initialize A04Processor instance
-        >>> radar_processor = A04Processor(...)
+        >>> mis_processor = MISProcessor(...)
 
         >>> # Option 1: don't apply any outlier correction
-        >>> radar_processor.process(outlier_correction=None)
+        >>> mis_processor.process(outlier_correction=None)
 
         >>> # Option 2: use default outlier correction pipeline
-        >>> radar_processor.process()
+        >>> mis_processor.process()
 
         >>> # Option 3: use custom outlier correction pipeline: only physiological and statistical outlier with custom
         >>> # thresholds
@@ -118,13 +112,13 @@ class A04Processor:
         >>>    'physiological': (50, 150),
         >>>    'statistical': 2.576
         >>>}
-        >>> radar_processor.process(outlier_correction=methods, outlier_params=params)
+        >>> mis_processor.process(outlier_correction=methods, outlier_params=params)
 
         >>> # Print available results from ECG processing
-        >>> print(radar_processor.rpeaks)
+        >>> print(mis_processor.rpeaks)
 
         """
-        for name, rpeaks in tqdm(self.rpeaks.items()):
+        for name, rpeaks in tqdm(self.rpeaks.items(), desc=title):
             rpeaks_corr = self.correct_outlier(
                 rpeaks=rpeaks,
                 outlier_correction=outlier_correction,
@@ -140,6 +134,8 @@ class A04Processor:
         a04_processor: Optional["A04Processor"] = None,
         key: Optional[str] = None,
         rpeaks: Optional[RPeakDataFrame] = None,
+        outlier_correction: Optional[Union[str, Sequence[str]]] = "all",
+        outlier_params: Optional[Dict[str, Union[float, Sequence[float]]]] = None,
         sampling_rate: Optional[float] = 2000.0,
         **kwargs,
     ):
@@ -148,7 +144,32 @@ class A04Processor:
             rpeaks = a04_processor.rpeaks[key]
             sampling_rate = a04_processor.sampling_rate
 
+        if outlier_correction == "all":
+            outlier_correction = EcgProcessor.outlier_corrections()
+        if isinstance(outlier_correction, str):
+            outlier_correction = [outlier_correction]
+        if "correlation" in outlier_correction:
+            # We can't apply correlation outlier correction to MIS data because we don't have ECG waveform
+            # to compute correlation from
+            outlier_correction.remove("correlation")
+        if "quality" in outlier_correction:
+            # We can't apply quality outlier correction to MIS data because we don't have ECG signal quality
+            # (we have another quality indicator but that's something different)
+            outlier_correction.remove("quality")
+
         rpeaks = rpeaks.copy()
-        kwargs.setdefault("sampling_rate", sampling_rate)
-        _, rpeaks = EcgProcessor.correct_outlier(rpeaks=rpeaks, **kwargs)
+        _, rpeaks = EcgProcessor.correct_outlier(
+            rpeaks=rpeaks,
+            outlier_correction=outlier_correction,
+            outlier_params=outlier_params,
+            sampling_rate=sampling_rate,
+            **kwargs,
+        )
         return rpeaks
+
+
+def _assert_input(a04_processor: A04Processor, key: str, rpeaks: RPeakDataFrame):
+    if all(x is None for x in [a04_processor, key, rpeaks]):
+        raise ValueError("Either 'a04_processor' and 'key', or 'rpeaks' must be passed as arguments!")
+    if a04_processor is not None and key is None:
+        raise ValueError("Both of 'a04_processor' and 'key' must be passed as arguments!")

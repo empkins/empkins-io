@@ -7,17 +7,67 @@ from typing import Dict, Literal, Optional, Sequence, Tuple, Union
 import neurokit2 as nk
 import numpy as np
 import pandas as pd
-from biopsykit.utils._datatype_validation_helper import _assert_file_extension
+from biopsykit.utils._datatype_validation_helper import _assert_file_extension, _assert_is_dir
 from biopsykit.utils._types import path_t
 from biopsykit.utils.time import tz
 from scipy.io import loadmat
 
+__all__ = ["load_data", "load_data_raw", "load_data_folder"]
+
 DATASTREAMS = Literal["hr", "resp"]
 
 
+def load_data_folder(
+    path: path_t,
+    phase_names: Optional[Sequence[str]] = None,
+    datastreams: Optional[Union[DATASTREAMS, Sequence[DATASTREAMS]]] = None,
+    timezone: Optional[Union[datetime.tzinfo, str]] = None,
+) -> Tuple[Dict[str, Dict[str, pd.DataFrame]], float]:
+    """
+
+    Parameters
+    ----------
+    path :
+    phase_names :
+    datastreams :
+    timezone :
+
+    Returns
+    -------
+
+    """
+    _assert_is_dir(path)
+
+    # look for all MIS .mat files in the folder
+    dataset_list = list(sorted(path.glob("*.mat")))
+    if len(dataset_list) == 0:
+        raise ValueError(f"No MIS files found in folder {path}!")
+    if phase_names is None:
+        phase_names = [f"Part{i}" for i in range(len(dataset_list))]
+
+    if len(phase_names) != len(dataset_list):
+        raise ValueError(
+            f"Number of phases does not match number of datasets in the folder! "
+            f"Expected {len(dataset_list)}, got {len(phase_names)}."
+        )
+
+    dataset_list = [
+        load_data(path=dataset_path, datastreams=datastreams, timezone=timezone) for dataset_path in dataset_list
+    ]
+    fs_list = [fs for df, fs in dataset_list]
+
+    if len(set(fs_list)) > 1:
+        raise ValueError("Datasets have different sampling rates! Got: {}.".format(fs_list))
+    fs = fs_list[0]
+
+    dataset_dict = {phase: df for phase, (df, fs) in zip(phase_names, dataset_list)}
+    return dataset_dict, fs
+
+
+# TODO define MIS data datatypes
 def load_data(
     path: path_t,
-    datastreams: Optional[Union[DATASTREAMS, Sequence[DATASTREAMS]]] = "hr",
+    datastreams: Optional[Union[DATASTREAMS, Sequence[DATASTREAMS]]] = None,
     timezone: Optional[Union[datetime.tzinfo, str]] = None,
 ) -> Tuple[Dict[str, pd.DataFrame], float]:
     """Load radar data from the A04 "cardiovascular pulmonary microwave interferometer" sensor.
@@ -27,7 +77,8 @@ def load_data(
     path : :class:`pathlib.Path`
         path to exported ".mat" file
     datastreams : {"hr", "resp"} or a list of such
-        string (or list of strings) specifying which datastreams to load
+        string (or list of strings) specifying which datastreams to load or ``None`` to use default datastream
+        (corresponds to "hr").
     timezone : str or :class:`datetime.tzinfo`, optional
         timezone of the acquired data, either as string of as tzinfo object.
         Default: ``None`` (corresponds to "Europe/Berlin")
@@ -44,6 +95,8 @@ def load_data(
     """
     data_radar, fs = load_data_raw(path, timezone)
 
+    if datastreams is None:
+        datastreams = "hr"
     if isinstance(datastreams, str):
         datastreams = [datastreams]
 
