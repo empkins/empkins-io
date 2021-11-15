@@ -1,16 +1,17 @@
 import datetime
 import re
-from datetime import datetime as dt
 from pathlib import Path
-from typing import Dict, Literal, Optional, Sequence, Tuple, Union
+from typing import Optional, Union, Sequence
+from typing_extensions import Literal
 
-import neurokit2 as nk
-import numpy as np
 import pandas as pd
-from biopsykit.utils._datatype_validation_helper import _assert_file_extension, _assert_is_dir
-from biopsykit.utils._types import path_t
-from biopsykit.utils.time import tz
+import numpy as np
+import neurokit2 as nk
 from scipy.io import loadmat
+
+from biopsykit.utils._datatype_validation_helper import _assert_is_dir, _assert_file_extension
+
+from empkins_io.utils._types import path_t
 
 __all__ = ["load_data", "load_data_raw", "load_data_folder"]
 
@@ -18,16 +19,16 @@ DATASTREAMS = Literal["hr", "resp"]
 
 
 def load_data_folder(
-    path: path_t,
+    folder_path: path_t,
     phase_names: Optional[Sequence[str]] = None,
     datastreams: Optional[Union[DATASTREAMS, Sequence[DATASTREAMS]]] = None,
     timezone: Optional[Union[datetime.tzinfo, str]] = None,
-) -> Tuple[Dict[str, Dict[str, pd.DataFrame]], float]:
+):
     """
 
     Parameters
     ----------
-    path :
+    folder_path :
     phase_names :
     datastreams :
     timezone :
@@ -36,12 +37,12 @@ def load_data_folder(
     -------
 
     """
-    _assert_is_dir(path)
+    _assert_is_dir(folder_path)
 
     # look for all MIS .mat files in the folder
-    dataset_list = list(sorted(path.glob("*.mat")))
+    dataset_list = list(sorted(folder_path.glob("*.mat")))
     if len(dataset_list) == 0:
-        raise ValueError(f"No MIS files found in folder {path}!")
+        raise ValueError(f"No MIS files found in folder {folder_path}!")
     if phase_names is None:
         phase_names = [f"Part{i}" for i in range(len(dataset_list))]
 
@@ -64,12 +65,11 @@ def load_data_folder(
     return dataset_dict, fs
 
 
-# TODO define MIS data datatypes
 def load_data(
     path: path_t,
     datastreams: Optional[Union[DATASTREAMS, Sequence[DATASTREAMS]]] = None,
     timezone: Optional[Union[datetime.tzinfo, str]] = None,
-) -> Tuple[Dict[str, pd.DataFrame], float]:
+):
     """Load radar data from the A04 "cardiovascular pulmonary microwave interferometer" sensor.
 
     Parameters
@@ -110,7 +110,10 @@ def load_data(
     return result_dict, fs
 
 
-def load_data_raw(path: path_t, timezone: Optional[Union[datetime.tzinfo, str]] = None) -> Tuple[pd.DataFrame, float]:
+def load_data_raw(
+    path: path_t,
+    timezone: Optional[Union[datetime.tzinfo, str]] = None,
+):
     """Load raw radar data from the A04 "cardiovascular pulmonary microwave interferometer" sensor.
 
     Parameters
@@ -134,9 +137,9 @@ def load_data_raw(path: path_t, timezone: Optional[Union[datetime.tzinfo, str]] 
     _assert_file_extension(path, ".mat")
 
     if timezone is None:
-        timezone = tz
+        timezone = "Europe/Berlin"
 
-    start_date = dt.strptime(
+    start_date = datetime.datetime.strptime(
         re.findall(r"(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})", path.name)[0],
         "%Y-%m-%d_%H-%M-%S",
     )
