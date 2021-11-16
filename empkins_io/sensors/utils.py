@@ -16,6 +16,7 @@ def cut_data_to_overlap(
 
     .. note::
         Both dataframes are expected to have an :class:`~pandas.DatetimeIndex` with absolute time information.
+        If the dataframes do not overlap, two empty dataframes will be returned.
 
 
     Parameters
@@ -40,4 +41,9 @@ def cut_data_to_overlap(
     start_idx = np.max([target_time[0], reference_time[0]])
     end_idx = np.min([target_time[-1], reference_time[-1]])
 
-    return reference.between_time(start_idx, end_idx), target.between_time(start_idx, end_idx)
+    if start_idx > end_idx: 
+        # no overlap
+        return pd.DataFrame(columns=reference.columns.copy()), pd.DataFrame(columns=target.columns.copy())
+    else:
+        # extract overlapping regions
+        return reference.between_time(start_idx, end_idx), target.between_time(start_idx, end_idx)
