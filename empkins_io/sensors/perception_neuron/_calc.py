@@ -4,7 +4,7 @@ from typing import Optional, Sequence
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
-from empkins_io.sensors.perception_neuron.body_parts import get_all_body_parts, BODY_PARTS
+from empkins_io.sensors.perception_neuron.body_parts import get_all_body_parts, BODY_PART
 from empkins_io.utils._types import path_t, _check_file_exists
 
 
@@ -36,7 +36,7 @@ class CalcData:
 
         self.channels: Sequence[str] = ["pos", "vel", "quat", "accel", "angVel"]
         self.axis: Sequence[str] = ["x", "y", "z"]
-        self.body_parts: Sequence[BODY_PARTS] = list(get_all_body_parts())
+        self.body_parts: Sequence[BODY_PART] = list(get_all_body_parts())
         self.sampling_rate: float = 1.0 / frame_time
 
         self.data: pd.DataFrame = self._load_calc_data(file_path)

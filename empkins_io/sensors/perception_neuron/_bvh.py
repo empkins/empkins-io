@@ -7,7 +7,7 @@ from typing import Sequence, Tuple
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
-from empkins_io.sensors.perception_neuron.body_parts import get_all_body_parts, BODY_PARTS
+from empkins_io.sensors.perception_neuron.body_parts import get_all_body_parts, BODY_PART
 from empkins_io.utils._types import _check_file_exists, path_t
 
 
@@ -63,7 +63,7 @@ class BvhData:
         self.sampling_rate: float = self._frame_info.iloc[1]
         self.sampling_rate = 1.0 / float(re.sub(r"Frame Time: ", "", str(self.sampling_rate)))
 
-        self.body_parts: Sequence[BODY_PARTS] = get_all_body_parts()
+        self.body_parts: Sequence[BODY_PART] = get_all_body_parts()
         # set the channels of the bvh files and the multi-index of the dataframe
         self.data: pd.DataFrame = self._load_bvh_data(file_path)
         self.axis: Sequence[str] = list(self.data.columns.get_level_values("axis").unique())

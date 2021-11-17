@@ -1,7 +1,7 @@
 from typing import Sequence, Dict
 from typing_extensions import Literal, get_args
 
-BODY_PARTS = Literal[
+BODY_PART = Literal[
     "Hips",
     "RightUpLeg",
     "RightLeg",
@@ -65,8 +65,8 @@ BODY_PARTS = Literal[
 
 BODY_PART_GROUP = Literal["total_body", "upper_extremities", "lower_extremities", "trunk"]
 
-BODY_PART_MAPPING: Dict[BODY_PART_GROUP, Sequence[BODY_PARTS]] = {
-    "total_body": get_args(BODY_PARTS),
+BODY_PART_MAPPING: Dict[BODY_PART_GROUP, Sequence[BODY_PART]] = {
+    "total_body": get_args(BODY_PART),
     "upper_extremities": [
         "RightShoulder",
         "RightHand",
@@ -82,19 +82,19 @@ BODY_PART_MAPPING: Dict[BODY_PART_GROUP, Sequence[BODY_PARTS]] = {
 }
 
 
-def get_all_body_parts() -> Sequence[BODY_PARTS]:
+def get_all_body_parts() -> Sequence[BODY_PART]:
     """Return all body parts.
 
     Returns
     -------
 
     """
-    return get_args(BODY_PARTS)
+    return get_args(BODY_PART)
 
 
 def get_body_parts_by_group(
     body_part_group: str,
-) -> Sequence[BODY_PARTS]:
+) -> Sequence[BODY_PART]:
     """Return all body parts belonging to the same body part group.
 
     Parameters
