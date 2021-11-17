@@ -144,7 +144,7 @@ def load_data_raw(
         "%Y-%m-%d_%H-%M-%S",
     )
 
-    dict_radar = loadmat(path)
+    dict_radar = loadmat(str(path))
     fs = float(np.squeeze(dict_radar["fs"][0]))
 
     data_radar = pd.DataFrame(
