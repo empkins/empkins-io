@@ -102,7 +102,7 @@ class BvhData:
         data.columns = multi_index
         data.index = data.index / self.sampling_rate
         data.index.name = "time"
-        data = data.reindex(["x", "y", "z"], level="axis", axis=1)
+        data = data.reindex(columns=list("xyz"), level="axis")
         return data
 
     def _get_channels(self) -> Tuple[Sequence[Tuple[str, str]], Sequence[Tuple[str, str]]]:

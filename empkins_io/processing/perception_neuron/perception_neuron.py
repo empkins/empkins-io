@@ -4,7 +4,11 @@ import numpy as np
 import pandas as pd
 import scipy.signal as ss
 
-from empkins_io.processing.utils.rotations import euler_to_quat_hierarchical, rotate_quat, rotate_quat_loop
+from empkins_io.processing.utils.rotations import (
+    euler_to_quat_hierarchical,
+    rotate_quat_hierarchical,
+    quat_to_euler_hierarchical,
+)
 from empkins_io.sensors.perception_neuron._bvh import BvhData
 from empkins_io.sensors.perception_neuron.body_parts import BODY_PART
 
@@ -62,6 +66,7 @@ class PerceptionNeuronProcessor:
         # get only rotation data
         bvh_data: BvhData = self.data_dict_raw["bvh"]
         data = bvh_data.data
+        data_filt = data.copy()
 
         if filter_params is None:
             filter_params = {}
@@ -71,27 +76,27 @@ class PerceptionNeuronProcessor:
         body_parts = base_filter_params.get("body_parts", None)
         if not body_parts:
             body_parts = list(data.columns.get_level_values("body_part").unique())
-        data = data[body_parts]
 
-        rot_data = data.filter(like="rot")
+        rot_data = data[body_parts].filter(like="rot")
         # convert euler angles to rad
         rot_data_unwrap = np.deg2rad(rot_data)
         # unwrap data
         rot_data_unwrap = np.unwrap(rot_data_unwrap, axis=0)
-        rot_data_unwrap = np.rad2deg(rot_data_unwrap)
 
         rot_data = pd.DataFrame(rot_data_unwrap, index=rot_data.index, columns=rot_data.columns)
+        rot_data = euler_to_quat_hierarchical(rot_data, body_parts)
 
-        rot_data = self._euler_to_quat(rot_data, body_parts)
         drift_data = self._approximate_rotation_drift(rot_data, base_filter_params.get("Wn", 0.01))
 
         for filter_param_step in additional_filter_params_list:
             drift_data = self._approximate_rotation_drift_update(rot_data, drift_data, filter_param_step)
 
-        # rot_data = self._rotate_drift(rot_data, drift_data, body_parts)
-        rot_data = self._rotate_drift_loop(rot_data, drift_data, body_parts)
+        rot_data = rotate_quat_hierarchical(rot_data, drift_data, body_parts)
+        rot_data = quat_to_euler_hierarchical(rot_data, body_parts, degrees=True)
 
-        return rot_data, drift_data
+        data_filt.loc[:, rot_data.columns] = rot_data.loc[:, :]
+
+        return data_filt, drift_data
 
     @classmethod
     def _extract_sampling_rate(cls, data_dict: Dict[str, Any]) -> float:
@@ -127,24 +132,3 @@ class PerceptionNeuronProcessor:
 
         drift_data.loc[:, body_parts] = drift_data_update.loc[:, body_parts]
         return drift_data
-
-    def _euler_to_quat(self, data: pd.DataFrame, body_parts: Sequence[BODY_PART]) -> pd.DataFrame:
-        data_quat = euler_to_quat_hierarchical(data, body_parts)
-        # rename index level from "column" to "body_part"
-        data_quat.columns = data_quat.columns.rename(["body_part", "axis"])
-        # add rot level back to dataframe
-        data_quat = pd.concat({"rot": data_quat}, names=["channel"], axis=1)
-        data_quat = data_quat.reorder_levels(["body_part", "channel", "axis"], axis=1)
-        data_quat.index = data.index
-
-        return data_quat
-
-    def _rotate_drift(
-        self, data: pd.DataFrame, drift_data: pd.DataFrame, body_parts: Sequence[BODY_PART]
-    ) -> pd.DataFrame:
-        return rotate_quat(data, drift_data, body_parts)
-
-    def _rotate_drift_loop(
-        self, data: pd.DataFrame, drift_data: pd.DataFrame, body_parts: Sequence[BODY_PART]
-    ) -> pd.DataFrame:
-        return rotate_quat_loop(data, drift_data, body_parts)
