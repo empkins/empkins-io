@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Module for importing Perception Neuron Motion Capture data saved as .bvh file."""
+"""Module for importing Motion Capture data saved as .bvh file."""
 import re
 from pathlib import Path
 from typing import Sequence, Tuple
@@ -66,7 +66,7 @@ class BvhData:
         self.body_parts: Sequence[BODY_PART] = get_all_body_parts()
         # set the channels of the bvh files and the multi-index of the dataframe
         self.data: pd.DataFrame = self._load_bvh_data(file_path)
-        self.axis: Sequence[str] = list(self.data.columns.get_level_values("axis").unique())
+        self.axes: Sequence[str] = list(self.data.columns.get_level_values("axis").unique())
 
     def _load_bvh_data(self, file_path: path_t):
         """Load and convert bvh data.
