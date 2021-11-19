@@ -147,9 +147,18 @@ class BvhData:
         file_path = Path(file_path)
         _assert_file_extension(file_path, ".bvh")
 
+        data_out = self.data.groupby(["body_part", "channel"], sort=False, group_keys=False, axis=1).apply(
+            lambda df: self._reindex_axis(df)
+        )
+
         with open(file_path, "w") as fp:
             fp.write(self._hierarchy.to_csv(index=False, line_terminator="\n"))
             # set the empty line after MOTION
             fp.write("\n")
             fp.write(self._frame_info.to_csv(index=False, header=False, line_terminator="\n"))
-            fp.write(self.data.to_csv(sep=" ", header=False, index=False, line_terminator="\n"))
+            fp.write(data_out.round(6).to_csv(sep=" ", header=False, index=False, line_terminator="\n"))
+
+    def _reindex_axis(self, data: pd.DataFrame):
+        if "rot" in data.name:
+            return data.reindex(columns=list("yxz"), level="axis")
+        return data
