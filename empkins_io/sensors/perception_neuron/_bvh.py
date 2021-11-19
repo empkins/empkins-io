@@ -127,7 +127,8 @@ class BvhData:
 
         return channels_root, channels
 
-    def _extract_channels_regex(self, channels: str):
+    @staticmethod
+    def _extract_channels_regex(channels: str):
         channels = re.sub(r"CHANNELS (\d)", "", channels).strip()
         channels = re.findall(r"(\w)(position|rotation)", channels)
         channels = [(val[1][0:3], val[0].lower()) for val in channels]

@@ -51,5 +51,4 @@ def load_perception_neuron_folder(folder_path: path_t) -> Dict[str, Any]:
             f"More than one center of mass file found in {folder_path}. "
             f"Please make sure only one center of mass file is in the folder!"
         )
-
     return return_dict
