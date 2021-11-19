@@ -19,7 +19,7 @@ class PerceptionNeuronProcessor:
 
         self.sampling_rate: float = self._extract_sampling_rate(self.data_dict_raw)
 
-    def filter_displacement_drift_bvh(self, Wn: Optional[float] = 0.1):
+    def filter_displacement_drift_bvh(self, Wn: Optional[float] = 0.01):
         """Filter positional displacement drift in bvh files.
 
         Parameters
@@ -33,7 +33,7 @@ class PerceptionNeuronProcessor:
             dataframe with data from bvh file corrected for positional displacement drift
 
         """
-        data = self.data_dict_raw["bvh"].data
+        data = self.data_dict["bvh"].data
         # extract position data of the bvhFile object containing the motion data
         pos_data = data.loc[:, pd.IndexSlice["Hips", "pos", :]].copy()
 
@@ -60,7 +60,7 @@ class PerceptionNeuronProcessor:
         return data_filt
 
     def filter_rotation_drift_bvh(self, filter_params: Dict[str, Any] = None):
-        data = self.data_dict_raw["bvh"].data
+        data = self.data_dict["bvh"].data
         data_filt = data.copy()
 
         if filter_params is None:
