@@ -1,4 +1,4 @@
-from empkins_io.sensors.perception_neuron.perception_neuron import (
+from empkins_io.sensors.motion_capture.perception_neuron.perception_neuron import (
     load_bvh_file,
     load_calc_file,
     load_center_mass_file,

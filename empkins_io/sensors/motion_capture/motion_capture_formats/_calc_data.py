@@ -4,7 +4,7 @@ from typing import Optional, Sequence
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
-from empkins_io.sensors.perception_neuron.body_parts import get_all_body_parts, BODY_PART
+from empkins_io.sensors.motion_capture.body_parts import get_all_body_parts, BODY_PART
 from empkins_io.utils._types import path_t, _check_file_exists
 
 
