@@ -3,7 +3,6 @@ from typing import Optional, Sequence
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_has_column_multiindex
 from scipy.spatial.transform.rotation import Rotation
-from tqdm.auto import tqdm
 
 
 def euler_to_quat_hierarchical(
@@ -183,8 +182,7 @@ def rotate_quat_hierarchical(
         columns = data.columns
     data_out = {}
 
-    # loop over body parts
-    for col in tqdm(columns):
+    for col in columns:
         corr_quat = rotate_quat(data[col], data_rot[col])
         data_out[col] = pd.DataFrame(corr_quat, index=data.index, columns=data[col].columns)
     return pd.concat(data_out, names=[data.columns.names[0]], axis=1)

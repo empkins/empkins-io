@@ -1,4 +1,5 @@
-from typing import Dict, Any, Optional, Sequence
+from copy import deepcopy
+from typing import Dict, Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -9,14 +10,12 @@ from empkins_io.processing.utils.rotations import (
     rotate_quat_hierarchical,
     quat_to_euler_hierarchical,
 )
-from empkins_io.sensors.perception_neuron._bvh import BvhData
-from empkins_io.sensors.perception_neuron.body_parts import BODY_PART
 
 
 class PerceptionNeuronProcessor:
     def __init__(self, data_dict: Dict[str, Any]):
         self.data_dict_raw = data_dict
-        self.data_dict = dict.fromkeys(self.data_dict_raw.keys())
+        self.data_dict = deepcopy(self.data_dict_raw)
 
         self.sampling_rate: float = self._extract_sampling_rate(self.data_dict_raw)
 
@@ -34,8 +33,7 @@ class PerceptionNeuronProcessor:
             dataframe with data from bvh file corrected for positional displacement drift
 
         """
-        bvh_data: BvhData = self.data_dict_raw["bvh"]
-        data = bvh_data.data
+        data = self.data_dict_raw["bvh"].data
         # extract position data of the bvhFile object containing the motion data
         pos_data = data.loc[:, pd.IndexSlice["Hips", "pos", :]].copy()
 
@@ -48,7 +46,7 @@ class PerceptionNeuronProcessor:
         )
 
         # filter data using butterworth filter
-        sos = ss.butter(N=3, Wn=Wn, fs=bvh_data.sampling_rate, btype="high", output="sos")
+        sos = ss.butter(N=3, Wn=Wn, fs=self.sampling_rate, btype="high", output="sos")
         pos_data_filt = ss.sosfiltfilt(sos, x=pos_data, axis=0)
 
         pos_data_filt = pd.DataFrame(pos_data_filt, columns=pos_data.columns, index=pos_data.index)
@@ -57,15 +55,12 @@ class PerceptionNeuronProcessor:
 
         data_filt = data.copy()
         data_filt.loc[:, pd.IndexSlice["Hips", "pos", :]] = pos_data_filt.iloc[:, :]
+        self.data_dict["bvh"].data = data_filt
 
-        # self.data_dict["bvh"] = self.data_dict_raw["bvh"]
-        # self.data_dict["bvh"].data = data_filt
         return data_filt
 
     def filter_rotation_drift_bvh(self, filter_params: Dict[str, Any] = None):
-        # get only rotation data
-        bvh_data: BvhData = self.data_dict_raw["bvh"]
-        data = bvh_data.data
+        data = self.data_dict_raw["bvh"].data
         data_filt = data.copy()
 
         if filter_params is None:
@@ -95,6 +90,7 @@ class PerceptionNeuronProcessor:
         rot_data = quat_to_euler_hierarchical(rot_data, body_parts, degrees=True)
 
         data_filt.loc[:, rot_data.columns] = rot_data.loc[:, :]
+        self.data_dict["bvh"].data = data_filt
 
         return data_filt, drift_data
 
