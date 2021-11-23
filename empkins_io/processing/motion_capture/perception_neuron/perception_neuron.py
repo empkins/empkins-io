@@ -79,7 +79,9 @@ class PerceptionNeuronProcessor:
         rot_data_unwrap = np.unwrap(rot_data_unwrap, axis=0)
 
         rot_data = pd.DataFrame(rot_data_unwrap, index=rot_data.index, columns=rot_data.columns)
-        rot_data = euler_to_quat_hierarchical(rot_data, body_parts)
+        # get rotation order sequence
+        seq = "".join(rot_data.columns.get_level_values("axis").unique())
+        rot_data = euler_to_quat_hierarchical(data=rot_data, columns=body_parts, seq=seq)
 
         drift_data = self._approximate_rotation_drift(rot_data, base_filter_params.get("Wn", 0.01))
 
@@ -87,7 +89,7 @@ class PerceptionNeuronProcessor:
             drift_data = self._approximate_rotation_drift_update(rot_data, drift_data, filter_param_step)
 
         rot_data = rotate_quat_hierarchical(rot_data, drift_data, body_parts)
-        rot_data = quat_to_euler_hierarchical(rot_data, body_parts, degrees=True)
+        rot_data = quat_to_euler_hierarchical(data=rot_data, columns=body_parts, seq=seq, degrees=True)
 
         data_filt.loc[:, rot_data.columns] = rot_data.loc[:, :]
         self.data_dict["bvh"].data = data_filt
