@@ -3,9 +3,9 @@ from typing import Dict, Any
 
 from biopsykit.utils._datatype_validation_helper import _assert_is_dir
 
-from empkins_io.sensors.motion_capture.motion_capture_formats.bvh_data import BvhData
-from empkins_io.sensors.motion_capture.motion_capture_formats.calc_data import CalcData
-from empkins_io.sensors.motion_capture.motion_capture_formats.center_mass_data import CenterOfMassData
+from empkins_io.sensors.motion_capture.motion_capture_formats.bvh import BvhData
+from empkins_io.sensors.motion_capture.motion_capture_formats.calc import CalcData
+from empkins_io.sensors.motion_capture.motion_capture_formats.center_mass import CenterOfMassData
 from empkins_io.utils._types import path_t
 
 
