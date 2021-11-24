@@ -31,11 +31,11 @@ class CalcData:
         """
         # ensure pathlib
         file_path = Path(file_path)
-        _assert_file_extension(file_path, ".calc")
+        _assert_file_extension(file_path, [".calc", ".gz"])
         _check_file_exists(file_path)
 
-        self.channels: Sequence[str] = ["pos", "vel", "quat", "accel", "angVel"]
-        self.axis: Sequence[str] = ["x", "y", "z"]
+        self.channels: Sequence[str] = ["pos", "vel", "quat", "accel", "ang_vel"]
+        self.axis: Sequence[str] = list("xyz")
         self.body_parts: Sequence[BODY_PART] = list(get_all_body_parts())
         self.sampling_rate: float = 1.0 / frame_time
 
@@ -76,58 +76,5 @@ class CalcData:
         data.columns = multiindex_final
         data.index = data.index / self.sampling_rate
         data.index.name = "time"
-        data = data.reindex(["x", "y", "z"], level="axis", axis=1)
+        data = data.reindex(list("xyz"), level="axis", axis=1)
         return data
-
-    # def get_data_for_body_parts(self, body_part_names, channels: Optional[float] = "default"):
-    #     """
-    #     Returns the multiindex DataFrame for the given bodyParts or bodyPart
-    #
-    #     Parameters
-    #     ----------
-    #     body_part_names : list of strings or string
-    #        body parts to load from the calc.File object
-    #
-    #     channels : list of string or string
-    #         channels to load from the calc.File object
-    #
-    #     Returns
-    #     -------
-    #     multiindex : :class:`~pd.DataFrame`
-    #         Data for the given body parts and channels
-    #
-    #     Raises
-    #     ------
-    #     ValueError
-    #         if the parameter bodyPartNames ist not a str or list of str
-    #     ValueError
-    #         if the parameter channels ist not a str or list of str
-    #     """
-    #
-    #     # TODO:rais errors
-    #     if isinstance(body_part_names, str):
-    #         body_part_names = [body_part_names]
-    #     if not isinstance(body_part_names, list):
-    #         raise ValueError("the body parts must be given as a list")
-    #
-    #     is_parameter_valid(self.bodyParts, body_part_names)
-    #
-    #     if channels == "default":
-    #         channels = self.channels
-    #     else:
-    #         if isinstance(channels, str):
-    #             channels = [channels]
-    #         if not isinstance(channels, list):
-    #             raise ValueError("the channels must be given as a list")
-    #
-    #     is_parameter_valid(self.channels, channels)
-    #
-    #     return_body_parts = self.data.loc[:, ((body_part_names), (channels))]
-    #
-    #     # remove the mutiindex for one bodypart and or channel
-    #     if len(body_part_names) == 1:
-    #         return_body_parts = return_body_parts[body_part_names[0]]
-    #         if len(channels) == 1:
-    #             return_body_parts = return_body_parts[channels[0]]
-    #
-    #     return return_body_parts

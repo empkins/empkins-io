@@ -1,15 +1,19 @@
 # -*- coding: utf-8 -*-
 """Module for importing Motion Capture data saved as .bvh file."""
 import re
+import gzip
+
 from io import StringIO
 from pathlib import Path
-from typing import Sequence, Dict, List
+from typing import Sequence, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 from scipy.spatial.transform.rotation import Rotation
 
+from tqdm.auto import tqdm
+
+from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 from empkins_io.sensors.motion_capture.body_parts import BODY_PART
 from empkins_io.utils._types import _check_file_exists, path_t
 
@@ -44,11 +48,15 @@ class BvhData:
 
         # ensure pathlib
         file_path = Path(file_path)
-        _assert_file_extension(file_path, ".bvh")
+        _assert_file_extension(file_path, [".bvh", ".gz"])
         _check_file_exists(file_path)
 
-        with open(file_path, "r") as f:
-            _raw_data_str = f.read()
+        if file_path.suffix == ".gz":
+            with gzip.open(file_path, "rb") as f:
+                _raw_data_str = f.read().decode()
+        else:
+            with open(file_path, "r") as f:
+                _raw_data_str = f.read()
 
         hierarchy_str, motion_str = _raw_data_str.split("MOTION")
         frame_info_str = re.findall(r"(Frames: \d+\nFrame Time: \d*[.,]?\d*\n)", motion_str)[0]
@@ -67,7 +75,6 @@ class BvhData:
         self.body_parts = list(self.joints.keys())
         # set the channels of the bvh files and the multi-index of the dataframe
         self.data = self._parse_df(motion_str)
-        self.data_global = self.data.copy()
         # self.data = self.data.reindex(list("xyz"), level="axis", axis=1)
 
     def _parse_hierarchy(self, hierarchy_str: str):
@@ -205,16 +212,41 @@ class BvhData:
         frame = pd.DataFrame([frame.unstack()])
         frame = frame.reorder_levels([2, 0, 1], axis=1).sort_index(axis=1)
         frame.columns = self.data_global.columns
-        frame.index = [frame_index / self.sampling_rate]
+        frame.index = [np.around(frame_index / self.sampling_rate, 5)]
         frame.index.name = "time"
         return frame
 
-    def global_poses(self):
+    def global_poses(self) -> pd.DataFrame:
         frame_list = []
-        for frame_index in range(self.num_frames):
+        for frame_index in tqdm(
+            range(self.num_frames), mininterval=1, miniters=self.num_frames / self.sampling_rate, unit="frame"
+        ):
             frame_list.append(self.global_pose_for_frame(frame_index))
 
-        return pd.concat(frame_list)
+        self.data_global = pd.concat(frame_list)
+        return self.data_global
+
+    def to_gzip_bvh(self, file_path: path_t):
+        """Export to gzip-compressed bvh file.
+
+        Parameters
+        ----------
+        file_path: :class:`~pathlib.Path` or str
+            file name for the exported data
+
+
+        See Also
+        --------
+        BvhData.to_bvh
+            Export data as (uncompressed) bvh file
+
+        """
+        # ensure pathlib
+        file_path = Path(file_path)
+        _assert_file_extension(file_path, ".gz")
+
+        with gzip.open(file_path, "w") as fp:
+            self._write_bvh_fp(fp)
 
     def to_bvh(self, file_path: path_t):
         """Export to bvh file.
@@ -224,23 +256,46 @@ class BvhData:
         file_path: :class:`~pathlib.Path` or str
             file name for the exported data
 
+
+        See Also
+        --------
+        BvhData.to_gzip_bvh
+            Export data as gzip-compressed bvh file
+
         """
         # ensure pathlib
         file_path = Path(file_path)
         _assert_file_extension(file_path, ".bvh")
 
+        with open(file_path, "w") as fp:
+            self._write_bvh_fp(fp)
+
+    def _write_bvh_fp(self, fp):
         data_out = self.data.groupby(["body_part", "channel"], sort=False, group_keys=False, axis=1).apply(
             lambda df: self._reindex_axis(df)
         )
 
-        with open(file_path, "w") as fp:
-            fp.write(self._hierarchy_str)
-            # set the empty line after MOTION
-            fp.write("\n")
-            fp.write(self._frame_info_str)
-            # TODO check if line_terminator can be changed to " \n" so that it matches with the bvh export that
-            #  includes a dangling space at the end of the line
-            fp.write(data_out.round(6).to_csv(sep=" ", header=False, index=False, line_terminator="\n"))
+        fp.write(self._hierarchy_str)
+        # set the empty line after MOTION
+        fp.write("\n")
+        fp.write(self._frame_info_str)
+        # TODO check if line_terminator can be changed to " \n" so that it matches with the bvh export that
+        #  includes a dangling space at the end of the line
+        fp.write(data_out.round(4).to_csv(sep=" ", header=False, index=False, line_terminator=" \n"))
+
+    def global_pose_to_gzip_csv(self, file_path: path_t):
+        """Export global pose information to gzip-compressed csv file.
+
+        Parameters
+        ----------
+        file_path: :class:`~pathlib.Path` or str
+            file name for the exported data
+
+        """
+        # ensure pathlib
+        file_path = Path(file_path)
+        _assert_file_extension(file_path, ".gz")
+        self.data_global.round(4).to_csv(file_path, compression="gzip")
 
     @staticmethod
     def _reindex_axis(data: pd.DataFrame):
