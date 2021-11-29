@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Union, Sequence
 
 from biopsykit.utils._datatype_validation_helper import _assert_is_dir
 
@@ -21,13 +21,22 @@ def load_center_mass_file(file_path: path_t) -> CenterOfMassData:
     return CenterOfMassData(file_path)
 
 
+def _get_files(folder_path: path_t, extensions: Union[Sequence[str], str]):
+    if isinstance(extensions, str):
+        extensions = [extensions]
+    file_list = []
+    for ext in extensions:
+        file_list.extend(sorted(folder_path.glob(f"*{ext}")))
+    return file_list
+
+
 def load_perception_neuron_folder(folder_path: path_t) -> Dict[str, Any]:
     # ensure pathlib
     folder_path = Path(folder_path)
     _assert_is_dir(folder_path)
     return_dict = dict.fromkeys(["bvh", "calc", "center_mass"])
 
-    bvh_files = sorted(folder_path.glob("*.bvh"))
+    bvh_files = _get_files(folder_path, [".bvh", ".bvh.gz"])
     if len(bvh_files) == 1:
         return_dict["bvh"] = load_bvh_file(bvh_files[0])
     elif len(bvh_files) > 1:
@@ -35,7 +44,7 @@ def load_perception_neuron_folder(folder_path: path_t) -> Dict[str, Any]:
             f"More than one bvh file found in {folder_path}. Please make sure only one bvh file is in the folder!"
         )
 
-    calc_files = sorted(folder_path.glob("*.calc"))
+    calc_files = _get_files(folder_path, [".calc", ".calc.gz"])
     if len(calc_files) == 1:
         return_dict["calc"] = load_calc_file(calc_files[0])
     elif len(calc_files) > 1:
@@ -43,7 +52,7 @@ def load_perception_neuron_folder(folder_path: path_t) -> Dict[str, Any]:
             f"More than one calc file found in {folder_path}. Please make sure only one calc file is in the folder!"
         )
 
-    center_mass_files = sorted(folder_path.glob("*.txt"))
+    center_mass_files = _get_files(folder_path, ".txt")
     if len(center_mass_files) == 1:
         return_dict["center_mass"] = load_center_mass_file(center_mass_files[0])
     elif len(center_mass_files) > 1:
