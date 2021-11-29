@@ -41,7 +41,7 @@ def euler_to_quat_hierarchical(
     """
     _assert_has_column_multiindex(data, nlevels=2, nlevels_atleast=True)
     if columns is None:
-        columns = data.columns
+        columns = data.columns.get_level_values(level=0).unique()
 
     rot_quat_total = {}
     for col in columns:
@@ -114,7 +114,7 @@ def quat_to_euler_hierarchical(
 
     """
     if columns is None:
-        columns = data.columns
+        columns = data.columns.get_level_values(level=0).unique()
 
     rot_euler_total = {}
     for col in columns:

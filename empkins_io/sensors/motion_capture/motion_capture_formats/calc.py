@@ -34,7 +34,7 @@ class CalcData:
         _assert_file_extension(file_path, [".calc", ".gz"])
         _check_file_exists(file_path)
 
-        self.channels: Sequence[str] = ["pos", "vel", "quat", "accel", "ang_vel"]
+        self.channels: Sequence[str] = ["pos", "vel", "quat", "acc", "ang_vel"]
         self.axis: Sequence[str] = list("xyz")
         self.body_parts: Sequence[BODY_PART] = list(get_all_body_parts())
         self.sampling_rate: float = 1.0 / frame_time
@@ -76,5 +76,4 @@ class CalcData:
         data.columns = multiindex_final
         data.index = data.index / self.sampling_rate
         data.index.name = "time"
-        data = data.reindex(list("xyz"), level="axis", axis=1)
         return data
