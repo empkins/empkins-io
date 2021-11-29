@@ -53,7 +53,7 @@ class BvhData:
 
         if file_path.suffix == ".gz":
             with gzip.open(file_path, "rb") as f:
-                _raw_data_str = f.read().decode()
+                _raw_data_str = f.read().decode("utf8")
         else:
             with open(file_path, "r") as f:
                 _raw_data_str = f.read()
@@ -201,7 +201,7 @@ class BvhData:
     def global_pose_for_frame(self, frame_index: int):
         pos = np.empty((len(self.joints), 3))
         rot = np.empty((len(self.joints), 3))
-        frame_data = self.data_global.iloc[frame_index, :]
+        frame_data = self.data.iloc[frame_index, :]
         M_parent = np.eye(3, 3)
         self._recursive_apply_frame(self.root, frame_data, 0, pos, rot, M_parent, np.zeros(3))
 
@@ -211,7 +211,7 @@ class BvhData:
         frame = pd.concat({"pos": pos, "rot": rot}, names=["channel", "axis"], axis=1)
         frame = pd.DataFrame([frame.unstack()])
         frame = frame.reorder_levels([2, 0, 1], axis=1).sort_index(axis=1)
-        frame.columns = self.data_global.columns
+        frame.columns = self.data.columns
         frame.index = [np.around(frame_index / self.sampling_rate, 5)]
         frame.index.name = "time"
         return frame
@@ -246,7 +246,7 @@ class BvhData:
         _assert_file_extension(file_path, ".gz")
 
         with gzip.open(file_path, "w") as fp:
-            self._write_bvh_fp(fp)
+            self._write_bvh_fp(fp, encode=True)
 
     def to_bvh(self, file_path: path_t):
         """Export to bvh file.
@@ -270,18 +270,23 @@ class BvhData:
         with open(file_path, "w") as fp:
             self._write_bvh_fp(fp)
 
-    def _write_bvh_fp(self, fp):
+    def _write_bvh_fp(self, fp, encode: Optional[bool] = False):
         data_out = self.data.groupby(["body_part", "channel"], sort=False, group_keys=False, axis=1).apply(
             lambda df: self._reindex_axis(df)
         )
 
-        fp.write(self._hierarchy_str)
-        # set the empty line after MOTION
-        fp.write("\n")
-        fp.write(self._frame_info_str)
-        # TODO check if line_terminator can be changed to " \n" so that it matches with the bvh export that
-        #  includes a dangling space at the end of the line
-        fp.write(data_out.round(4).to_csv(sep=" ", header=False, index=False, line_terminator=" \n"))
+        if encode:
+            fp.write(self._hierarchy_str.encode("utf8"))
+            # set the empty line after MOTION
+            fp.write("MOTION\n\n".encode("utf8"))
+            fp.write(self._frame_info_str.encode("utf8"))
+            fp.write(data_out.round(4).to_csv(sep=" ", header=False, index=False, line_terminator=" \n").encode("utf8"))
+        else:
+            fp.write(self._hierarchy_str)
+            # set the empty line after MOTION
+            fp.write("MOTION\n\n")
+            fp.write(self._frame_info_str)
+            fp.write(data_out.round(4).to_csv(sep=" ", header=False, index=False, line_terminator=" \n"))
 
     def global_pose_to_gzip_csv(self, file_path: path_t):
         """Export global pose information to gzip-compressed csv file.
