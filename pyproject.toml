@@ -64,4 +64,5 @@ lint = "prospector"
 test = "pytest --cov=empkins_io --cov-report=xml"
 docs = {"script" = "_tasks:task_docs"}
 update_version = {"script" = "_tasks:task_update_version"}
+register_ipykernel = "python -m ipykernel install --user --name empkins-io --display-name empkins-io"
 default = ["format", "lint", "test"]
