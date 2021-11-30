@@ -280,13 +280,17 @@ class BvhData:
             # set the empty line after MOTION
             fp.write("MOTION\n\n".encode("utf8"))
             fp.write(self._frame_info_str.encode("utf8"))
-            fp.write(data_out.round(4).to_csv(sep=" ", header=False, index=False, line_terminator=" \n").encode("utf8"))
+            fp.write(
+                data_out.to_csv(float_format="%.4f", sep=" ", header=False, index=False, line_terminator=" \n").encode(
+                    "utf8"
+                )
+            )
         else:
             fp.write(self._hierarchy_str)
             # set the empty line after MOTION
             fp.write("MOTION\n\n")
             fp.write(self._frame_info_str)
-            fp.write(data_out.round(4).to_csv(sep=" ", header=False, index=False, line_terminator=" \n"))
+            fp.write(data_out.to_csv(float_format="%.4f", sep=" ", header=False, index=False, line_terminator=" \n"))
 
     def global_pose_to_gzip_csv(self, file_path: path_t):
         """Export global pose information to gzip-compressed csv file.
@@ -300,7 +304,7 @@ class BvhData:
         # ensure pathlib
         file_path = Path(file_path)
         _assert_file_extension(file_path, ".gz")
-        self.data_global.round(4).to_csv(file_path, compression="gzip")
+        self.data_global.to_csv(file_path, float_format="%.4f", compression="gzip")
 
     @staticmethod
     def _reindex_axis(data: pd.DataFrame):
