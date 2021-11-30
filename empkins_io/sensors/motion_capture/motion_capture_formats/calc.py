@@ -1,3 +1,5 @@
+import gzip
+
 from pathlib import Path
 from typing import Optional, Sequence
 
@@ -10,6 +12,8 @@ from empkins_io.utils._types import path_t, _check_file_exists
 
 class CalcData:
     """Class for handling data from calc files."""
+
+    _HEADER_LENGTH = 5
 
     def __init__(self, file_path: path_t, frame_time: Optional[float] = 0.017):
         """Create new ``CalcData`` instance.
@@ -57,9 +61,24 @@ class CalcData:
            dataframe from calc file
 
         """
-        raw_data = pd.read_csv(file_path, skiprows=5, sep="\t")
+        if file_path.suffix == ".gz":
+            with gzip.open(file_path, "rb") as f:
+                _raw_data_str = f.read().decode("utf8")
+        else:
+            with open(file_path, "r") as f:
+                _raw_data_str = f.read()
+
+        if "contactL\t" in _raw_data_str:
+            _raw_data_str = _raw_data_str.replace("contactL\t", "")
+        if "contactR\t" in _raw_data_str:
+            _raw_data_str = _raw_data_str.replace("contactR\t", "")
+        header_str = _raw_data_str.split("\n")[: self._HEADER_LENGTH + 1]
+        header_str = "\n".join(header_str)
+        self._header_str = header_str
+
+        data = pd.read_csv(file_path, skiprows=self._HEADER_LENGTH, sep="\t")
         # drop unnecessary columns
-        data = raw_data.drop(columns=raw_data.columns[-1])
+        data = data.dropna(how="all", axis=1)
         data = data.drop(columns=data.filter(like="contact"))
 
         multiindex = pd.MultiIndex.from_product(
@@ -77,3 +96,59 @@ class CalcData:
         data.index = data.index / self.sampling_rate
         data.index.name = "time"
         return data
+
+    def to_gzip_calc(self, file_path: path_t):
+        """Export to gzip-compressed calc file.
+
+        Parameters
+        ----------
+        file_path: :class:`~pathlib.Path` or str
+            file name for the exported data
+
+
+        See Also
+        --------
+        CalcData.to_calc
+            Export data as (uncompressed) calc file
+
+        """
+        # ensure pathlib
+        file_path = Path(file_path)
+        _assert_file_extension(file_path, ".gz")
+
+        with gzip.open(file_path, "w") as fp:
+            self._write_calc_fp(fp, encode=True)
+
+    def to_calc(self, file_path: path_t):
+        """Export to calc file.
+
+        Parameters
+        ----------
+        file_path: :class:`~pathlib.Path` or str
+            file name for the exported data
+
+
+        See Also
+        --------
+        BvhData.to_gzip_calc
+            Export data as gzip-compressed calc file
+
+        """
+        # ensure pathlib
+        file_path = Path(file_path)
+        _assert_file_extension(file_path, ".calc")
+
+        with open(file_path, "w") as fp:
+            self._write_calc_fp(fp)
+
+    def _write_calc_fp(self, fp, encode: Optional[bool] = False):
+        if encode:
+            fp.write(self._header_str.encode("utf8"))
+            fp.write(
+                self.data.to_csv(
+                    float_format="%.4f", sep="\t", header=False, index=False, line_terminator=" \n"
+                ).encode("utf8")
+            )
+        else:
+            fp.write(self._header_str)
+            fp.write(self.data.to_csv(float_format="%.4f", sep="\t", header=False, index=False, line_terminator=" \n"))
