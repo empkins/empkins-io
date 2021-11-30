@@ -164,6 +164,34 @@ class PerceptionNeuronProcessor:
         data_dict_ret["calc"].data = data_filt
         return data_dict_ret, drift_data
 
+    def center_mass_filter_position_drift(self, key: str, Wn: Optional[float] = 0.01) -> Dict[str, Any]:
+        """Filter positional displacement drift in center-of-mass data.
+
+        Parameters
+        ----------
+        Wn : float, optional
+            Wn parameter of filter passed to :func:`scipy.signals.butter`.
+
+        Returns
+        -------
+        :class:`~pandas.DataFrame`
+            dataframe with data from center-of-mass file corrected for positional displacement drift
+
+        """
+        data_dict_ret = deepcopy(self.data_dict[key])
+        data = self.data_dict[key]["center_mass"].data
+
+        # filter data using butterworth filter
+        sos = ss.butter(N=3, Wn=Wn, fs=self.sampling_rate["bvh"], btype="high", output="sos")
+        data_filt = ss.sosfiltfilt(sos, x=data, axis=0)
+
+        data_filt = pd.DataFrame(data_filt, columns=data.columns, index=data.index)
+        # add the position of time point zero
+        data_filt = data_filt.add(data.iloc[0, :])
+
+        data_dict_ret["center_mass"].data = data_filt
+        return data_dict_ret
+
     @classmethod
     def _extract_sampling_rate(cls, data_dict: Dict[str, Any]) -> Dict[str, float]:
         return {key: val.sampling_rate for key, val in data_dict.items() if val is not None}
