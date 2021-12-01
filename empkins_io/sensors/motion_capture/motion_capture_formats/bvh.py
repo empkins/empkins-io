@@ -68,13 +68,8 @@ class BvhData(_BaseMotionCaptureDataFormat):
         sampling_rate = 1.0 / frame_time
 
         body_parts = list(self.joints.keys())
-        data = self._parse_df(motion_str)
-        super().__init__(
-            data=data,
-            sampling_rate=sampling_rate,
-            channels=["center_mass"],
-            body_parts=body_parts,
-        )
+        data = self._parse_df(motion_str, sampling_rate)
+        super().__init__(data=data, sampling_rate=sampling_rate, body_parts=body_parts)
         self.num_frames = num_frames
 
     def _parse_hierarchy(self, hierarchy_str: str):
@@ -114,7 +109,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
 
         self.joints = {key: val for key, val in joint_dict.items() if "_end" not in key}
 
-    def _parse_df(self, motion_str: str):
+    def _parse_df(self, motion_str: str, sampling_rate: float):
         motion_str = motion_str.strip()
         motion_str_buf = StringIO(motion_str)
 
@@ -127,7 +122,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
         data = pd.read_csv(motion_str_buf, sep=" ", index_col=False, header=None, skip_blank_lines=False)
         data = data.dropna(how="all", axis=1)
         data.columns = multi_index
-        data.index = data.index / self.sampling_rate
+        data.index = data.index / sampling_rate
         data.index.name = "time"
         return data
 

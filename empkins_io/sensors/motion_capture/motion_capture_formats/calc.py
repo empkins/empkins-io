@@ -5,7 +5,7 @@ from typing import Optional, Sequence
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
-from empkins_io.sensors.motion_capture.body_parts import get_all_body_parts
+from empkins_io.sensors.motion_capture.body_parts import get_all_body_parts, BODY_PART
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
 from empkins_io.utils._types import path_t, _check_file_exists
 
@@ -42,17 +42,19 @@ class CalcData(_BaseMotionCaptureDataFormat):
         channels = ["pos", "vel", "quat", "acc", "ang_vel"]
         body_parts = list(get_all_body_parts())
         sampling_rate = 1.0 / frame_time
-        data = self._load_calc_data(file_path)
-        self.axis = list("xyz")
+        axis = list("xyz")
+        data = self._load_calc_data(file_path, sampling_rate, channels, body_parts, axis)
 
-        super().__init__(
-            data=data,
-            sampling_rate=sampling_rate,
-            channels=channels,
-            body_parts=body_parts,
-        )
+        super().__init__(data=data, sampling_rate=sampling_rate, channels=channels, body_parts=body_parts, axis=axis)
 
-    def _load_calc_data(self, file_path: path_t):
+    def _load_calc_data(
+        self,
+        file_path: path_t,
+        sampling_rate: float,
+        channels: Sequence[str],
+        body_parts: Sequence[BODY_PART],
+        axis: Sequence[str],
+    ):
         """Load and convert bvh data.
 
         Parameters
@@ -86,19 +88,17 @@ class CalcData(_BaseMotionCaptureDataFormat):
         data = data.dropna(how="all", axis=1)
         data = data.drop(columns=data.filter(like="contact"))
 
-        multiindex = pd.MultiIndex.from_product(
-            [self.body_parts, self.channels, self.axis], names=["body_part", "channel", "axis"]
-        )
+        multiindex = pd.MultiIndex.from_product([body_parts, channels, axis], names=["body_part", "channel", "axis"])
         multiindex_list = list(multiindex)
 
         # add the w-component for the quaternions to the multi-index
-        for i in self.body_parts:
+        for i in body_parts:
             index_x = multiindex_list.index((i, "quat", "x"))
             multiindex_list.insert(index_x, (i, "quat", "w"))
 
         multiindex_final = pd.MultiIndex.from_tuples(multiindex_list, names=["body_part", "channel", "axis"])
         data.columns = multiindex_final
-        data.index = data.index / self.sampling_rate
+        data.index = data.index / sampling_rate
         data.index.name = "time"
         return data
 

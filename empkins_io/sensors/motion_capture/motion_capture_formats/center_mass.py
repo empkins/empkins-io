@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
@@ -37,17 +37,14 @@ class CenterOfMassData(_BaseMotionCaptureDataFormat):
         _check_file_exists(file_path)
 
         sampling_rate = 1.0 / frame_time
-        self.axis = list("xyz")
+        axis = list("xyz")
 
         # read the file data and filter the data
         data = pd.read_csv(file_path, sep=" ", header=None, names=["x", "y", "z"])
         data.columns.name = "axis"
-        data.index = data.index / self.sampling_rate
+        data.index = data.index / sampling_rate
         data.index.name = "time"
 
         super().__init__(
-            data=data,
-            sampling_rate=sampling_rate,
-            channels=["center_mass"],
-            body_parts=["center_mass"],
+            data=data, sampling_rate=sampling_rate, channels=["center_mass"], body_parts=["CenterMass"], axis=axis
         )
