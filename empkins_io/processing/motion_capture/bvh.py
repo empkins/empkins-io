@@ -3,7 +3,6 @@ from typing import Dict, Optional, Any, Tuple
 
 import numpy as np
 import pandas as pd
-import scipy.signal as ss
 
 from empkins_io.processing.motion_capture._base import _BaseMotionCaptureProcessor
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
