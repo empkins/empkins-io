@@ -4,11 +4,14 @@ from typing import Optional
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
+from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
 from empkins_io.utils._types import path_t, _check_file_exists
 
 
-class CenterOfMassData:
+class CenterOfMassData(_BaseMotionCaptureDataFormat):
     """Class for handling data from center-of-mass text files."""
+
+    axis: Sequence[str]
 
     def __init__(self, file_path: path_t, frame_time: Optional[float] = 0.017):
         """Create new ``CenterOfMassData`` instance.
@@ -33,11 +36,18 @@ class CenterOfMassData:
         _assert_file_extension(file_path, ".txt")
         _check_file_exists(file_path)
 
-        self.sampling_rate: float = 1.0 / frame_time
+        sampling_rate = 1.0 / frame_time
+        self.axis = list("xyz")
 
         # read the file data and filter the data
         data = pd.read_csv(file_path, sep=" ", header=None, names=["x", "y", "z"])
         data.columns.name = "axis"
         data.index = data.index / self.sampling_rate
         data.index.name = "time"
-        self.data = data
+
+        super().__init__(
+            data=data,
+            sampling_rate=sampling_rate,
+            channels=["center_mass"],
+            body_parts=["center_mass"],
+        )

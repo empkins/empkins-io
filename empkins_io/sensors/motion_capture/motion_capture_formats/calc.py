@@ -1,19 +1,20 @@
 import gzip
-
 from pathlib import Path
 from typing import Optional, Sequence
 
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
-from empkins_io.sensors.motion_capture.body_parts import get_all_body_parts, BODY_PART
+from empkins_io.sensors.motion_capture.body_parts import get_all_body_parts
+from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
 from empkins_io.utils._types import path_t, _check_file_exists
 
 
-class CalcData:
+class CalcData(_BaseMotionCaptureDataFormat):
     """Class for handling data from calc files."""
 
     _HEADER_LENGTH = 5
+    axis: Sequence[str]
 
     def __init__(self, file_path: path_t, frame_time: Optional[float] = 0.017):
         """Create new ``CalcData`` instance.
@@ -38,14 +39,18 @@ class CalcData:
         _assert_file_extension(file_path, [".calc", ".gz"])
         _check_file_exists(file_path)
 
-        self.channels: Sequence[str] = ["pos", "vel", "quat", "acc", "ang_vel"]
-        self.axis: Sequence[str] = list("xyz")
-        self.body_parts: Sequence[BODY_PART] = list(get_all_body_parts())
-        self.sampling_rate: float = 1.0 / frame_time
+        channels = ["pos", "vel", "quat", "acc", "ang_vel"]
+        body_parts = list(get_all_body_parts())
+        sampling_rate = 1.0 / frame_time
+        data = self._load_calc_data(file_path)
+        self.axis = list("xyz")
 
-        self.data: pd.DataFrame = self._load_calc_data(file_path)
-
-        self._num_frames = len(self.data)
+        super().__init__(
+            data=data,
+            sampling_rate=sampling_rate,
+            channels=channels,
+            body_parts=body_parts,
+        )
 
     def _load_calc_data(self, file_path: path_t):
         """Load and convert bvh data.

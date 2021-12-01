@@ -1,3 +1,5 @@
-from empkins_io.processing.motion_capture.perception_neuron import PerceptionNeuronProcessor
+from empkins_io.processing.motion_capture.bvh import BvhProcessor
+from empkins_io.processing.motion_capture.calc import CalcProcessor
+from empkins_io.processing.motion_capture.center_mass import CenterOfMassProcessor
 
-__all__ = ["PerceptionNeuronProcessor"]
+__all__ = ["BvhProcessor", "CalcProcessor", "CenterOfMassProcessor"]

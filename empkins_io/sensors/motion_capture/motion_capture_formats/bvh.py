@@ -1,32 +1,28 @@
 # -*- coding: utf-8 -*-
 """Module for importing Motion Capture data saved as .bvh file."""
-import re
 import gzip
-
+import re
 from io import StringIO
 from pathlib import Path
-from typing import Sequence, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 from scipy.spatial.transform.rotation import Rotation
-
 from tqdm.auto import tqdm
-
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
-from empkins_io.sensors.motion_capture.body_parts import BODY_PART
+
+from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
 from empkins_io.utils._types import _check_file_exists, path_t
 
 
-class BvhData:
+class BvhData(_BaseMotionCaptureDataFormat):
     """Class for handling data from bvh files."""
 
     root: "BvhJoint" = None
     joints: Dict[str, "BvhJoint"] = {}
-    body_parts: Sequence[BODY_PART] = []
     num_frames: int = 0
     sampling_rate: float = 0.0
-    data: pd.DataFrame = None
     data_global: pd.DataFrame = None
 
     def __init__(self, file_path: path_t):
@@ -69,13 +65,17 @@ class BvhData:
         num_frames = int(re.findall(r"Frames: (\d+)", frame_info_str)[0])
         frame_time = float(re.findall(r"Frame Time: (\d*[.,]?\d*)", frame_info_str)[0])
 
-        self.sampling_rate = 1.0 / frame_time
-        self.num_frames = num_frames
+        sampling_rate = 1.0 / frame_time
 
-        self.body_parts = list(self.joints.keys())
-        # set the channels of the bvh files and the multi-index of the dataframe
-        self.data = self._parse_df(motion_str)
-        # self.data = self.data.reindex(list("xyz"), level="axis", axis=1)
+        body_parts = list(self.joints.keys())
+        data = self._parse_df(motion_str)
+        super().__init__(
+            data=data,
+            sampling_rate=sampling_rate,
+            channels=["center_mass"],
+            body_parts=body_parts,
+        )
+        self.num_frames = num_frames
 
     def _parse_hierarchy(self, hierarchy_str: str):
         lines = re.split("\\s*\\n+\\s*", hierarchy_str)
