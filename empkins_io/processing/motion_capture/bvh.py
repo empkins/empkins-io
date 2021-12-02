@@ -48,7 +48,7 @@ class BvhProcessor(_BaseMotionCaptureProcessor):
 
     def filter_rotation_drift(
         self, key: str, filter_params: Optional[Dict[str, Any]] = None
-    ) -> Tuple[_BaseMotionCaptureDataFormat, pd.DataFrame]:
+    ) -> _BaseMotionCaptureDataFormat:
         bvh_data = deepcopy(self.data_dict[key])
         data = bvh_data.data
 
@@ -67,11 +67,16 @@ class BvhProcessor(_BaseMotionCaptureProcessor):
         rot_data_unwrap = np.unwrap(np.deg2rad(rot_data), axis=0)
         rot_data = pd.DataFrame(rot_data_unwrap, index=rot_data.index, columns=rot_data.columns)
 
-        rot_data, drift_data = self._filter_rotation_drift(
+        rot_data, rot_drift_data = self._filter_rotation_drift(
             rot_data, body_parts, base_filter_params, additional_filter_params_list
         )
 
         data.loc[:, rot_data.columns] = rot_data.loc[:, :]
-
         bvh_data.data = data
-        return bvh_data, drift_data
+        bvh_data.rot_drift_data = rot_drift_data
+        return bvh_data
+
+    def global_poses(self, key: str) -> BvhData:
+        bvh_data = self.data_dict[key]
+        assert isinstance(bvh_data, BvhData)
+        return bvh_data.global_poses()

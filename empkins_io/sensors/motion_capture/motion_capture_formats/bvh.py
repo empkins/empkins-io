@@ -13,7 +13,7 @@ from tqdm.auto import tqdm
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
-from empkins_io.utils._types import _check_file_exists, path_t
+from empkins_io.utils._types import _check_file_exists, path_t, T
 
 
 class BvhData(_BaseMotionCaptureDataFormat):
@@ -211,7 +211,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
         frame.index.name = "time"
         return frame
 
-    def global_poses(self) -> pd.DataFrame:
+    def global_poses(self) -> T:
         frame_list = []
         for frame_index in tqdm(
             range(self.num_frames), mininterval=1, miniters=self.num_frames / self.sampling_rate, unit="frame"
@@ -219,7 +219,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
             frame_list.append(self.global_pose_for_frame(frame_index))
 
         self.data_global = pd.concat(frame_list)
-        return self.data_global
+        return self
 
     def to_gzip_bvh(self, file_path: path_t):
         """Export to gzip-compressed bvh file.

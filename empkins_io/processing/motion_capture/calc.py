@@ -51,7 +51,7 @@ class CalcProcessor(_BaseMotionCaptureProcessor):
 
     def filter_rotation_drift(
         self, key: str, filter_params: Optional[Dict[str, Any]] = None
-    ) -> Tuple[_BaseMotionCaptureDataFormat, pd.DataFrame]:
+    ) -> _BaseMotionCaptureDataFormat:
         calc_data = deepcopy(self.data_dict[key])
         data = calc_data.data
 
@@ -70,11 +70,12 @@ class CalcProcessor(_BaseMotionCaptureProcessor):
             np.unwrap(rot_data_euler, axis=0), columns=rot_data_euler.columns, index=rot_data_euler.index
         )
 
-        rot_data, drift_data = self._filter_rotation_drift(
+        rot_data, rot_drift_data = self._filter_rotation_drift(
             rot_data, body_parts, base_filter_params, additional_filter_params_list, to_euler=False
         )
 
         data.loc[:, rot_data.columns] = rot_data.loc[:, :]
         calc_data.data = data
+        calc_data.rot_drift_data = rot_drift_data
 
-        return calc_data, drift_data
+        return calc_data

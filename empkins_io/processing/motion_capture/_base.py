@@ -26,6 +26,10 @@ class _BaseMotionCaptureProcessor(ABC):
     def add_data(self, key: str, data: _BaseMotionCaptureDataFormat):
         self.data_dict[key] = deepcopy(data)
 
+    def cut_data(self, index_start: int, index_end: int):
+        for key in self.data_dict:
+            self.data_dict[key].cut_data(index_start, index_end)
+
     @abc.abstractmethod
     def filter_position_drift(self, key: str, Wn: Optional[float] = 0.01) -> _BaseMotionCaptureDataFormat:
         pass
@@ -33,7 +37,7 @@ class _BaseMotionCaptureProcessor(ABC):
     @abc.abstractmethod
     def filter_rotation_drift(
         self, key: str, filter_params: Optional[Dict[str, Any]] = None
-    ) -> Tuple[_BaseMotionCaptureDataFormat, pd.DataFrame]:
+    ) -> _BaseMotionCaptureDataFormat:
         pass
 
     def _filter_position_drift(self, pos_data: pd.DataFrame, Wn: float):
