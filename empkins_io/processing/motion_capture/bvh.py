@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Dict, Optional, Any, Tuple
+from typing import Dict, Optional, Any, Sequence
 
 import numpy as np
 import pandas as pd
@@ -13,7 +13,9 @@ class BvhProcessor(_BaseMotionCaptureProcessor):
     def __init__(self, data: BvhData):
         super().__init__(data)
 
-    def filter_position_drift(self, key: str, Wn: Optional[float] = 0.01) -> _BaseMotionCaptureDataFormat:
+    def filter_position_drift(
+        self, key: str, filter_params: Optional[Dict[str, Any]] = None
+    ) -> _BaseMotionCaptureDataFormat:
         """Filter positional displacement drift in bvh data.
 
         Parameters
@@ -27,6 +29,8 @@ class BvhProcessor(_BaseMotionCaptureProcessor):
             ``BvhData`` instance with data corrected for positional displacement drift
 
         """
+        if filter_params is None:
+            filter_params = {}
         bvh_data = deepcopy(self.data_dict[key])
         data = bvh_data.data
         # extract position data of the bvh file object containing the motion data of the hip
@@ -40,36 +44,27 @@ class BvhProcessor(_BaseMotionCaptureProcessor):
             pos_data.loc[:, ("Hips", "pos", "z")] - pos_data[("Hips", "pos", "z")].iloc[0]
         )
 
-        pos_data_filt = self._filter_position_drift(pos_data, Wn)
+        pos_data_filt = self._filter_position_drift(pos_data, filter_params.get("Wn", 0.01))
         data.loc[:, pd.IndexSlice["Hips", "pos", :]] = pos_data_filt.iloc[:, :]
 
         bvh_data.data = data
         return bvh_data
 
     def filter_rotation_drift(
-        self, key: str, filter_params: Optional[Dict[str, Any]] = None
+        self, key: str, filter_params: Optional[Sequence[Dict[str, Any]]] = None
     ) -> _BaseMotionCaptureDataFormat:
         bvh_data = deepcopy(self.data_dict[key])
         data = bvh_data.data
 
         if filter_params is None:
-            filter_params = {}
-        base_filter_params = filter_params.get("base", {})
-        additional_filter_params_list = filter_params.get("additional", [])
-
-        body_parts = base_filter_params.get("body_parts", None)
-        if not body_parts:
-            body_parts = list(data.columns.get_level_values("body_part").unique())
-
-        rot_data = data[body_parts].filter(like="rot")
+            filter_params = []
+        rot_data = data.filter(like="rot")
 
         # convert euler angles to rad and unwrap
         rot_data_unwrap = np.unwrap(np.deg2rad(rot_data), axis=0)
         rot_data = pd.DataFrame(rot_data_unwrap, index=rot_data.index, columns=rot_data.columns)
 
-        rot_data, rot_drift_data = self._filter_rotation_drift(
-            rot_data, body_parts, base_filter_params, additional_filter_params_list
-        )
+        rot_data, rot_drift_data = self._filter_rotation_drift(rot_data, filter_params)
 
         data.loc[:, rot_data.columns] = rot_data.loc[:, :]
         bvh_data.data = data

@@ -1,9 +1,8 @@
 from copy import deepcopy
-from typing import Dict, Optional, Any, Tuple
+from typing import Dict, Optional, Any, Sequence
 
 import numpy as np
 import pandas as pd
-import scipy.signal as ss
 
 from empkins_io.processing.motion_capture._base import _BaseMotionCaptureProcessor
 from empkins_io.processing.utils.rotations import quat_to_euler_hierarchical
@@ -15,7 +14,9 @@ class CalcProcessor(_BaseMotionCaptureProcessor):
     def __init__(self, data: CalcData):
         super().__init__(data)
 
-    def filter_position_drift(self, key: str, Wn: Optional[float] = 0.01) -> _BaseMotionCaptureDataFormat:
+    def filter_position_drift(
+        self, key: str, filter_params: Optional[Dict[str, Any]] = None
+    ) -> _BaseMotionCaptureDataFormat:
         """Filter positional displacement drift in calc data.
 
         Parameters
@@ -42,7 +43,7 @@ class CalcProcessor(_BaseMotionCaptureProcessor):
         pos_data.loc[:, x_slice] -= pos_data.loc[:, x_slice].iloc[0]
         pos_data.loc[:, y_slice] -= pos_data.loc[:, y_slice].iloc[0]
 
-        pos_data_filt = self._filter_position_drift(pos_data, Wn)
+        pos_data_filt = self._filter_position_drift(pos_data, filter_params.get("Wn", 0.01))
 
         data.loc[:, pd.IndexSlice[:, "pos", :]] = pos_data_filt.iloc[:, :]
 
@@ -50,29 +51,21 @@ class CalcProcessor(_BaseMotionCaptureProcessor):
         return calc_data
 
     def filter_rotation_drift(
-        self, key: str, filter_params: Optional[Dict[str, Any]] = None
+        self, key: str, filter_params: Optional[Sequence[Dict[str, Any]]] = None
     ) -> _BaseMotionCaptureDataFormat:
         calc_data = deepcopy(self.data_dict[key])
         data = calc_data.data
 
         if filter_params is None:
-            filter_params = {}
-        base_filter_params = filter_params.get("base", {})
-        additional_filter_params_list = filter_params.get("additional", [])
-
-        body_parts = base_filter_params.get("body_parts", None)
-        if not body_parts:
-            body_parts = list(data.columns.get_level_values("body_part").unique())
-
-        rot_data = data[body_parts].filter(like="quat")
+            filter_params = []
+        rot_data = data.filter(like="quat")
         rot_data_euler = quat_to_euler_hierarchical(rot_data.reindex(list("xyzw"), level="axis", axis=1), seq="yxz")
+
         rot_data = pd.DataFrame(
             np.unwrap(rot_data_euler, axis=0), columns=rot_data_euler.columns, index=rot_data_euler.index
         )
 
-        rot_data, rot_drift_data = self._filter_rotation_drift(
-            rot_data, body_parts, base_filter_params, additional_filter_params_list, to_euler=False
-        )
+        rot_data, rot_drift_data = self._filter_rotation_drift(rot_data, filter_params, to_euler=False)
 
         data.loc[:, rot_data.columns] = rot_data.loc[:, :]
         calc_data.data = data
