@@ -48,3 +48,10 @@ class CenterOfMassData(_BaseMotionCaptureDataFormat):
         super().__init__(
             data=data, sampling_rate=sampling_rate, channels=["center_mass"], body_parts=["CenterMass"], axis=axis
         )
+
+    def to_csv(self, file_path: path_t):
+        # ensure pathlib
+        file_path = Path(file_path)
+        _assert_file_extension(file_path, ".csv")
+
+        self.data.to_csv(file_path, float_format="%.4f")
