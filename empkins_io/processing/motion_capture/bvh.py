@@ -11,6 +11,7 @@ from empkins_io.sensors.motion_capture.motion_capture_formats.bvh import BvhData
 
 class BvhProcessor(_BaseMotionCaptureProcessor):
     def __init__(self, data: BvhData):
+        assert isinstance(data, BvhData)
         super().__init__(data)
 
     def filter_position_drift(
@@ -71,7 +72,7 @@ class BvhProcessor(_BaseMotionCaptureProcessor):
         bvh_data.rot_drift_data = rot_drift_data
         return bvh_data
 
-    def global_poses(self, key: str) -> BvhData:
+    def global_poses(self, key: str, **kwargs) -> BvhData:
         bvh_data = self.data_dict[key]
         assert isinstance(bvh_data, BvhData)
-        return bvh_data.global_poses()
+        return bvh_data.global_poses(**kwargs)

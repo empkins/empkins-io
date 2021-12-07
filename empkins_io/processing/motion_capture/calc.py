@@ -12,6 +12,7 @@ from empkins_io.sensors.motion_capture.motion_capture_formats.calc import CalcDa
 
 class CalcProcessor(_BaseMotionCaptureProcessor):
     def __init__(self, data: CalcData):
+        assert isinstance(data, CalcData)
         super().__init__(data)
 
     def filter_position_drift(

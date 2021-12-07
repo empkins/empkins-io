@@ -2,6 +2,7 @@
 """Module for importing Motion Capture data saved as .bvh file."""
 import gzip
 import re
+import sys
 from io import StringIO
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -211,10 +212,14 @@ class BvhData(_BaseMotionCaptureDataFormat):
         frame.index.name = "time"
         return frame
 
-    def global_poses(self) -> T:
+    def global_poses(self, **kwargs) -> T:
         frame_list = []
         for frame_index in tqdm(
-            range(self.num_frames), mininterval=1, miniters=self.num_frames / self.sampling_rate, unit="frame"
+            range(self.num_frames),
+            mininterval=1,
+            miniters=self.num_frames / self.sampling_rate,
+            unit="frame",
+            file=kwargs.get("file", sys.stderr),
         ):
             frame_list.append(self.global_pose_for_frame(frame_index))
 
