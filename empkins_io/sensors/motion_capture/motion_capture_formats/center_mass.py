@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Optional, Sequence
 
+import numpy as np
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
@@ -39,18 +40,21 @@ class CenterOfMassData(_BaseMotionCaptureDataFormat):
         sampling_rate = 1.0 / frame_time
         axis = list("xyz")
 
+        body_parts = ["CenterMass"]
+        channels = ["center_mass"]
+
         # read the file data and filter the data
         if file_path.suffix == ".txt":
             data = pd.read_csv(file_path, sep=" ", header=None, names=["x", "y", "z"])
-            data.columns.name = "axis"
-            data.index = data.index / sampling_rate
+            data.index = np.around(data.index / sampling_rate, 5)
             data.index.name = "time"
+            data.columns = pd.MultiIndex.from_product(
+                [body_parts, channels, data.columns], names=["body_part", "channel", "axis"]
+            )
         else:
-            data = pd.read_csv(file_path, index_col="time")
+            data = pd.read_csv(file_path, header=list(range(0, 3)), index_col=0)
 
-        super().__init__(
-            data=data, sampling_rate=sampling_rate, channels=["center_mass"], body_parts=["CenterMass"], axis=axis
-        )
+        super().__init__(data=data, sampling_rate=sampling_rate, body_parts=body_parts, channels=channels, axis=axis)
 
     def to_csv(self, file_path: path_t):
         # ensure pathlib
