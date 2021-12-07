@@ -2,6 +2,7 @@ import gzip
 from pathlib import Path
 from typing import Optional, Sequence
 
+import numpy as np
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
@@ -98,7 +99,7 @@ class CalcData(_BaseMotionCaptureDataFormat):
 
         multiindex_final = pd.MultiIndex.from_tuples(multiindex_list, names=["body_part", "channel", "axis"])
         data.columns = multiindex_final
-        data.index = data.index / sampling_rate
+        data.index = np.around(data.index / sampling_rate, 5)
         data.index.name = "time"
         return data
 

@@ -123,7 +123,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
         data = pd.read_csv(motion_str_buf, sep=" ", index_col=False, header=None, skip_blank_lines=False)
         data = data.dropna(how="all", axis=1)
         data.columns = multi_index
-        data.index = data.index / sampling_rate
+        data.index = np.around(data.index / sampling_rate, 5)
         data.index.name = "time"
         return data
 
