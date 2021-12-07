@@ -8,6 +8,7 @@ from empkins_io.sensors.motion_capture.motion_capture_formats.center_mass import
 
 class CenterOfMassProcessor(_BaseMotionCaptureProcessor):
     def __init__(self, data: CenterOfMassData):
+        assert isinstance(data, CenterOfMassData)
         super().__init__(data)
 
     def filter_position_drift(
@@ -30,7 +31,7 @@ class CenterOfMassProcessor(_BaseMotionCaptureProcessor):
         data = com_data.data
 
         data_filt = self._filter_position_drift(data, filter_params.get("Wn", 0.01))
-        data_filt = data_filt.add(data.iloc[0, :])
+        # data_filt = data_filt.add(data.iloc[0, :])
 
         com_data.data = data_filt
         return com_data

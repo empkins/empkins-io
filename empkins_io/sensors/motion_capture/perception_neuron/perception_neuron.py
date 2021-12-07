@@ -43,7 +43,7 @@ def load_perception_neuron_folder(
             f"More than one calc file found in {folder_path}. Please make sure only one calc file is in the folder!"
         )
 
-    center_mass_files = _get_files(folder_path, ".txt")
+    center_mass_files = _get_files(folder_path, [".txt", ".csv"])
     if len(center_mass_files) == 1:
         return_dict["center_mass"] = CenterOfMassData(center_mass_files[0])
     elif len(center_mass_files) > 1:
@@ -53,5 +53,6 @@ def load_perception_neuron_folder(
         )
 
     for key in return_dict:
-        return_dict[key] = return_dict[key].cut_data(index_start, index_end)
+        if return_dict[key] is not None:
+            return_dict[key] = return_dict[key].cut_data(index_start, index_end)
     return return_dict

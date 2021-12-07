@@ -33,17 +33,20 @@ class CenterOfMassData(_BaseMotionCaptureDataFormat):
         """
         # ensure pathlib
         file_path = Path(file_path)
-        _assert_file_extension(file_path, ".txt")
+        _assert_file_extension(file_path, (".txt", ".csv"))
         _check_file_exists(file_path)
 
         sampling_rate = 1.0 / frame_time
         axis = list("xyz")
 
         # read the file data and filter the data
-        data = pd.read_csv(file_path, sep=" ", header=None, names=["x", "y", "z"])
-        data.columns.name = "axis"
-        data.index = data.index / sampling_rate
-        data.index.name = "time"
+        if file_path.suffix == ".txt":
+            data = pd.read_csv(file_path, sep=" ", header=None, names=["x", "y", "z"])
+            data.columns.name = "axis"
+            data.index = data.index / sampling_rate
+            data.index.name = "time"
+        else:
+            data = pd.read_csv(file_path, index_col="time")
 
         super().__init__(
             data=data, sampling_rate=sampling_rate, channels=["center_mass"], body_parts=["CenterMass"], axis=axis
