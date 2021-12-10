@@ -306,6 +306,11 @@ class BvhData(_BaseMotionCaptureDataFormat):
         _assert_file_extension(file_path, ".gz")
         self.data_global.to_csv(file_path, float_format="%.4f", compression="gzip")
 
+    def load_global_pose(self, path: path_t):
+        path = Path(path)
+        _assert_file_extension(path, [".csv", ".gz"])
+        self.data_global = pd.read_csv(path, header=[0, 1, 2], index_col=0)
+
     @staticmethod
     def _reindex_axis(data: pd.DataFrame):
         if "rot" in data.name:

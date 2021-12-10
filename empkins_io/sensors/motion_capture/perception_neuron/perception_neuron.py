@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Dict, Any, Union, Sequence, Optional
 
+import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_is_dir
 
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
@@ -29,7 +30,16 @@ def load_perception_neuron_folder(
 
     bvh_files = _get_files(folder_path, [".bvh", ".bvh.gz"])
     if len(bvh_files) == 1:
-        return_dict["bvh"] = BvhData(bvh_files[0])
+        bvh_data = BvhData(bvh_files[0])
+        global_pose_files = _get_files(folder_path, ["global_pose.csv", "global_pose.csv.gz"])
+        if len(global_pose_files) == 1:
+            bvh_data.load_global_pose(global_pose_files[0])
+        else:
+            raise ValueError(
+                f"More than one global pose file found in {folder_path}. Please make sure only one global pose "
+                f"file is in the folder!"
+            )
+        return_dict["bvh"] = bvh_data
     elif len(bvh_files) > 1:
         raise ValueError(
             f"More than one bvh file found in {folder_path}. Please make sure only one bvh file is in the folder!"
@@ -43,7 +53,7 @@ def load_perception_neuron_folder(
             f"More than one calc file found in {folder_path}. Please make sure only one calc file is in the folder!"
         )
 
-    center_mass_files = _get_files(folder_path, [".txt", ".csv"])
+    center_mass_files = _get_files(folder_path, ["centerOfMass.txt", "centerOfMass.csv"])
     if len(center_mass_files) == 1:
         return_dict["center_mass"] = CenterOfMassData(center_mass_files[0])
     elif len(center_mass_files) > 1:
