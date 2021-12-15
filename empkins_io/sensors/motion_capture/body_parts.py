@@ -63,11 +63,11 @@ BODY_PART = Literal[
     "LeftHandPinky3",
 ]
 
-BODY_PART_GROUP = Literal["total_body", "upper_extremities", "lower_extremities", "trunk"]
+BODY_PART_GROUP = Literal["TotalBody", "UpperExtremities", "LowerExtremities", "Trunk"]
 
 BODY_PART_MAPPING: Dict[BODY_PART_GROUP, Sequence[BODY_PART]] = {
-    "total_body": get_args(BODY_PART),
-    "upper_extremities": [
+    "TotalBody": get_args(BODY_PART),
+    "UpperExtremities": [
         "RightShoulder",
         "RightHand",
         "RightArm",
@@ -77,8 +77,22 @@ BODY_PART_MAPPING: Dict[BODY_PART_GROUP, Sequence[BODY_PART]] = {
         "RightForeArm",
         "LeftForeArm",
     ],
-    "lower_extremities": ["RightUpLeg", "RightLeg", "RightFoot", "LeftUpLeg", "LeftLeg", "LeftFoot"],
-    "trunk": ["Hips", "Spine", "Spine1", "Spine2", "Spine3", "Neck"],
+    "LowerExtremities": [
+        "RightUpLeg",
+        "RightLeg",
+        "RightFoot",
+        "LeftUpLeg",
+        "LeftLeg",
+        "LeftFoot",
+    ],
+    "Trunk": [
+        "Hips",
+        "Spine",
+        "Spine1",
+        "Spine2",
+        "Spine3",
+        "Neck",
+    ],
 }
 
 
