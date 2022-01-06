@@ -1,6 +1,6 @@
-import biopsykit.colors as colors
 import matplotlib.pyplot as plt
 import numpy as np
+from fau_colors import colors_all
 from biopsykit.signals.ecg.plotting import hr_plot
 from biopsykit.utils.datatype_helper import HeartRateDataFrame, RPeakDataFrame
 from matplotlib.colors import to_rgb
@@ -54,12 +54,12 @@ def _hr_plot_ecg_radar(
     ax: plt.Axes,
     **kwargs,
 ):
-    color_ecg = colors.fau_color("fau")
-    mean_color_ecg = colors.adjust_color("fau")
-    outlier_color_ecg = colors.fau_color("wiso")
-    color_radar = colors.fau_color("med")
-    mean_color_radar = colors.adjust_color("med")
-    outlier_color_radar = colors.fau_color("phil")
+    color_ecg = colors_all.fau
+    mean_color_ecg = colors_all.fau_dark
+    outlier_color_ecg = colors_all.wiso
+    color_radar = colors_all.med
+    mean_color_radar = colors_all.med_dark
+    outlier_color_radar = colors_all.phil
 
     hr_plot(heart_rate=hr_ecg, ax=ax, color=color_ecg, mean_color=mean_color_ecg, **kwargs)
     hr_plot(heart_rate=hr_radar, ax=ax, color=color_radar, mean_color=mean_color_radar, **kwargs)
@@ -89,8 +89,8 @@ def _hr_plot_ecg_radar_quality(hr_radar: HeartRateDataFrame, ax: plt.Axes):
     qual_handles = []
     qual_labels = ["Bad", "OK", "Good"]
     for (lims, color) in zip([(0.0, 1.8), (1.8, 2.5), (2.5, 100)], ["wiso", "phil", "nat"]):
-        edgecolor = to_rgb(colors.fau_color(color)) + tuple([0.3])
-        facecolor = to_rgb(colors.fau_color(color)) + tuple([0.05])
+        edgecolor = to_rgb(getattr(colors_all, color)) + tuple([0.3])
+        facecolor = to_rgb(getattr(colors_all, color)) + tuple([0.05])
         mask = hr_radar["Heartsound_Quality"].between(*lims)
         mask = mask | mask.shift(1)
         h = ax.fill_between(
