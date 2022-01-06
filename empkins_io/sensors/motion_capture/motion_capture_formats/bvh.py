@@ -26,7 +26,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
     sampling_rate: float = 0.0
     data_global: pd.DataFrame = None
 
-    def __init__(self, file_path: path_t):
+    def __init__(self, file_path: path_t, system: str = "perception_neuron"):
         """Create new ``BvhData`` instance.
 
         Parameters
@@ -68,9 +68,9 @@ class BvhData(_BaseMotionCaptureDataFormat):
 
         sampling_rate = 1.0 / frame_time
 
-        body_parts = list(self.joints.keys())
+        list(self.joints.keys())
         data = self._parse_df(motion_str, sampling_rate)
-        super().__init__(data=data, sampling_rate=sampling_rate, body_parts=body_parts)
+        super().__init__(data=data, sampling_rate=sampling_rate, system=system)
         self.num_frames = num_frames
 
     def _parse_hierarchy(self, hierarchy_str: str):
@@ -156,14 +156,14 @@ class BvhData(_BaseMotionCaptureDataFormat):
         return M_rotation, index_offset
 
     def _recursive_apply_frame(
-        self,
-        joint: "BvhJoint",
-        frame_data: pd.Series,
-        index_offset: int,
-        pos: np.ndarray,
-        rot: np.ndarray,
-        M_parent: np.ndarray,
-        pos_parent: np.ndarray,
+            self,
+            joint: "BvhJoint",
+            frame_data: pd.Series,
+            index_offset: int,
+            pos: np.ndarray,
+            rot: np.ndarray,
+            M_parent: np.ndarray,
+            pos_parent: np.ndarray,
     ):
         if joint.position_animated():
             position, index_offset = self._extract_position(joint, frame_data, index_offset)
@@ -215,11 +215,11 @@ class BvhData(_BaseMotionCaptureDataFormat):
     def global_poses(self, **kwargs) -> T:
         frame_list = []
         for frame_index in tqdm(
-            range(self.num_frames),
-            mininterval=1,
-            miniters=self.num_frames / self.sampling_rate,
-            unit="frame",
-            file=kwargs.get("file", sys.stderr),
+                range(self.num_frames),
+                mininterval=1,
+                miniters=self.num_frames / self.sampling_rate,
+                unit="frame",
+                file=kwargs.get("file", sys.stderr),
         ):
             frame_list.append(self.global_pose_for_frame(frame_index))
 
