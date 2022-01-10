@@ -16,7 +16,9 @@ def _get_files(folder_path: path_t, extensions: Union[Sequence[str], str]):
         extensions = [extensions]
     file_list = []
     for ext in extensions:
-        file_list.extend(sorted(folder_path.glob(f"*{ext}")))
+        files = sorted(folder_path.glob(f"*{ext}"))
+        files = [file for file in files if not file.name.startswith("._")]
+        file_list.extend(files)
     return file_list
 
 
