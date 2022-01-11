@@ -205,9 +205,11 @@ class BvhData(_BaseMotionCaptureDataFormat):
         rot = pd.DataFrame(rot, columns=self.root.channels["rot"])
 
         frame = pd.concat({"pos": pos, "rot": rot}, names=["channel", "axis"], axis=1)
+        frame.index.name = "body_part"
         frame = pd.DataFrame([frame.unstack()])
         frame = frame.reorder_levels([2, 0, 1], axis=1).sort_index(axis=1)
-        frame.columns = self.data.columns
+        body_part_map = {i: body_part for i, body_part in enumerate(self.body_parts)}
+        frame = frame.rename(columns=body_part_map, level="body_part")
         frame.index = [np.around(frame_index / self.sampling_rate, 5)]
         frame.index.name = "time"
         return frame
@@ -330,7 +332,7 @@ class BvhJoint:
         self.children.append(child)
 
     def __repr__(self) -> str:
-        return self.name
+        return f"Name: {self.name}, Channels: {self.channels}"
 
     def position_animated(self):
         return "pos" in self.channels

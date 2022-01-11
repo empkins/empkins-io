@@ -81,6 +81,7 @@ BODY_PART_XSENS = Literal[
     "LeftElbow",
     "LeftWrist",
     "RightHip",
+    "RightKnee",
     "RightAnkle",
     "RightToe",
     "LeftHip",
