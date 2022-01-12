@@ -1,12 +1,12 @@
 from pathlib import Path
 from typing import Dict, Any, Union, Sequence, Optional
 
-import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_is_dir
 
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
 from empkins_io.sensors.motion_capture.motion_capture_formats.bvh import BvhData
 from empkins_io.utils._types import path_t
+from empkins_io.sensors.motion_capture.motion_capture_formats.mvnx import MvnxData
 
 SYSTEM = "xsens"
 
@@ -20,9 +20,8 @@ def _get_files(folder_path: path_t, extensions: Union[Sequence[str], str]):
     return file_list
 
 
-# TODO add C3D
 def load_xsens_folder(
-        folder_path: path_t, index_start: Optional[int] = 0, index_end: Optional[int] = -1
+    folder_path: path_t, index_start: Optional[int] = 0, index_end: Optional[int] = -1
 ) -> Dict[str, Any]:
     # ensure pathlib
     folder_path = Path(folder_path)
@@ -44,6 +43,15 @@ def load_xsens_folder(
     elif len(bvh_files) > 1:
         raise ValueError(
             f"More than one bvh file found in {folder_path}. Please make sure only one bvh file is in the folder!"
+        )
+
+    mvnx_files = _get_files(folder_path, [".mvnx", ".mvnx.gz"])
+    if len(mvnx_files) == 1:
+        mvnx_data = MvnxData(mvnx_files[0])
+        return_dict["mvnx"] = mvnx_data
+    elif len(mvnx_files) > 1:
+        raise ValueError(
+            f"More than one mvnx file found in {folder_path}. Please make sure only one bvh file is in the folder!"
         )
 
     for key in return_dict:
