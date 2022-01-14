@@ -14,7 +14,7 @@ seaborn = "^0.11.1"
 statsmodels = "^0.12.2"
 ffmpeg-python = "^0.2.0"
 pyquaternion = "^0.9.9"
-biopsykit = {version = "^0", extras = ["mne", "jupyter"]}
+biopsykit = {version = "^0", extras = ["jupyter"]}
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
