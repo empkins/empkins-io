@@ -204,7 +204,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
         pos = pd.DataFrame(pos, columns=self.root.channels["pos"])
         rot = pd.DataFrame(rot, columns=self.root.channels["rot"])
 
-        frame = pd.concat({"pos": pos, "rot": rot}, names=["channel", "axis"], axis=1)
+        frame = pd.concat({"pos_global": pos, "rot_global": rot}, names=["channel", "axis"], axis=1)
         frame = pd.DataFrame([frame.unstack()])
         frame = frame.reorder_levels([2, 0, 1], axis=1).sort_index(axis=1)
         frame.columns = self.data.columns
