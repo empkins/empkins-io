@@ -23,7 +23,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
     joint_data: pd.DataFrame = None
     sensor_data: pd.DataFrame = None
     _index = None
-    _types = {"segment": "body_part", "joint": "joint", "sensor": "sensor"}
+    _types = {"segment": "body_part", "joint": "body_part", "sensor": "body_part"}
     _quat = ("q0", "q1", "q2", "q3")
     _xyz = ("x", "y", "z")
 
@@ -65,6 +65,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
 
         data = position_df.join([velocity_df, orientation_df, acceleration_df, ang_velocity_df, ang_acceleration_df])
         data.sort_index(axis=1, level=self._types[type], inplace=True)
+        data = pd.concat([data], keys=["mvnx_segment"], names=["data_format"], axis=1)
 
         return data
 
@@ -76,6 +77,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
 
         joint_data = joint_angle_df.join(joint_angle_xzy_df)
         joint_data.sort_index(axis=1, level=self._types[type], inplace=True)
+        joint_data = pd.concat([joint_data], keys=["mvnx_joint"], names=["data_format"], axis=1)
 
         return joint_data
 
@@ -88,6 +90,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
 
         sensor_data = sensor_acc_df.join([sensor_ori_df, sensor_mag_df])
         sensor_data.sort_index(axis=1, level=self._types[type], inplace=True)
+        sensor_data = pd.concat([sensor_data], keys=["mvnx_sensor"], names=["data_format"], axis=1)
 
         return sensor_data
 
