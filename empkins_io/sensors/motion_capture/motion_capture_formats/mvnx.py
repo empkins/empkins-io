@@ -10,6 +10,7 @@ from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
 from empkins_io.utils._types import path_t, _check_file_exists
 
+_RAD_TO_DEG = 57.29578
 
 class MvnxData(_BaseMotionCaptureDataFormat):
     """Class for handling data from mvnx files."""
@@ -60,8 +61,8 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         velocity_df = self._parse_df_for_value("vel", _raw_data.velocity, type)
         orientation_df = self._parse_df_for_value("ori", _raw_data.orientation, type)
         acceleration_df = self._parse_df_for_value("acc", _raw_data.acceleration, type)
-        ang_acceleration_df = self._parse_df_for_value("ang_acc", _raw_data.angularAcceleration, type)
-        ang_velocity_df = self._parse_df_for_value("ang_vel", _raw_data.angularVelocity, type)
+        ang_acceleration_df = self._parse_df_for_value("ang_acc", _raw_data.angularAcceleration, type) * _RAD_TO_DEG
+        ang_velocity_df = self._parse_df_for_value("ang_vel", _raw_data.angularVelocity, type) * _RAD_TO_DEG
 
         data = position_df.join([velocity_df, orientation_df, acceleration_df, ang_velocity_df, ang_acceleration_df])
         data.sort_index(axis=1, level=self._types[type], inplace=True)
