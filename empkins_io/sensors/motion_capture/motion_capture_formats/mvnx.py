@@ -21,12 +21,14 @@ class MvnxData(_BaseMotionCaptureDataFormat):
     joints: List[str] = None
     sensors: List[str] = None
     data: pd.DataFrame = None
+    foot_contacts: pd.DataFrame = None
     joint_data: pd.DataFrame = None
     sensor_data: pd.DataFrame = None
     _index = None
     _types = {"segment": "body_part", "joint": "body_part", "sensor": "body_part"}
     _quat = ("q0", "q1", "q2", "q3")
     _xyz = ("x", "y", "z")
+    _footContacts = ("LeftHeel", "LeftToe", "RightHeel", "RightToe")
 
     def __init__(self, file_path: path_t):
         file_path = Path(file_path)
@@ -62,13 +64,16 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         orientation_df = self._parse_df_for_value("ori", _raw_data.orientation, type)
         acceleration_df = self._parse_df_for_value("acc", _raw_data.acceleration, type)
         ang_acceleration_df = self._parse_df_for_value("ang_acc", _raw_data.angularAcceleration, type) * _RAD_TO_DEG
-        ang_velocity_df = self._parse_df_for_value("ang_vel", _raw_data.angularVelocity, type) * _RAD_TO_DEG
+        ang_velocity_df = self._parse_df_for_value("gyr", _raw_data.angularVelocity, type) * _RAD_TO_DEG
+        foot_contact_df = self._parse_foot_contacts("foot_contacts", _raw_data.footContacts, type)
 
-        data = position_df.join([velocity_df, orientation_df, acceleration_df, ang_velocity_df, ang_acceleration_df])
+
+        data = position_df.join([velocity_df, orientation_df, acceleration_df, ang_velocity_df, ang_acceleration_df, foot_contact_df])
         data.sort_index(axis=1, level=self._types[type], inplace=True)
         data = pd.concat([data], keys=["mvnx_segment"], names=["data_format"], axis=1)
 
         return data
+
 
     def _parse_joint_df(self, _raw_data: mvnx.MVNX) -> pd.DataFrame:
         type = "joint"
@@ -121,6 +126,21 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         data.index.name = "time"
 
         return data
+
+    def _parse_foot_contacts(self, name: str, data: np.ndarray, type: str) -> pd.DataFrame:
+        if type not in self._types.keys():
+            raise ValueError(f"Expected on of {self._types.keys()}, got {type} instead.")
+
+        axis = self._footContacts
+
+        multi_index = pd.MultiIndex.from_product([["FootContacts"], [name], axis], names=[self._types[type], "channel", "axis"])
+        print(multi_index)
+
+        foot_df = pd.DataFrame(data)
+        foot_df.columns = multi_index
+        foot_df.index = self._index
+
+        return foot_df
 
     def data_to_gzip_csv(self, file_path: path_t):
         """Export segment data to gzip-compressed csv file.
