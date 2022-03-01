@@ -28,7 +28,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
     _types = {"segment": "body_part", "joint": "body_part", "sensor": "body_part"}
     _quat = ("q0", "q1", "q2", "q3")
     _xyz = ("x", "y", "z")
-    _footContacts = ("LeftHeel", "LeftToe", "RightHeel", "RightToe")
+    _footContacts = ("heel", "toe")
 
     def __init__(self, file_path: path_t):
         file_path = Path(file_path)
@@ -65,7 +65,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         acceleration_df = self._parse_df_for_value("acc", _raw_data.acceleration, type)
         ang_acceleration_df = self._parse_df_for_value("ang_acc", _raw_data.angularAcceleration, type) * _RAD_TO_DEG
         ang_velocity_df = self._parse_df_for_value("gyr", _raw_data.angularVelocity, type) * _RAD_TO_DEG
-        foot_contact_df = self._parse_foot_contacts("foot_contacts", _raw_data.footContacts, type)
+        foot_contact_df = self._parse_foot_contacts(_raw_data.footContacts, type)
 
 
         data = position_df.join([velocity_df, orientation_df, acceleration_df, ang_velocity_df, ang_acceleration_df, foot_contact_df])
@@ -127,14 +127,13 @@ class MvnxData(_BaseMotionCaptureDataFormat):
 
         return data
 
-    def _parse_foot_contacts(self, name: str, data: np.ndarray, type: str) -> pd.DataFrame:
+    def _parse_foot_contacts(self, data: np.ndarray, type: str) -> pd.DataFrame:
         if type not in self._types.keys():
             raise ValueError(f"Expected on of {self._types.keys()}, got {type} instead.")
 
         axis = self._footContacts
 
-        multi_index = pd.MultiIndex.from_product([["FootContacts"], [name], axis], names=[self._types[type], "channel", "axis"])
-        print(multi_index)
+        multi_index = pd.MultiIndex.from_product([["FootContacts"], ["left", "right"], axis], names=[self._types[type], "channel", "axis"])
 
         foot_df = pd.DataFrame(data)
         foot_df.columns = multi_index
