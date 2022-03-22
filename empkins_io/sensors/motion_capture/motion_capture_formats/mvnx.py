@@ -7,10 +7,13 @@ import numpy as np
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
-from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
+from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import (
+    _BaseMotionCaptureDataFormat,
+)
 from empkins_io.utils._types import path_t, _check_file_exists
 
 _RAD_TO_DEG = 57.29578
+
 
 class MvnxData(_BaseMotionCaptureDataFormat):
     """Class for handling data from mvnx files."""
@@ -22,7 +25,6 @@ class MvnxData(_BaseMotionCaptureDataFormat):
     sensors: List[str] = None
     data: pd.DataFrame = None
     foot_contacts: pd.DataFrame = None
-    joint_data: pd.DataFrame = None
     sensor_data: pd.DataFrame = None
     _index = None
     _types = {"segment": "body_part", "joint": "body_part", "sensor": "body_part"}
@@ -30,7 +32,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
     _xyz = ("x", "y", "z")
     _footContacts = ("heel", "toe")
 
-    def __init__(self, file_path: path_t):
+    def __init__(self, file_path: path_t, load_sensor_data: bool = False):
         file_path = Path(file_path)
         _assert_file_extension(file_path, [".mvnx", ".gz"])
         _check_file_exists(file_path)
@@ -51,8 +53,10 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         self.segments = list(_raw_data.segments.values())
 
         data = self._parse_segment_df(_raw_data)
-        self.joint_data = self._parse_joint_df(_raw_data)
-        self.sensor_data = self._parse_sensor_df(_raw_data)
+        data = data.join(self._parse_joint_df(_raw_data))
+
+        if load_sensor_data:
+            self.sensor_data = self._parse_sensor_df(_raw_data)
 
         super().__init__(data=data, sampling_rate=sampling_rate, system="xsens")
 
@@ -63,46 +67,75 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         velocity_df = self._parse_df_for_value("vel", _raw_data.velocity, type)
         orientation_df = self._parse_df_for_value("ori", _raw_data.orientation, type)
         acceleration_df = self._parse_df_for_value("acc", _raw_data.acceleration, type)
-        ang_acceleration_df = self._parse_df_for_value("ang_acc", _raw_data.angularAcceleration, type) * _RAD_TO_DEG
-        ang_velocity_df = self._parse_df_for_value("gyr", _raw_data.angularVelocity, type) * _RAD_TO_DEG
+        ang_acceleration_df = (
+            self._parse_df_for_value("ang_acc", _raw_data.angularAcceleration, type)
+            * _RAD_TO_DEG
+        )
+        ang_velocity_df = (
+            self._parse_df_for_value("gyr", _raw_data.angularVelocity, type)
+            * _RAD_TO_DEG
+        )
         foot_contact_df = self._parse_foot_contacts(_raw_data.footContacts, type)
 
-
-        data = position_df.join([velocity_df, orientation_df, acceleration_df, ang_velocity_df, ang_acceleration_df, foot_contact_df])
+        data = position_df.join(
+            [
+                velocity_df,
+                orientation_df,
+                acceleration_df,
+                ang_velocity_df,
+                ang_acceleration_df,
+                foot_contact_df,
+            ]
+        )
         data.sort_index(axis=1, level=self._types[type], inplace=True)
         data = pd.concat([data], keys=["mvnx_segment"], names=["data_format"], axis=1)
 
         return data
 
-
     def _parse_joint_df(self, _raw_data: mvnx.MVNX) -> pd.DataFrame:
         type = "joint"
 
         joint_angle_df = self._parse_df_for_value("ang", _raw_data.jointAngle, type)
-        joint_angle_xzy_df = self._parse_df_for_value("ang_xzy", _raw_data.jointAngleXZY, type)
+        joint_angle_xzy_df = self._parse_df_for_value(
+            "ang_xzy", _raw_data.jointAngleXZY, type
+        )
 
         joint_data = joint_angle_df.join(joint_angle_xzy_df)
         joint_data.sort_index(axis=1, level=self._types[type], inplace=True)
-        joint_data = pd.concat([joint_data], keys=["mvnx_joint"], names=["data_format"], axis=1)
+        joint_data = pd.concat(
+            [joint_data], keys=["mvnx_joint"], names=["data_format"], axis=1
+        )
 
         return joint_data
 
     def _parse_sensor_df(self, _raw_data: mvnx.MVNX) -> pd.DataFrame:
         type = "sensor"
 
-        sensor_ori_df = self._parse_df_for_value("ori", _raw_data.sensorOrientation, type)
-        sensor_acc_df = self._parse_df_for_value("acc", _raw_data.sensorFreeAcceleration, type)
-        sensor_mag_df = self._parse_df_for_value("mag", _raw_data.sensorMagneticField, type)
+        sensor_ori_df = self._parse_df_for_value(
+            "ori", _raw_data.sensorOrientation, type
+        )
+        sensor_acc_df = self._parse_df_for_value(
+            "acc", _raw_data.sensorFreeAcceleration, type
+        )
+        sensor_mag_df = self._parse_df_for_value(
+            "mag", _raw_data.sensorMagneticField, type
+        )
 
         sensor_data = sensor_acc_df.join([sensor_ori_df, sensor_mag_df])
         sensor_data.sort_index(axis=1, level=self._types[type], inplace=True)
-        sensor_data = pd.concat([sensor_data], keys=["mvnx_sensor"], names=["data_format"], axis=1)
+        sensor_data = pd.concat(
+            [sensor_data], keys=["mvnx_sensor"], names=["data_format"], axis=1
+        )
 
         return sensor_data
 
-    def _parse_df_for_value(self, name: str, data: np.ndarray, type: str) -> pd.DataFrame:
+    def _parse_df_for_value(
+        self, name: str, data: np.ndarray, type: str
+    ) -> pd.DataFrame:
         if type not in self._types.keys():
-            raise ValueError(f"Expected on of {self._types.keys()}, got {type} instead.")
+            raise ValueError(
+                f"Expected on of {self._types.keys()}, got {type} instead."
+            )
 
         if name == "ori":
             axis = self._quat
@@ -129,11 +162,16 @@ class MvnxData(_BaseMotionCaptureDataFormat):
 
     def _parse_foot_contacts(self, data: np.ndarray, type: str) -> pd.DataFrame:
         if type not in self._types.keys():
-            raise ValueError(f"Expected on of {self._types.keys()}, got {type} instead.")
+            raise ValueError(
+                f"Expected on of {self._types.keys()}, got {type} instead."
+            )
 
         axis = self._footContacts
 
-        multi_index = pd.MultiIndex.from_product([["FootContacts"], ["left", "right"], axis], names=[self._types[type], "channel", "axis"])
+        multi_index = pd.MultiIndex.from_product(
+            [["FootContacts"], ["left", "right"], axis],
+            names=[self._types[type], "channel", "axis"],
+        )
 
         foot_df = pd.DataFrame(data)
         foot_df.columns = multi_index
