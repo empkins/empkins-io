@@ -1,4 +1,6 @@
 import gzip
+import locale
+from datetime import datetime
 from pathlib import Path
 from typing import List
 
@@ -18,13 +20,13 @@ _RAD_TO_DEG = 57.29578
 class MvnxData(_BaseMotionCaptureDataFormat):
     """Class for handling data from mvnx files."""
 
+    start: datetime = None
     num_frames: int = 0
     sampling_rate: float = 0.0
     segments: List[str] = None
     joints: List[str] = None
     sensors: List[str] = None
     data: pd.DataFrame = None
-    foot_contacts: pd.DataFrame = None
     sensor_data: pd.DataFrame = None
     _index = None
     _types = {"segment": "body_part", "joint": "body_part", "sensor": "body_part"}
@@ -48,6 +50,8 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         self.num_frames = len(_raw_data.acceleration)
         self._index = np.float_(_raw_data.time) / 1000
 
+        self._parse_start_time(_raw_data)
+
         self.joints = list(_raw_data.joints)
         self.sensors = _raw_data.sensors
         self.segments = list(_raw_data.segments.values())
@@ -59,6 +63,19 @@ class MvnxData(_BaseMotionCaptureDataFormat):
             self.sensor_data = self._parse_sensor_df(_raw_data)
 
         super().__init__(data=data, sampling_rate=sampling_rate, system="xsens")
+
+    def _parse_start_time(self, _raw_data: mvnx.MVNX):
+        locale.setlocale(locale.LC_TIME, "en_US.UTF-8")
+
+        try:  # english date format
+            self.start = datetime.strptime(
+                _raw_data.recordingDate, "%a %b %d %H:%M:%S.%f %Y"
+            )
+        except ValueError:  # if not its probably german
+            locale.setlocale(locale.LC_TIME, "de_DE.UTF-8")
+            self.start = datetime.strptime(
+                _raw_data.recordingDate, "%a %b %d %H:%M:%S.%f %Y"
+            )
 
     def _parse_segment_df(self, _raw_data: mvnx.MVNX) -> pd.DataFrame:
         type = "segment"
