@@ -14,8 +14,9 @@ seaborn = "^0.11.1"
 statsmodels = "^0.12.2"
 ffmpeg-python = "^0.2.0"
 pyquaternion = "^0.9.9"
-mvnx = "^0.2.0"
 biopsykit = {version = "^0.3.6", extras = ["mne", "jupyter"]}
+mvnx = {path = "../mvnx"}
+h5py = "^3.5.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

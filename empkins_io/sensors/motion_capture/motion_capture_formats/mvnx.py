@@ -2,7 +2,7 @@ import gzip
 import locale
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
 import mvnx
 import numpy as np
@@ -26,10 +26,16 @@ class MvnxData(_BaseMotionCaptureDataFormat):
     segments: List[str] = None
     joints: List[str] = None
     sensors: List[str] = None
+    center_mass: List[str] = ["CenterMass"]
     data: pd.DataFrame = None
     sensor_data: pd.DataFrame = None
     _index = None
-    _types = {"segment": "body_part", "joint": "body_part", "sensor": "body_part"}
+    _types = {
+        "segment": "body_part",
+        "joint": "body_part",
+        "sensor": "body_part",
+        "center_mass": "body_part",
+    }
     _quat = ("q0", "q1", "q2", "q3")
     _xyz = ("x", "y", "z")
     _footContacts = ("heel", "toe")
@@ -58,6 +64,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
 
         data = self._parse_segment_df(_raw_data)
         data = data.join(self._parse_joint_df(_raw_data))
+        data = data.join(self._parse_center_mass(_raw_data))
 
         if load_sensor_data:
             self.sensor_data = self._parse_sensor_df(_raw_data)
@@ -94,20 +101,32 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         )
         foot_contact_df = self._parse_foot_contacts(_raw_data.footContacts, type)
 
-        data = position_df.join(
+        data = pd.concat(
             [
+                position_df,
                 velocity_df,
                 orientation_df,
                 acceleration_df,
                 ang_velocity_df,
                 ang_acceleration_df,
                 foot_contact_df,
-            ]
+            ],
+            keys=["mvnx_segment"],
+            names=["data_format"],
+            axis=1,
         )
-        data.sort_index(axis=1, level=self._types[type], inplace=True)
-        data = pd.concat([data], keys=["mvnx_segment"], names=["data_format"], axis=1)
 
+        data.sort_index(axis=1, level=self._types[type], inplace=True)
         return data
+
+    def _parse_center_mass(self, _raw_data: mvnx.MVNX) -> pd.DataFrame:
+        center_mass_df = self._parse_df_for_value(
+            ["pos", "vel", "acc"], _raw_data.centerOfMass, "center_mass"
+        )
+        center_mass_df.sort_index(axis=1, level="body_part", inplace=True)
+        return pd.concat(
+            [center_mass_df], keys=["center_mass"], names=["data_format"], axis=1
+        )
 
     def _parse_joint_df(self, _raw_data: mvnx.MVNX) -> pd.DataFrame:
         type = "joint"
@@ -138,20 +157,22 @@ class MvnxData(_BaseMotionCaptureDataFormat):
             "mag", _raw_data.sensorMagneticField, type
         )
 
-        sensor_data = sensor_acc_df.join([sensor_ori_df, sensor_mag_df])
-        sensor_data.sort_index(axis=1, level=self._types[type], inplace=True)
         sensor_data = pd.concat(
-            [sensor_data], keys=["mvnx_sensor"], names=["data_format"], axis=1
+            [sensor_acc_df, sensor_ori_df, sensor_mag_df],
+            keys=["mvnx_sensor"],
+            names=["data_format"],
+            axis=1,
         )
+        sensor_data.sort_index(axis=1, level=self._types[type], inplace=True)
 
         return sensor_data
 
     def _parse_df_for_value(
-        self, name: str, data: np.ndarray, type: str
+        self, name: Union[str, List[str]], data: np.ndarray, format: str
     ) -> pd.DataFrame:
-        if type not in self._types.keys():
+        if format not in self._types.keys():
             raise ValueError(
-                f"Expected on of {self._types.keys()}, got {type} instead."
+                f"Expected on of {self._types.keys()}, got {format} instead."
             )
 
         if name == "ori":
@@ -159,18 +180,24 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         else:
             axis = self._xyz
 
-        if type == "segment":
+        if format == "segment":
             index_type = self.segments
-        elif type == "joint":
+        elif format == "joint":
             index_type = self.joints
-        else:
+        elif format == "sensor":
             index_type = self.sensors
+        else:
+            index_type = self.center_mass
+
+        if type(name) == str:
+            name = [name]
 
         multi_index = pd.MultiIndex.from_product(
-            [index_type, [name], axis], names=[self._types[type], "channel", "axis"]
+            [index_type, name, axis], names=[self._types[format], "channel", "axis"]
         )
 
         data = pd.DataFrame(data)
+
         data.columns = multi_index
         data.index = self._index
         data.index.name = "time"
