@@ -1,4 +1,5 @@
 from typing import Sequence, Dict
+
 from typing_extensions import Literal, get_args
 
 SYSTEMS = Literal["perception_neuron", "xsens"]
@@ -64,39 +65,40 @@ BODY_PART_PERCEPTION_NEURON = Literal[
     "LeftHandPinky2",
     "LeftHandPinky3",
 ]
+
 BODY_PART_XSENS = Literal[
-    "Hips",
-    "Chest",
-    "Chest2",
-    "Chest3",
-    "Chest4",
-    "Neck",
     "Head",
-    "RightCollar",
-    "RightShoulder",
-    "RightElbow",
-    "RightWrist",
-    "LeftCollar",
+    "L3",
+    "L5",
+    "LeftFoot",
+    "LeftForeArm",
+    "LeftHand",
+    "LeftLowerLeg",
     "LeftShoulder",
-    "LeftElbow",
-    "LeftWrist",
-    "RightHip",
-    "RightKnee",
-    "RightAnkle",
-    "RightToe",
-    "LeftHip",
-    "LeftKnee",
-    "LeftAnkle",
     "LeftToe",
+    "LeftUpperArm",
+    "LeftUpperLeg",
+    "Neck",
+    "Pelvis",
+    "RightFoot",
+    "RightForeArm",
+    "RightHand",
+    "RightLowerLeg",
+    "RightShoulder",
+    "RightToe",
+    "RightUpperArm",
+    "RightUpperLeg",
+    "T12",
+    "T8",
 ]
 
-BODY_PART_GROUP = Literal[
-    "total_body", "upper_extremities", "lower_extremities", "trunk"
-]
+BODY_PART_GROUP = Literal["TotalBody", "UpperExtremities", "LowerExtremities", "Trunk"]
 
-BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[BODY_PART_GROUP, Sequence[BODY_PART_PERCEPTION_NEURON]] = {
-    "total_body": get_args(BODY_PART_PERCEPTION_NEURON),
-    "upper_extremities": [
+BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[
+    BODY_PART_GROUP, Sequence[BODY_PART_PERCEPTION_NEURON]
+] = {
+    "TotalBody": get_args(BODY_PART_PERCEPTION_NEURON),
+    "UpperExtremities": [
         "RightShoulder",
         "RightHand",
         "RightArm",
@@ -106,7 +108,7 @@ BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[BODY_PART_GROUP, Sequence[BODY_PART_PE
         "RightForeArm",
         "LeftForeArm",
     ],
-    "lower_extremities": [
+    "LowerExtremities": [
         "RightUpLeg",
         "RightLeg",
         "RightFoot",
@@ -114,32 +116,36 @@ BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[BODY_PART_GROUP, Sequence[BODY_PART_PE
         "LeftLeg",
         "LeftFoot",
     ],
-    "trunk": ["Hips", "Spine", "Spine1", "Spine2", "Spine3", "Neck"],
+    "Trunk": ["Hips", "Spine", "Spine1", "Spine2", "Spine3", "Neck"],
 }
 
 BODY_PART_MAPPING_XSENS: Dict[BODY_PART_GROUP, Sequence[BODY_PART_XSENS]] = {
-    "total_body": get_args(BODY_PART_XSENS),
-    "upper_extremities": [
+    "TotalBody": get_args(BODY_PART_XSENS),
+    "UpperExtremities": [
         "RightShoulder",
-        "RightElbow",
-        "RightWrist",
+        "RightUpperArm",
+        "RightForeArm",
+        "RightHand",
         "LeftShoulder",
-        "LeftElbow",
-        "LeftWrist",
+        "LeftUpperArm",
+        "LeftForeArm",
+        "LeftHand",
     ],
-    "lower_extremities": [
-        "RightAnkle",
+    "LowerExtremities": [
+        "RightLowerLeg",
+        "RightFoot",
         "RightToe",
-        "LeftKnee",
-        "LeftAnkle",
+        "LeftLowerLeg",
+        "LeftFoot",
         "LeftToe",
     ],
-    "trunk": ["Chest",
-              "Chest2",
-              "Chest3",
-              "Chest4",
-              "Neck",
-              ],
+    "Trunk": [
+        "L3",
+        "L5",
+        "T8",
+        "T12",
+        "Neck",
+    ],
 }
 
 
@@ -165,15 +171,15 @@ def get_all_body_parts(system: str) -> Sequence[str]:
 
 
 def get_body_parts_by_group(
-        system: str,
-        body_part_group: str,
+    system: str,
+    body_part_group: str,
 ) -> Sequence[str]:
     """Return all body parts belonging to the same body part group.
 
     Parameters
     ----------
     system : {'perception_neuron', 'xsens'}
-    body_part_group : {'total_body', 'upper_extrem', 'lower_extrem', 'body'}
+    body_part_group : {'TotalBody', 'upper_extrem', 'lower_extrem', 'body'}
         body part group.
 
     Returns

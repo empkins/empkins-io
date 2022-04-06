@@ -64,6 +64,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
 
         data = self._parse_segment_df(_raw_data)
         data = data.join(self._parse_joint_df(_raw_data))
+        data = data.join(self._parse_foot_contact_df(_raw_data))
         data = data.join(self._parse_center_mass(_raw_data))
 
         if load_sensor_data:
@@ -99,18 +100,20 @@ class MvnxData(_BaseMotionCaptureDataFormat):
             self._parse_df_for_value("gyr", _raw_data.angularVelocity, type)
             * _RAD_TO_DEG
         )
-        foot_contact_df = self._parse_foot_contacts(_raw_data.footContacts, type)
+        #foot_contact_df = self._parse_foot_contacts(_raw_data.footContacts, type)
 
-        data = pd.concat(
+        data = position_df.join(
             [
-                position_df,
                 velocity_df,
                 orientation_df,
                 acceleration_df,
                 ang_velocity_df,
                 ang_acceleration_df,
-                foot_contact_df,
-            ],
+            ]
+        )
+
+        data = pd.concat(
+            [data],
             keys=["mvnx_segment"],
             names=["data_format"],
             axis=1,
@@ -126,6 +129,15 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         center_mass_df.sort_index(axis=1, level="body_part", inplace=True)
         return pd.concat(
             [center_mass_df], keys=["center_mass"], names=["data_format"], axis=1
+        )
+
+    def _parse_foot_contact_df(self, _raw_data: mvnx.MVNX) -> pd.DataFrame:
+        foot_contact_df = self._parse_foot_contacts(
+            _raw_data.footContacts, type="segment"
+        )
+        foot_contact_df.sort_index(axis=1, level="body_part", inplace=True)
+        return pd.concat(
+            [foot_contact_df], keys=["foot_contact"], names=["data_format"], axis=1
         )
 
     def _parse_joint_df(self, _raw_data: mvnx.MVNX) -> pd.DataFrame:
