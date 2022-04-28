@@ -54,7 +54,7 @@ class CenterOfMassData(_BaseMotionCaptureDataFormat):
         else:
             data = pd.read_csv(file_path, header=list(range(0, 3)), index_col=0)
 
-        super().__init__(data=data, sampling_rate=sampling_rate, body_parts=body_parts, channels=channels, axis=axis)
+        super().__init__(data=data, sampling_rate=sampling_rate, channels=channels, axis=axis)
 
     def to_csv(self, file_path: path_t):
         # ensure pathlib

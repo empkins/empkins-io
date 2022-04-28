@@ -26,7 +26,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
     sampling_rate: float = 0.0
     data_global: pd.DataFrame = None
 
-    def __init__(self, file_path: path_t):
+    def __init__(self, file_path: path_t, system: str = "perception_neuron"):
         """Create new ``BvhData`` instance.
 
         Parameters
@@ -68,9 +68,9 @@ class BvhData(_BaseMotionCaptureDataFormat):
 
         sampling_rate = 1.0 / frame_time
 
-        body_parts = list(self.joints.keys())
+        list(self.joints.keys())
         data = self._parse_df(motion_str, sampling_rate)
-        super().__init__(data=data, sampling_rate=sampling_rate, body_parts=body_parts)
+        super().__init__(data=data, sampling_rate=sampling_rate, system=system)
         self.num_frames = num_frames
 
     def _parse_hierarchy(self, hierarchy_str: str):
@@ -205,9 +205,11 @@ class BvhData(_BaseMotionCaptureDataFormat):
         rot = pd.DataFrame(rot, columns=self.root.channels["rot"])
 
         frame = pd.concat({"pos_global": pos, "rot_global": rot}, names=["channel", "axis"], axis=1)
+        frame.index.name = "body_part"
         frame = pd.DataFrame([frame.unstack()])
         frame = frame.reorder_levels([2, 0, 1], axis=1).sort_index(axis=1)
-        frame.columns = self.data.columns
+        body_part_map = {i: body_part for i, body_part in enumerate(self.body_parts)}
+        frame = frame.rename(columns=body_part_map, level="body_part")
         frame.index = [np.around(frame_index / self.sampling_rate, 5)]
         frame.index.name = "time"
         return frame
@@ -330,7 +332,7 @@ class BvhJoint:
         self.children.append(child)
 
     def __repr__(self) -> str:
-        return self.name
+        return f"Name: {self.name}, Channels: {self.channels}"
 
     def position_animated(self):
         return "pos" in self.channels

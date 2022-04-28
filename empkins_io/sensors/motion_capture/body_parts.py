@@ -1,7 +1,10 @@
 from typing import Sequence, Dict
+
 from typing_extensions import Literal, get_args
 
-BODY_PART = Literal[
+SYSTEMS = Literal["perception_neuron", "xsens"]
+
+BODY_PART_PERCEPTION_NEURON = Literal[
     "Hips",
     "RightUpLeg",
     "RightLeg",
@@ -63,41 +66,45 @@ BODY_PART = Literal[
     "LeftHandPinky3",
 ]
 
+BODY_PART_XSENS = Literal[
+    "Head",
+    "L3",
+    "L5",
+    "LeftFoot",
+    "LeftForeArm",
+    "LeftHand",
+    "LeftLowerLeg",
+    "LeftShoulder",
+    "LeftToe",
+    "LeftUpperArm",
+    "LeftUpperLeg",
+    "Neck",
+    "Pelvis",
+    "RightFoot",
+    "RightForeArm",
+    "RightHand",
+    "RightLowerLeg",
+    "RightShoulder",
+    "RightToe",
+    "RightUpperArm",
+    "RightUpperLeg",
+    "T12",
+    "T8",
+]
+
 BODY_PART_GROUP = Literal["TotalBody", "UpperExtremities", "LowerExtremities", "Trunk"]
 
-BODY_PART_MAPPING: Dict[BODY_PART_GROUP, Sequence[BODY_PART]] = {
-    "TotalBody": [
-        "Hips",
-        "RightUpLeg",
-        "RightLeg",
-        "RightFoot",
-        "LeftUpLeg",
-        "LeftLeg",
-        "LeftFoot",
-        "Spine",
-        "Spine1",
-        "Spine2",
-        "Spine3",
-        "Neck",
-        "Head",
-        "RightShoulder",
-        "RightArm",
-        "RightForeArm",
-        "RightHand",
-        "LeftShoulder",
-        "LeftArm",
-        "LeftForeArm",
-        "LeftHand",
-    ],
+BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[BODY_PART_GROUP, Sequence[BODY_PART_PERCEPTION_NEURON]] = {
+    "TotalBody": get_args(BODY_PART_PERCEPTION_NEURON),
     "UpperExtremities": [
         "RightShoulder",
         "RightHand",
-        "RightForeArm",
         "RightArm",
         "LeftShoulder",
-        "LeftForeArm",
         "LeftArm",
         "LeftHand",
+        "RightForeArm",
+        "LeftForeArm",
     ],
     "LowerExtremities": [
         "RightUpLeg",
@@ -107,35 +114,68 @@ BODY_PART_MAPPING: Dict[BODY_PART_GROUP, Sequence[BODY_PART]] = {
         "LeftLeg",
         "LeftFoot",
     ],
+    "Trunk": ["Hips", "Spine", "Spine1", "Spine2", "Spine3", "Neck"],
+}
+
+BODY_PART_MAPPING_XSENS: Dict[BODY_PART_GROUP, Sequence[BODY_PART_XSENS]] = {
+    "TotalBody": get_args(BODY_PART_XSENS),
+    "UpperExtremities": [
+        "RightShoulder",
+        "RightUpperArm",
+        "RightForeArm",
+        "RightHand",
+        "LeftShoulder",
+        "LeftUpperArm",
+        "LeftForeArm",
+        "LeftHand",
+    ],
+    "LowerExtremities": [
+        "RightLowerLeg",
+        "RightFoot",
+        "RightToe",
+        "LeftLowerLeg",
+        "LeftFoot",
+        "LeftToe",
+    ],
     "Trunk": [
-        "Hips",
-        "Spine",
-        "Spine1",
-        "Spine2",
-        "Spine3",
+        "L3",
+        "L5",
+        "T8",
+        "T12",
         "Neck",
     ],
 }
 
 
-def get_all_body_parts() -> Sequence[BODY_PART]:
+def get_all_body_parts(system: str) -> Sequence[str]:
     """Return all body parts.
+
+    Parameters
+    ----------
+    system : {'perception_neuron', 'xsens'}
 
     Returns
     -------
 
     """
-    return get_args(BODY_PART)
+    if system not in get_args(SYSTEMS):
+        raise ValueError(f"Invalid 'system'! Expected one of {get_args(SYSTEMS)}, got {system}.")
+    if system == "perception_neuron":
+        return get_args(BODY_PART_PERCEPTION_NEURON)
+    else:
+        return get_args(BODY_PART_XSENS)
 
 
 def get_body_parts_by_group(
+    system: str,
     body_part_group: str,
-) -> Sequence[BODY_PART]:
+) -> Sequence[str]:
     """Return all body parts belonging to the same body part group.
 
     Parameters
     ----------
-    body_part_group : {'total_body', 'upper_extrem', 'lower_extrem', 'body'}
+    system : {'perception_neuron', 'xsens'}
+    body_part_group : {'TotalBody', 'upper_extrem', 'lower_extrem', 'body'}
         body part group.
 
     Returns
@@ -151,8 +191,13 @@ def get_body_parts_by_group(
         all available body parts
 
     """
+    if system not in get_args(SYSTEMS):
+        raise ValueError(f"Invalid 'system'! Expected one of {get_args(SYSTEMS)}, got {system}.")
     if body_part_group not in get_args(BODY_PART_GROUP):
         raise ValueError(
             f"Invalid 'body_part_group'! Expected one of {get_args(BODY_PART_GROUP)}, got {body_part_group}."
         )
-    return BODY_PART_MAPPING[body_part_group]
+    if system == "perception_neuron":
+        return BODY_PART_MAPPING_PERCEPTION_NEURON[body_part_group]
+    else:
+        return BODY_PART_MAPPING_XSENS[body_part_group]

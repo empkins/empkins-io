@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
-from empkins_io.sensors.motion_capture.body_parts import get_all_body_parts, BODY_PART
+from empkins_io.sensors.motion_capture.body_parts import get_all_body_parts
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
 from empkins_io.utils._types import path_t, _check_file_exists
 
@@ -17,7 +17,7 @@ class CalcData(_BaseMotionCaptureDataFormat):
     _HEADER_LENGTH = 5
     axis: Sequence[str]
 
-    def __init__(self, file_path: path_t, frame_time: Optional[float] = 0.017):
+    def __init__(self, file_path: path_t, system: str = "perception_neuron", frame_time: Optional[float] = 0.017):
         """Create new ``CalcData`` instance.
 
         Parameters
@@ -41,20 +41,21 @@ class CalcData(_BaseMotionCaptureDataFormat):
         _check_file_exists(file_path)
 
         channels = ["pos", "vel", "quat", "acc", "ang_vel"]
-        body_parts = list(get_all_body_parts())
+        body_parts = list(get_all_body_parts(system=system))
         sampling_rate = 1.0 / frame_time
         axis = list("xyz")
         data = self._load_calc_data(file_path, sampling_rate, channels, body_parts, axis)
 
-        super().__init__(data=data, sampling_rate=sampling_rate, channels=channels, body_parts=body_parts, axis=axis)
+        super().__init__(data=data, sampling_rate=sampling_rate, channels=channels, system=system,
+                         axis=axis)
 
     def _load_calc_data(
-        self,
-        file_path: path_t,
-        sampling_rate: float,
-        channels: Sequence[str],
-        body_parts: Sequence[BODY_PART],
-        axis: Sequence[str],
+            self,
+            file_path: path_t,
+            sampling_rate: float,
+            channels: Sequence[str],
+            body_parts: Sequence[str],
+            axis: Sequence[str],
     ):
         """Load and convert bvh data.
 

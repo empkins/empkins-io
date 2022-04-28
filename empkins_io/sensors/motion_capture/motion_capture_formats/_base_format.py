@@ -2,31 +2,32 @@ from typing import Sequence, Optional
 
 import pandas as pd
 
-from empkins_io.sensors.motion_capture.body_parts import BODY_PART
+from empkins_io.sensors.motion_capture.body_parts import get_all_body_parts
 from empkins_io.utils._types import T
 
 
 class _BaseMotionCaptureDataFormat:
-
+    system: str
     data: pd.DataFrame
     sampling_rate: float
-    body_parts: Sequence[BODY_PART]
+    body_parts: Sequence[str]
     channels: Sequence[str]
     axis: Sequence[str]
     num_frames: int
     rot_drift_data: Optional[pd.DataFrame] = None
 
     def __init__(
-        self,
-        data: pd.DataFrame,
-        sampling_rate: float,
-        body_parts: Sequence[BODY_PART],
-        channels: Optional[Sequence[str]] = None,
-        axis: Optional[Sequence[str]] = None,
+            self,
+            system: str,
+            data: pd.DataFrame,
+            sampling_rate: float,
+            channels: Optional[Sequence[str]] = None,
+            axis: Optional[Sequence[str]] = None,
     ):
+        self.system = system
         self.data = data
         self.sampling_rate = sampling_rate
-        self.body_parts = body_parts
+        self.body_parts = get_all_body_parts(system)
         self.channels = channels
         self.axis = axis
         self.num_frames = len(data)
