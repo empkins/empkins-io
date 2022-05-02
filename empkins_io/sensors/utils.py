@@ -41,7 +41,7 @@ def cut_data_to_overlap(
     start_idx = np.max([target_time[0], reference_time[0]])
     end_idx = np.min([target_time[-1], reference_time[-1]])
 
-    if start_idx > end_idx: 
+    if start_idx > end_idx:
         # no overlap
         return pd.DataFrame(columns=reference.columns.copy()), pd.DataFrame(columns=target.columns.copy())
     else:

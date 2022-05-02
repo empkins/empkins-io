@@ -31,13 +31,13 @@ class _BaseMotionCaptureProcessor(ABC):
 
     @abc.abstractmethod
     def filter_position_drift(
-            self, key: str, filter_params: Optional[Dict[str, Any]] = None
+        self, key: str, filter_params: Optional[Dict[str, Any]] = None
     ) -> _BaseMotionCaptureDataFormat:
         pass
 
     @abc.abstractmethod
     def filter_rotation_drift(
-            self, key: str, filter_params: Optional[Sequence[Dict[str, Any]]] = None
+        self, key: str, filter_params: Optional[Sequence[Dict[str, Any]]] = None
     ) -> _BaseMotionCaptureDataFormat:
         pass
 
@@ -52,10 +52,10 @@ class _BaseMotionCaptureProcessor(ABC):
         return pos_data_filt
 
     def _filter_rotation_drift(
-            self,
-            rot_data: pd.DataFrame,
-            filter_params_list: Sequence[Dict[str, Any]],
-            to_euler: Optional[bool] = True,
+        self,
+        rot_data: pd.DataFrame,
+        filter_params_list: Sequence[Dict[str, Any]],
+        to_euler: Optional[bool] = True,
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         # get rotation order sequence
         seq = "".join(rot_data.columns.get_level_values("axis").unique())
@@ -83,11 +83,11 @@ class _BaseMotionCaptureProcessor(ABC):
         return rot_data, drift_data
 
     def _approximate_rotation_drift(
-            self,
-            data: pd.DataFrame,
-            drift_data: pd.DataFrame,
-            body_parts: Sequence[str],
-            filter_params: Dict[str, Any] = None,
+        self,
+        data: pd.DataFrame,
+        drift_data: pd.DataFrame,
+        body_parts: Sequence[str],
+        filter_params: Dict[str, Any] = None,
     ) -> pd.DataFrame:
 
         data_before = data.loc[:, body_parts]

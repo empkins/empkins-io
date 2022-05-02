@@ -2,7 +2,7 @@ from typing import Sequence, Dict
 
 from typing_extensions import Literal, get_args
 
-SYSTEMS = Literal["perception_neuron", "xsens"]
+from empkins_io.sensors.motion_capture.motion_capture_systems import MOTION_CAPTURE_SYSTEM
 
 BODY_PART_PERCEPTION_NEURON = Literal[
     "Hips",
@@ -147,7 +147,7 @@ BODY_PART_MAPPING_XSENS: Dict[BODY_PART_GROUP, Sequence[BODY_PART_XSENS]] = {
 }
 
 
-def get_all_body_parts(system: str) -> Sequence[str]:
+def get_all_body_parts(system: MOTION_CAPTURE_SYSTEM) -> Sequence[str]:
     """Return all body parts.
 
     Parameters
@@ -158,8 +158,8 @@ def get_all_body_parts(system: str) -> Sequence[str]:
     -------
 
     """
-    if system not in get_args(SYSTEMS):
-        raise ValueError(f"Invalid 'system'! Expected one of {get_args(SYSTEMS)}, got {system}.")
+    if system not in get_args(MOTION_CAPTURE_SYSTEM):
+        raise ValueError(f"Invalid 'system'! Expected one of {get_args(MOTION_CAPTURE_SYSTEM)}, got {system}.")
     if system == "perception_neuron":
         return get_args(BODY_PART_PERCEPTION_NEURON)
     else:
@@ -191,8 +191,8 @@ def get_body_parts_by_group(
         all available body parts
 
     """
-    if system not in get_args(SYSTEMS):
-        raise ValueError(f"Invalid 'system'! Expected one of {get_args(SYSTEMS)}, got {system}.")
+    if system not in get_args(MOTION_CAPTURE_SYSTEM):
+        raise ValueError(f"Invalid 'system'! Expected one of {get_args(MOTION_CAPTURE_SYSTEM)}, got {system}.")
     if body_part_group not in get_args(BODY_PART_GROUP):
         raise ValueError(
             f"Invalid 'body_part_group'! Expected one of {get_args(BODY_PART_GROUP)}, got {body_part_group}."

@@ -6,6 +6,7 @@ import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
+from empkins_io.sensors.motion_capture.motion_capture_systems import MOTION_CAPTURE_SYSTEM
 from empkins_io.utils._types import path_t, _check_file_exists
 
 
@@ -14,7 +15,7 @@ class CenterOfMassData(_BaseMotionCaptureDataFormat):
 
     axis: Sequence[str]
 
-    def __init__(self, file_path: path_t, frame_time: Optional[float] = 0.017):
+    def __init__(self, file_path: path_t, system: MOTION_CAPTURE_SYSTEM, frame_time: Optional[float] = 0.017):
         """Create new ``CenterOfMassData`` instance.
 
         Parameters
@@ -54,7 +55,7 @@ class CenterOfMassData(_BaseMotionCaptureDataFormat):
         else:
             data = pd.read_csv(file_path, header=list(range(0, 3)), index_col=0)
 
-        super().__init__(data=data, sampling_rate=sampling_rate, channels=channels, axis=axis)
+        super().__init__(data=data, system=system, sampling_rate=sampling_rate, channels=channels, axis=axis)
 
     def to_csv(self, file_path: path_t):
         # ensure pathlib

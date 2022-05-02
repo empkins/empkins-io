@@ -3,11 +3,12 @@ from typing import Sequence, Optional
 import pandas as pd
 
 from empkins_io.sensors.motion_capture.body_parts import get_all_body_parts
+from empkins_io.sensors.motion_capture.motion_capture_systems import MOTION_CAPTURE_SYSTEM
 from empkins_io.utils._types import T
 
 
 class _BaseMotionCaptureDataFormat:
-    system: str
+    system: MOTION_CAPTURE_SYSTEM
     data: pd.DataFrame
     sampling_rate: float
     body_parts: Sequence[str]
@@ -17,12 +18,12 @@ class _BaseMotionCaptureDataFormat:
     rot_drift_data: Optional[pd.DataFrame] = None
 
     def __init__(
-            self,
-            system: str,
-            data: pd.DataFrame,
-            sampling_rate: float,
-            channels: Optional[Sequence[str]] = None,
-            axis: Optional[Sequence[str]] = None,
+        self,
+        system: MOTION_CAPTURE_SYSTEM,
+        data: pd.DataFrame,
+        sampling_rate: float,
+        channels: Optional[Sequence[str]] = None,
+        axis: Optional[Sequence[str]] = None,
     ):
         self.system = system
         self.data = data

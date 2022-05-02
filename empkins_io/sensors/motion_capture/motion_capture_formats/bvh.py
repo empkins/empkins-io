@@ -14,6 +14,7 @@ from tqdm.auto import tqdm
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
+from empkins_io.sensors.motion_capture.motion_capture_systems import MOTION_CAPTURE_SYSTEM
 from empkins_io.utils._types import _check_file_exists, path_t, T
 
 
@@ -26,7 +27,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
     sampling_rate: float = 0.0
     data_global: pd.DataFrame = None
 
-    def __init__(self, file_path: path_t, system: str = "perception_neuron"):
+    def __init__(self, file_path: path_t, system: Optional[MOTION_CAPTURE_SYSTEM] = "perception_neuron"):
         """Create new ``BvhData`` instance.
 
         Parameters
@@ -70,8 +71,9 @@ class BvhData(_BaseMotionCaptureDataFormat):
 
         list(self.joints.keys())
         data = self._parse_df(motion_str, sampling_rate)
-        super().__init__(data=data, sampling_rate=sampling_rate, system=system)
         self.num_frames = num_frames
+
+        super().__init__(data=data, system=system, sampling_rate=sampling_rate)
 
     def _parse_hierarchy(self, hierarchy_str: str):
         lines = re.split("\\s*\\n+\\s*", hierarchy_str)
