@@ -1,9 +1,6 @@
 # ignore playground folder used for development
 playground/
 
-# ignore poetry.lock file for library
-poetry.lock
-
 
 # Created by .ignore support plugin (hsz.mobi)
 ### JupyterNotebooks template
