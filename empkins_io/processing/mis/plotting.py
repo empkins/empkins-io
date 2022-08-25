@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from fau_colors import colors_all
 from biopsykit.signals.ecg.plotting import hr_plot
 from biopsykit.utils.datatype_helper import HeartRateDataFrame, RPeakDataFrame
+from fau_colors import colors_all
 from matplotlib.colors import to_rgb
 from matplotlib.legend_handler import HandlerTuple
 

@@ -1,15 +1,14 @@
 import datetime
 import re
 from pathlib import Path
-from typing import Optional, Union, Sequence
-from typing_extensions import Literal
+from typing import Optional, Sequence, Union
 
-import pandas as pd
-import numpy as np
 import neurokit2 as nk
+import numpy as np
+import pandas as pd
+from biopsykit.utils._datatype_validation_helper import _assert_file_extension, _assert_is_dir
 from scipy.io import loadmat
-
-from biopsykit.utils._datatype_validation_helper import _assert_is_dir, _assert_file_extension
+from typing_extensions import Literal
 
 from empkins_io.utils._types import path_t
 

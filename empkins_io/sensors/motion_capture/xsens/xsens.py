@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Any, Union, Sequence, Optional
+from typing import Any, Dict, Optional, Sequence, Union
 
 from biopsykit.utils._datatype_validation_helper import _assert_is_dir
 

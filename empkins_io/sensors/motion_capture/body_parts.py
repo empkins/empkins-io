@@ -1,4 +1,4 @@
-from typing import Sequence, Dict
+from typing import Dict, Sequence
 
 from typing_extensions import Literal, get_args
 

@@ -1,15 +1,15 @@
 import abc
 from abc import ABC
 from copy import deepcopy
-from typing import Sequence, Dict, Any, Optional, Tuple
+from typing import Any, Dict, Optional, Sequence, Tuple
 
 import pandas as pd
 import scipy.signal as ss
 
 from empkins_io.processing.utils.rotations import (
     euler_to_quat_hierarchical,
-    rotate_quat_hierarchical,
     quat_to_euler_hierarchical,
+    rotate_quat_hierarchical,
 )
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
 

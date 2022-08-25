@@ -9,13 +9,13 @@ from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 from scipy.spatial.transform.rotation import Rotation
 from tqdm.auto import tqdm
-from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
 from empkins_io.sensors.motion_capture.motion_capture_systems import MOTION_CAPTURE_SYSTEM
-from empkins_io.utils._types import _check_file_exists, path_t, T
+from empkins_io.utils._types import T, check_file_exists, path_t
 
 
 class BvhData(_BaseMotionCaptureDataFormat):
@@ -47,7 +47,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
         # ensure pathlib
         file_path = Path(file_path)
         _assert_file_extension(file_path, [".bvh", ".gz"])
-        _check_file_exists(file_path)
+        check_file_exists(file_path)
 
         if file_path.suffix == ".gz":
             with gzip.open(file_path, "rb") as f:

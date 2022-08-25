@@ -9,7 +9,7 @@ from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 from empkins_io.sensors.motion_capture.body_parts import get_all_body_parts
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
 from empkins_io.sensors.motion_capture.motion_capture_systems import MOTION_CAPTURE_SYSTEM
-from empkins_io.utils._types import path_t, _check_file_exists
+from empkins_io.utils._types import check_file_exists, path_t
 
 
 class CalcData(_BaseMotionCaptureDataFormat):
@@ -44,7 +44,7 @@ class CalcData(_BaseMotionCaptureDataFormat):
         # ensure pathlib
         file_path = Path(file_path)
         _assert_file_extension(file_path, [".calc", ".gz"])
-        _check_file_exists(file_path)
+        check_file_exists(file_path)
 
         channels = ["pos", "vel", "quat", "acc", "ang_vel"]
         body_parts = list(get_all_body_parts(system=system))

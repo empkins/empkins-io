@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Optional, Dict, Any, Sequence
+from typing import Any, Dict, Optional, Sequence
 
 from empkins_io.processing.motion_capture._base import _BaseMotionCaptureProcessor
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat

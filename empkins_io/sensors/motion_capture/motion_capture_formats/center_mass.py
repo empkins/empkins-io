@@ -7,7 +7,7 @@ from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
 from empkins_io.sensors.motion_capture.motion_capture_systems import MOTION_CAPTURE_SYSTEM
-from empkins_io.utils._types import path_t, _check_file_exists
+from empkins_io.utils._types import check_file_exists, path_t
 
 
 class CenterOfMassData(_BaseMotionCaptureDataFormat):
@@ -36,7 +36,7 @@ class CenterOfMassData(_BaseMotionCaptureDataFormat):
         # ensure pathlib
         file_path = Path(file_path)
         _assert_file_extension(file_path, (".txt", ".csv"))
-        _check_file_exists(file_path)
+        check_file_exists(file_path)
 
         sampling_rate = 1.0 / frame_time
         axis = list("xyz")
