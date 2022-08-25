@@ -2,17 +2,15 @@ import gzip
 import locale
 from datetime import datetime
 from pathlib import Path
-from typing import List, Union
+from typing import Dict, List, Tuple, Union
 
-import mvnx
 import numpy as np
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
-from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import (
-    _BaseMotionCaptureDataFormat,
-)
-from empkins_io.utils._types import path_t, _check_file_exists
+from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
+from empkins_io.sensors.motion_capture.motion_capture_formats._utils.mvnx_parser import _MvnxParser
+from empkins_io.utils._types import check_file_exists, path_t
 
 _RAD_TO_DEG = 57.29578
 
@@ -29,28 +27,29 @@ class MvnxData(_BaseMotionCaptureDataFormat):
     center_mass: List[str] = ["CenterMass"]
     data: pd.DataFrame = None
     sensor_data: pd.DataFrame = None
-    _index = None
-    _types = {
+    joint_data: pd.DataFrame = None
+    _index: float = None
+    _types: Dict[str, str] = {
         "segment": "body_part",
         "joint": "body_part",
         "sensor": "body_part",
         "center_mass": "body_part",
     }
-    _quat = ("q0", "q1", "q2", "q3")
-    _xyz = ("x", "y", "z")
-    _footContacts = ("heel", "toe")
+    _quat: Tuple[str] = ("q0", "q1", "q2", "q3")
+    _xyz: Tuple[str] = ("x", "y", "z")
+    _footContacts: Tuple[str] = ("heel", "toe")
 
     def __init__(self, file_path: path_t, load_sensor_data: bool = False):
         file_path = Path(file_path)
         _assert_file_extension(file_path, [".mvnx", ".gz"])
-        _check_file_exists(file_path)
+        check_file_exists(file_path)
 
         if file_path.suffix == ".gz":
             with gzip.open(file_path, "rb") as f:
-                _raw_data = mvnx.MVNX(f)
+                _raw_data = _MvnxParser(f)
         else:
             with open(file_path, "r") as f:
-                _raw_data = mvnx.MVNX(f)
+                _raw_data = _MvnxParser(f)
 
         sampling_rate = _raw_data.frameRate
         self.num_frames = len(_raw_data.acceleration)
@@ -72,7 +71,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
 
         super().__init__(data=data, sampling_rate=sampling_rate, system="xsens")
 
-    def _parse_start_time(self, _raw_data: mvnx.MVNX):
+    def _parse_start_time(self, _raw_data: _MvnxParser):
         locale.setlocale(locale.LC_TIME, "en_US.UTF-8")
 
         try:  # english date format
@@ -81,16 +80,18 @@ class MvnxData(_BaseMotionCaptureDataFormat):
             locale.setlocale(locale.LC_TIME, "de_DE.UTF-8")
             self.start = datetime.strptime(_raw_data.recordingDate, "%a %b %d %H:%M:%S.%f %Y")
 
-    def _parse_segment_df(self, _raw_data: mvnx.MVNX) -> pd.DataFrame:
-        type = "segment"
+    def _parse_segment_df(self, _raw_data: _MvnxParser) -> pd.DataFrame:
+        data_type = "segment"
 
-        position_df = self._parse_df_for_value("pos", _raw_data.position, type)
-        velocity_df = self._parse_df_for_value("vel", _raw_data.velocity, type)
-        orientation_df = self._parse_df_for_value("ori", _raw_data.orientation, type)
-        acceleration_df = self._parse_df_for_value("acc", _raw_data.acceleration, type)
-        ang_acceleration_df = self._parse_df_for_value("ang_acc", _raw_data.angularAcceleration, type) * _RAD_TO_DEG
-        ang_velocity_df = self._parse_df_for_value("gyr", _raw_data.angularVelocity, type) * _RAD_TO_DEG
-        # foot_contact_df = self._parse_foot_contacts(_raw_data.footContacts, type)
+        position_df = self._parse_df_for_value("pos", _raw_data.position, data_type)
+        velocity_df = self._parse_df_for_value("vel", _raw_data.velocity, data_type)
+        orientation_df = self._parse_df_for_value("ori", _raw_data.orientation, data_type)
+        acceleration_df = self._parse_df_for_value("acc", _raw_data.acceleration, data_type)
+        ang_acceleration_df = (
+            self._parse_df_for_value("ang_acc", _raw_data.angularAcceleration, data_type) * _RAD_TO_DEG
+        )
+        ang_velocity_df = self._parse_df_for_value("gyr", _raw_data.angularVelocity, data_type) * _RAD_TO_DEG
+        # foot_contact_df = self._parse_foot_contacts(_raw_data.footContacts, data_type)
 
         data = position_df.join(
             [
@@ -109,37 +110,37 @@ class MvnxData(_BaseMotionCaptureDataFormat):
             axis=1,
         )
 
-        data.sort_index(axis=1, level=self._types[type], inplace=True)
+        data.sort_index(axis=1, level=self._types[data_type], inplace=True)
         return data
 
-    def _parse_center_mass(self, _raw_data: mvnx.MVNX) -> pd.DataFrame:
+    def _parse_center_mass(self, _raw_data: _MvnxParser) -> pd.DataFrame:
         center_mass_df = self._parse_df_for_value(["pos", "vel", "acc"], _raw_data.centerOfMass, "center_mass")
         center_mass_df.sort_index(axis=1, level="body_part", inplace=True)
         return pd.concat([center_mass_df], keys=["center_mass"], names=["data_format"], axis=1)
 
-    def _parse_foot_contact_df(self, _raw_data: mvnx.MVNX) -> pd.DataFrame:
+    def _parse_foot_contact_df(self, _raw_data: _MvnxParser) -> pd.DataFrame:
         foot_contact_df = self._parse_foot_contacts(_raw_data.footContacts, type="segment")
         foot_contact_df.sort_index(axis=1, level="body_part", inplace=True)
         return pd.concat([foot_contact_df], keys=["foot_contact"], names=["data_format"], axis=1)
 
-    def _parse_joint_df(self, _raw_data: mvnx.MVNX) -> pd.DataFrame:
-        type = "joint"
+    def _parse_joint_df(self, _raw_data: _MvnxParser) -> pd.DataFrame:
+        data_type = "joint"
 
-        joint_angle_df = self._parse_df_for_value("ang", _raw_data.jointAngle, type)
-        joint_angle_xzy_df = self._parse_df_for_value("ang_xzy", _raw_data.jointAngleXZY, type)
+        joint_angle_df = self._parse_df_for_value("ang", _raw_data.jointAngle, data_type)
+        joint_angle_xzy_df = self._parse_df_for_value("ang_xzy", _raw_data.jointAngleXZY, data_type)
 
         joint_data = joint_angle_df.join(joint_angle_xzy_df)
-        joint_data.sort_index(axis=1, level=self._types[type], inplace=True)
+        joint_data.sort_index(axis=1, level=self._types[data_type], inplace=True)
         joint_data = pd.concat([joint_data], keys=["mvnx_joint"], names=["data_format"], axis=1)
 
         return joint_data
 
-    def _parse_sensor_df(self, _raw_data: mvnx.MVNX) -> pd.DataFrame:
-        type = "sensor"
+    def _parse_sensor_df(self, _raw_data: _MvnxParser) -> pd.DataFrame:
+        data_type = "sensor"
 
-        sensor_ori_df = self._parse_df_for_value("ori", _raw_data.sensorOrientation, type)
-        sensor_acc_df = self._parse_df_for_value("acc", _raw_data.sensorFreeAcceleration, type)
-        sensor_mag_df = self._parse_df_for_value("mag", _raw_data.sensorMagneticField, type)
+        sensor_ori_df = self._parse_df_for_value("ori", _raw_data.sensorOrientation, data_type)
+        sensor_acc_df = self._parse_df_for_value("acc", _raw_data.sensorFreeAcceleration, data_type)
+        sensor_mag_df = self._parse_df_for_value("mag", _raw_data.sensorMagneticField, data_type)
 
         sensor_data = pd.concat(
             [sensor_acc_df, sensor_ori_df, sensor_mag_df],
@@ -147,7 +148,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
             names=["data_format"],
             axis=1,
         )
-        sensor_data.sort_index(axis=1, level=self._types[type], inplace=True)
+        sensor_data.sort_index(axis=1, level=self._types[data_type], inplace=True)
 
         return sensor_data
 

@@ -15,7 +15,6 @@ statsmodels = "^0"
 ffmpeg-python = "^0.2.0"
 pyquaternion = "^0.9.9"
 biopsykit = {git="https://github.com/mad-lab-fau/BioPsyKit.git", branch="main", extras=["jupyter"]}
-mvnx = {path = "../mvnx"}
 h5py = "^3.5.0"
 
 [tool.poetry.dev-dependencies]
