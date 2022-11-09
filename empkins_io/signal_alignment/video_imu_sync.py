@@ -27,6 +27,7 @@ def get_claps_from_board_and_timelog(board_data: pd.DataFrame, timelog: pd.DataF
         the pd.Timestamp of the first clap and the second clap
 
     """
+    board_data = board_data.copy()
     board_data["norm"] = norm(board_data, axis=1)
     first_timestamp = timelog.prep.end.iloc[0]
     second_timestamp = timelog.math.end.iloc[0]
@@ -38,4 +39,16 @@ def get_claps_from_board_and_timelog(board_data: pd.DataFrame, timelog: pd.DataF
     second_clap = find_peak_around_timestamp(second_timestamp, board_data.norm)
     return first_clap, second_clap
 
+
+def get_xsens_start_and_end(xsens_sync_data: pd.DataFrame, timelog: pd.DataFrame):
+    sync_signal = xsens_sync_data["analog_1"]
+    first_timestamp = timelog.prep.start.iloc[0]
+    second_timestamp = timelog.math.end.iloc[0]
+    if second_timestamp - first_timestamp > pd.Timedelta(25, 'min'):
+        # TODO does this need more advanced error handling?
+        raise Warning("Preparation start and math end timestamps are more than 25min apart. This is unusual.")
+
+    xsens_start = find_peak_around_timestamp(first_timestamp, sync_signal)
+    xsens_end = find_peak_around_timestamp(second_timestamp, sync_signal)
+    return xsens_start, xsens_end
 
