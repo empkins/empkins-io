@@ -15,6 +15,24 @@ Then, install [poetry](https://python-poetry.org) which is used to manage depend
 Once you installed poetry, run the following commands to clone the repository, initialize a virtual env and install 
 all development dependencies:
 
+### MaD Lab Gitlab
+With ssh access:
+
+```bash
+git clone git@mad-srv.informatik.uni-erlangen.de:empkins/packages/empkins-io.git
+cd empkins_io
+poetry install
+```
+
+With https access:
+
+```bash
+git clone https://mad-srv.informatik.uni-erlangen.de/empkins/packages/empkins-io.git
+cd empkins_io
+poetry install
+```
+
+### RRZE Gitlab
 With ssh access:
 
 ```bash
