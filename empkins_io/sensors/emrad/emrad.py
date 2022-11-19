@@ -15,15 +15,17 @@ class EmradDataset:
 
     Attributes
     ----------
-    radar_data :
+    radar_data : dict
         Dictionary with data of all radar nodes
-    timezone :
+    timezone : str
         Timezone of recording (if available)
+    sampling_rate_hz : int
+        Sampling rate of the radar nodes in Hz
 
     """
 
     _RADAR_NODES = ["rad1", "rad2", "rad3", "rad4"]
-    _SAMPLING_RATE_HZ: float = 1952.0
+    _SAMPLING_RATE_HZ: int = 1953
     _start_time_unix: int
 
     _tz: str
@@ -46,6 +48,11 @@ class EmradDataset:
         self._radar_data = radar_data
         self._start_time_unix = start_time
         self._tz = tz
+
+    @property
+    def sampling_rate_hz(self):
+        """Sampling rate of the radar sensor in Hz."""
+        return self._SAMPLING_RATE_HZ
 
     @property
     def timezone(self):
@@ -72,11 +79,11 @@ class EmradDataset:
             are not part of the current dataset will be silently ignored. Default: ``None``.
         index : str, optional
             Specify which index should be used for the dataset. The options are:
-            "time": For the time in seconds since the first sample
-            "utc": For the utc time stamp of each sample
-            "utc_datetime": for a pandas DateTime index in UTC time
-            "local_datetime": for a pandas DateTime index in the timezone set for the session
-            None: For a simple index (0...N)
+            * "time": For the time in seconds since the first sample
+            * "utc": For the utc time stamp of each sample
+            * "utc_datetime": for a pandas DateTime index in UTC time
+            * "local_datetime": for a pandas DateTime index in the timezone set for the session
+            * None: For a simple index (0...N)
         drop_empty_nodes : bool, optional
             ``True`` to exclude empty radar nodes in the dataframe. Default: ``True``
         add_sync_in : bool, optional
@@ -123,12 +130,14 @@ class EmradDataset:
         index_name = index_names[index]
         data.index.name = index_name
 
+        if index is None:
+            return data
         if index == "time":
             data.index -= data.index[0]
-            data.index /= self._SAMPLING_RATE_HZ
+            data.index /= self.sampling_rate_hz
             return data
 
-        data.index /= self._SAMPLING_RATE_HZ
+        data.index /= self.sampling_rate_hz
         data.index += self._start_time_unix
 
         if index == "utc_datetime":
@@ -150,11 +159,10 @@ class EmradDataset:
 
         Parameters
         ----------
-        path :
+        path : :class:`pathlib.Path` or str
             Path to the file
-        tz
-            Optional timezone str of the recording.
-            This can be used to localize the start and end time.
+        tz : str, optional
+            Timezone str of the recording. This can be used to localize the start and end time.
             Note, this should not be the timezone of your current PC, but the timezone relevant for the specific
             recording.
 
