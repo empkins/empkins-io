@@ -70,7 +70,8 @@ class SyncedDataset:
             sync_params = {}
         for name in self.datasets:
             dataset = self.datasets[name]
-            data_cut = self._cut_to_sync_start(dataset, sync_params=sync_params)
+            params = sync_params.get(name, {})
+            data_cut = self._cut_to_sync_start(dataset, sync_params=params)
             setattr(self, f"{name}_cut_", data_cut)
 
     def align_datasets(
@@ -257,10 +258,23 @@ class SyncedDataset:
 
     @staticmethod
     def _find_sync_peaks(data: np.ndarray, sync_params: Dict[str, Any]) -> np.ndarray:
-        max_expected_peaks = sync_params["max_expected_peaks"]
+        max_expected_peaks = sync_params.get("max_expected_peaks", 2)
+        search_region_samples = sync_params.get("search_region_samples", None)
+        distance = sync_params.get("distance", None)
+        height = sync_params.get("height", 0.1)
+        width = sync_params.get("width", None)
+        prominence = sync_params.get("prominence", None)
+
         # normalize data between 0 and 1
         data_norm = (data - np.min(data)) / (np.max(data) - np.min(data))
-        peaks, _ = signal.find_peaks(data_norm, height=0.1)
+        offset = 0
+        if search_region_samples is not None:  # if search region is defined
+            data_norm = data_norm[search_region_samples[0] : search_region_samples[1]]
+            offset = search_region_samples[0]
+
+        peaks, _ = signal.find_peaks(data_norm, distance=distance, height=height, width=width, prominence=prominence)
+        # add offset to peaks
+        peaks += offset
         if len(peaks) == 0:
             raise SynchronizationError("No peaks found in sync channel.")
         if len(peaks) > max_expected_peaks:
@@ -269,6 +283,10 @@ class SyncedDataset:
             )
 
         return peaks
+
+    @staticmethod
+    def _find_sync_cross_correlation(data: np.ndarray, sync_params: Dict[str, Any]) -> int:
+        raise NotImplementedError()
 
     def _check_valid_index(self, data: pd.DataFrame):
         index_type = list(set(type(dataset["data"].index) for dataset in self.datasets.values()))[0]
