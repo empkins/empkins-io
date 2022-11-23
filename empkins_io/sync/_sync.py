@@ -1,6 +1,6 @@
 import re
 
-from typing import Any, Dict, Literal, Optional, Tuple, Sequence
+from typing import Any, Dict, Literal, Optional, Tuple, Sequence, get_args
 
 import numpy as np
 import pandas as pd
@@ -23,17 +23,20 @@ class SyncedDataset:
 
     def __init__(self, sync_type: SYNC_TYPE = "peak"):
         # TODO fix this
-        # assert sync_type in SYNC_TYPE, f"Sync type {sync_type} not valid. Mus be one of {SYNC_TYPE}."
+        if sync_type not in get_args(SYNC_TYPE):
+            raise ValueError(f"Sync type {sync_type} not valid. Mus be one of {get_args(SYNC_TYPE)}.")
         self.sync_type = sync_type
         self.datasets = {}
 
     def add_dataset(self, name: str, data: pd.DataFrame, sync_channel_name: str, sampling_rate: int):
-        # assert that data is a pandas DataFrame
+        # ensure that data is a pandas DataFrame
         _assert_is_dtype(data, pd.DataFrame)
-        # assert that data has a column with the name sync_channel
-        assert sync_channel_name in data.columns, f"Sync channel {sync_channel_name} not in data."
-        # assert that sampling_rate is a valid sampling rate
-        assert isinstance(sampling_rate, (int, float)), f"Sampling rate '{sampling_rate}' not valid."
+        # ensure that data has a column with the name sync_channel
+        if sync_channel_name not in data.columns:
+            raise ValidationError(f"Sync channel {sync_channel_name} not found in data columns.")
+        # ensure that sampling_rate is a valid sampling rate
+        if not isinstance(sampling_rate, (int, float)) or sampling_rate <= 0:
+            raise ValidationError(f"Sampling rate {sampling_rate} is not a valid sampling rate.")
 
         # check if index of the dataset has same type as the previously added datasets
         if len(self.datasets) > 0:
