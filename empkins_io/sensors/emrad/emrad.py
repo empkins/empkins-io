@@ -7,7 +7,7 @@ from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 from typing_extensions import Self
 
 from empkins_io.utils._types import path_t
-from empkins_io.utils.exceptions import InvalidFileFormatException
+from empkins_io.utils.exceptions import InvalidFileFormatError
 
 
 class EmradDataset:
@@ -56,10 +56,12 @@ class EmradDataset:
 
     @property
     def timezone(self):
+        """Timezone of the recording."""
         return self._tz
 
     @property
     def radar_data(self) -> Dict[str, pd.DataFrame]:
+        """Dictionary with names of the radar node and sensor data as pandas Dataframe."""
         return self._radar_data
 
     def data_as_df(
@@ -137,6 +139,7 @@ class EmradDataset:
             data.index /= self.sampling_rate_hz
             return data
 
+        # convert to utc timestamps => for index_type "utc"
         data.index /= self.sampling_rate_hz
         data.index += self._start_time_unix
 
@@ -172,7 +175,7 @@ class EmradDataset:
 
         file: h5py.File = h5py.File(path, mode="r")
         if "Radar" not in file.keys():
-            raise InvalidFileFormatException(
+            raise InvalidFileFormatError(
                 f"Invalid file format! Expected HDF5 file with 'Radar' as key. Got {list(file.keys())}."
             )
         file = file["Radar"]
