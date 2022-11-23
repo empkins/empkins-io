@@ -124,12 +124,12 @@ class SyncedDataset:
                 setattr(self, f"{name}_aligned_", data_aligned)
 
     @property
-    def cut_datasets(self):
+    def datasets_cut(self):
         # get all datasets that were cut to sync start
         return {attr: getattr(self, attr) for attr in dir(self) if attr.endswith("cut_")}
 
     @property
-    def aligned_datasets(self):
+    def datasets_aligned(self):
         # get all datasets that were cut to sync start
         return {attr: getattr(self, attr) for attr in dir(self) if attr.endswith("aligned_")}
 
