@@ -59,11 +59,12 @@ _isort = "isort **/*.py"
 _isort_check = "isort **/*.py --check-only"
 
 # Reformat all files using black and sort import
-format = ["_black", "_isort"]
+format = { sequence = ["_black", "_isort"], help = "Format all files." }
 format_check = ["_black_check", "_isort_check"]
-lint = "prospector"
-test = "pytest --cov=empkins_io --cov-report=xml"
+lint = {cmd = "prospector", help = "Lint all files with Prospector." }
+test = {cmd = "pytest --cov=empkins_io --cov-report=xml", help = "Run Pytest with coverage." }
 docs = {"script" = "_tasks:task_docs"}
 update_version = {"script" = "_tasks:task_update_version"}
-register_ipykernel = "python -m ipykernel install --user --name empkins-io --display-name empkins-io"
-default = ["format", "lint", "test"]
+register_ipykernel = { cmd = "python -m ipykernel install --user --name empkins-io --display-name empkins-io", help = "Add a new jupyter kernel for the project."}
+remove_ipykernel = { cmd = "jupyter kernelspec uninstall empkins-io", help = "Remove the project specific jupyter kernel."}
+default = {sequence = ["format", "lint", "test"], help = "Run the default pipeline, consisting of formatting, linting, and testing."}
