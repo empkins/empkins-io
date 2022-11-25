@@ -32,11 +32,11 @@ cd empkins-io
 poetry install
 ```
 
-### RRZE Gitlab
+### GitHub
 With ssh access:
 
 ```bash
-git clone git@gitlab.rrze.fau.de:empkins/subprojects/d03/empkins-io.git
+git clone git@github.com:empkins/empkins-io.git
 cd empkins-io
 poetry install
 ```
@@ -44,7 +44,7 @@ poetry install
 With https access:
 
 ```bash
-git clone https://gitlab.rrze.fau.de/empkins/subprojects/d03/empkins-io.git
+git clone https://github.com/empkins/empkins-io.git
 cd empkins-io
 poetry install
 ```
