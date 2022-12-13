@@ -7,10 +7,11 @@ import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_is_dtype
 from matplotlib import pyplot as plt
 from scipy import signal
+from scipy.interpolate import interp1d
 
 from empkins_io.utils.exceptions import SynchronizationError, ValidationError
 
-SYNC_TYPE = Literal["peak", "square", "m-sequence"]
+SYNC_TYPE = Literal["peak", "rect", "square-wave", "m-sequence"]
 
 
 class SyncedDataset:
@@ -71,8 +72,52 @@ class SyncedDataset:
         for name in self.datasets:
             dataset = self.datasets[name]
             params = sync_params.get(name, {})
-            data_cut = self._cut_to_sync_start(dataset, sync_params=params)
+            data_cut = self._cut_dataset_to_sync_start(dataset, sync_params=params)
             setattr(self, f"{name}_cut_", data_cut)
+
+    def _cut_dataset_to_sync_start(self, dataset: Dict[str, Any], sync_params: Dict[str, Any]) -> pd.DataFrame:
+        sync_channel = dataset["sync_channel"]
+        data = dataset["data"]
+
+        # if self.sync_type == "m-sequence":
+        #     # get the highest sampling rate of all datasets
+        #     sampling_rate = max(dataset["sampling_rate"] for dataset in self.datasets.values())
+        #     sync_params["sampling_rate"] = sampling_rate
+        #     sync_params["sampling_rate_old"] = dataset["sampling_rate"]
+        #     start = SyncedDataset._find_sync_cross_correlation(data[sync_channel], sync_params)
+        #     data_cut = data.iloc[start:]
+        # else:
+        if self.sync_type == "peak":
+            # sync_type is "peak"
+            sync_data = data[sync_channel]
+            sync_params["max_expected_peaks"] = 2
+        elif self.sync_type == "rect":
+            # sync_type is "rect"
+            sync_data = np.abs(np.ediff1d(data[sync_channel]))
+            sync_params["max_expected_peaks"] = 2
+        elif self.sync_type == "square-wave":
+            # sync_type is "square-wave"
+            sync_data = np.abs(np.ediff1d(data[sync_channel]))
+            # max_expected_peaks is two times the wave frequency per second, because we compute the derivative
+            if sync_params.get("wave_frequency"):
+                sync_params["max_expected_peaks"] = 2 + sync_params.get("wave_frequency") * (
+                    len(data) / dataset["sampling_rate"]
+                )
+        elif self.sync_type == "m-sequence":
+            # sync_type is "m-sequence"
+            sync_data = np.abs(np.ediff1d(data[sync_channel]))
+            sync_params["expected_peaks"] = len(sync_data)
+        else:
+            raise AttributeError("This should never happen.")
+
+        peaks = SyncedDataset._find_sync_peaks(sync_data, sync_params)
+        # cut data to region between first and last peak
+        if len(peaks) == 1:
+            data_cut = data.iloc[peaks[0] :]
+        else:
+            data_cut = data.iloc[peaks[0] : peaks[-1]]
+
+        return data_cut
 
     def align_datasets(
         self, primary: str, cut_to_shortest: Optional[bool] = False, reset_time_axis: Optional[bool] = False
@@ -134,131 +179,9 @@ class SyncedDataset:
         # get all datasets that were cut to sync start
         return {attr: getattr(self, attr) for attr in dir(self) if attr.endswith("aligned_")}
 
-    def _cut_to_sync_start(self, dataset: Dict[str, Any], sync_params: Dict[str, Any]) -> pd.DataFrame:
-        sync_channel = dataset["sync_channel"]
-        data = dataset["data"]
-
-        if self.sync_type == "peak":
-            sync_params.setdefault("max_expected_peaks", 2)
-            peaks = SyncedDataset._find_sync_peaks(data[sync_channel], sync_params)
-            # cut data to region between first and last peak
-            if len(peaks) == 1:
-                data_cut = data.iloc[peaks[0] :]
-            else:
-                data_cut = data.iloc[peaks[0] : peaks[-1]]
-        else:
-            raise NotImplementedError()
-        return data_cut
-
-    # def synchronize_datasets(self, cut_to_sync_region: Optional[bool] = True):
-    #     """Synchronize all datasets to the primary dataset.
-    #
-    #     Parameters
-    #     ----------
-    #     cut_to_sync_region : bool, optional
-    #         ``True`` to cut all datasets to the region where all datasets are synced, ``False`` otherwise.
-    #         Default: ``True``
-    #
-    #     """
-    #     for name in self.datasets:
-    #         data_synced = self._align_to_primary(self.primary, self.datasets[name])
-    #         if cut_to_sync_region:
-    #             data_synced = self._cut_to_sync_region(data_synced, self.datasets[name])
-    #         setattr(self, f"{name}_synced", data_synced)
-    #     primary_synced = getattr(self, self.primary["name"])
-    #     if cut_to_sync_region:
-    #         primary_synced = self._cut_to_sync_region(primary_synced, self.primary)
-    #     setattr(self, f"{self.primary['name']}_synced", primary_synced)
-    #
-    #
-    # def _align_to_primary(self, primary: Dict[str, Any], secondary: Dict[str, Any]) -> pd.DataFrame:
-    #     """Align a secondary dataset to the primary dataset.
-    #
-    #     Parameters
-    #     ----------
-    #     primary : dict
-    #         dictionary containing the primary dataset
-    #     secondary : dict
-    #         dictionary containing the secondary dataset
-    #
-    #     Returns
-    #     -------
-    #     pd.DataFrame
-    #         secondary dataset aligned to the primary dataset
-    #
-    #     """
-    #     if self.sync_type == "m-sequence":
-    #         delay_samples = self._align_cross_corr(primary, secondary)
-    #     else:
-    #         delay_samples = self._align_peak_detection(primary, secondary)
-    #
-    #     data = getattr(self, secondary["name"])
-    #     return data.shift(delay_samples).dropna()
-    #
-    # def _align_cross_corr(self, primary: Dict[str, Any], secondary: Dict[str, Any]) -> int:
-    #     data_prim = getattr(self, primary["name"])
-    #     data_sec = getattr(self, secondary["name"])
-    #     sync_ch_prim = primary["sync_channel"]
-    #     sync_ch_sec = secondary["sync_channel"]
-    #     fs_prim = primary["sampling_rate"]
-    #     fs_sec = secondary["sampling_rate"]
-    #
-    #     len_primary = len(data_prim)
-    #     len_secondary = len(data_sec)
-    #
-    #     cross_corr = signal.correlate(data_prim[sync_ch_prim], data_sec[sync_ch_sec], mode="same")
-    #     auto_corr_prim = signal.correlate(data_prim[sync_ch_prim], data_prim[sync_ch_prim], mode="same")
-    #     auto_corr_sec = signal.correlate(data_sec[sync_ch_sec], data_sec[sync_ch_sec], mode="same")
-    #
-    #     cross_corr = cross_corr / np.sqrt(auto_corr_prim[int(len_primary / 2)] * auto_corr_sec[int(len_secondary / 2)])
-    #
-    #     delay_arr = np.linspace(-0.5 * len_primary / fs_prim, 0.5 * len_primary / fs_prim, len_primary)
-    #     delay_sec = delay_arr[np.argmax(cross_corr)]
-    #     delay_samples = int(np.around(delay_sec * fs_sec))
-    #     return delay_samples
-    #
-    # def _align_peak_detection(self, primary: Dict[str, Any], secondary: Dict[str, Any]) -> int:
-    #     data_prim = getattr(self, primary["name"])
-    #     data_sec = getattr(self, secondary["name"])
-    #     sync_ch_prim = primary["sync_channel"]
-    #     sync_ch_sec = secondary["sync_channel"]
-    #     fs_prim = primary["sampling_rate"]
-    #     fs_sec = secondary["sampling_rate"]
-    #
-    #     # normalize sync channels of data_prim and data_sec
-    #     data_prim_norm = (data_prim[sync_ch_prim] - data_prim[sync_ch_prim].min()) / (
-    #         data_prim[sync_ch_prim].max() - data_prim[sync_ch_prim].min()
-    #     )
-    #     data_sec_norm = (data_sec[sync_ch_sec] - data_sec[sync_ch_sec].min()) / (
-    #         data_sec[sync_ch_sec].max() - data_sec[sync_ch_sec].min()
-    #     )
-    #
-    #     # find peaks in sync channels
-    #     peaks_prim, _ = signal.find_peaks(data_prim_norm, height=0.5)
-    #     peaks_sec, _ = signal.find_peaks(data_sec_norm, height=0.5)
-    #
-    #     sync_peak_prim_s = peaks_prim[0] / fs_prim
-    #     sync_peak_sec_s = peaks_sec[0] / fs_sec
-    #
-    #     # TODO continue here
-    #     print(sync_peak_prim_s)
-    #     print(sync_peak_sec_s)
-    #     print(sync_peak_sec_s - sync_peak_prim_s)
-    #     print(int(np.around((sync_peak_sec_s - sync_peak_prim_s) * fs_sec)))
-    #     return int(np.around((sync_peak_sec_s - sync_peak_prim_s) * fs_sec))
-    #
-    # @staticmethod
-    # def _cut_to_sync_region(data: pd.DataFrame, secondary: Dict[str, Any]) -> pd.DataFrame:
-    #     sync_ch_sec = secondary["sync_channel"]
-    #     # find peaks in sync channel derivation
-    #     peaks, _ = signal.find_peaks(np.ediff1d(data[sync_ch_sec]), height=0.5)
-    #     # cut data to region between first and last peak
-    #     data = data.iloc[peaks[0] : peaks[-1]]
-    #     return data
-
     @staticmethod
     def _find_sync_peaks(data: np.ndarray, sync_params: Dict[str, Any]) -> np.ndarray:
-        max_expected_peaks = sync_params.get("max_expected_peaks", 2)
+        max_expected_peaks = sync_params.get("max_expected_peaks", None)
         search_region_samples = sync_params.get("search_region_samples", None)
         distance = sync_params.get("distance", None)
         height = sync_params.get("height", 0.1)
@@ -277,7 +200,7 @@ class SyncedDataset:
         peaks += offset
         if len(peaks) == 0:
             raise SynchronizationError("No peaks found in sync channel.")
-        if len(peaks) > max_expected_peaks:
+        if max_expected_peaks is not None and len(peaks) > max_expected_peaks:
             raise SynchronizationError(
                 f"Found more than '{max_expected_peaks}' sync peaks. Check your sync channels for correct input"
             )
@@ -286,6 +209,27 @@ class SyncedDataset:
 
     @staticmethod
     def _find_sync_cross_correlation(data: np.ndarray, sync_params: Dict[str, Any]) -> int:
+        # sampling_rate_old = sync_params["sampling_rate_old"]
+        # sampling_rate = sync_params["sampling_rate"]
+        # interpolate data to sampling rate
+        # x_old = np.arange(len(data)) / sampling_rate_old
+        # x_new = np.arange(len(data)) / sampling_rate
+        # interpol_f = interp1d(x_old, data, kind="nearest")
+        # data = interpol_f(x_new)
+
+        #     len_primary = len(data_prim)
+        #     len_secondary = len(data_sec)
+        #
+        #     cross_corr = signal.correlate(data_prim[sync_ch_prim], data_sec[sync_ch_sec], mode="same")
+        #     auto_corr_prim = signal.correlate(data_prim[sync_ch_prim], data_prim[sync_ch_prim], mode="same")
+        #     auto_corr_sec = signal.correlate(data_sec[sync_ch_sec], data_sec[sync_ch_sec], mode="same")
+        #
+        #     cross_corr = cross_corr / np.sqrt(auto_corr_prim[int(len_primary / 2)] * auto_corr_sec[int(len_secondary / 2)])
+        #
+        #     delay_arr = np.linspace(-0.5 * len_primary / fs_prim, 0.5 * len_primary / fs_prim, len_primary)
+        #     delay_sec = delay_arr[np.argmax(cross_corr)]
+        #     delay_samples = int(np.around(delay_sec * fs_sec))
+
         raise NotImplementedError()
 
     def _check_valid_index(self, data: pd.DataFrame):
