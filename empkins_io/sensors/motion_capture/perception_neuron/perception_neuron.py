@@ -35,7 +35,7 @@ def load_perception_neuron_folder(
         global_pose_files = _get_files(folder_path, ["global_pose.csv", "global_pose.csv.gz"])
         if len(global_pose_files) == 1:
             bvh_data.load_global_pose(global_pose_files[0])
-        else:
+        elif len(global_pose_files) > 1:
             raise ValueError(
                 f"More than one global pose file found in {folder_path}. Please make sure only one global pose "
                 f"file is in the folder!"

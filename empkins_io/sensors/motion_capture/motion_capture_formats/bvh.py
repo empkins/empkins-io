@@ -285,7 +285,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
             fp.write("MOTION\n\n".encode("utf8"))
             fp.write(self._frame_info_str.encode("utf8"))
             fp.write(
-                data_out.to_csv(float_format="%.4f", sep=" ", header=False, index=False, line_terminator=" \n").encode(
+                data_out.to_csv(float_format="%.4f", sep=" ", header=False, index=False, lineterminator=" \n").encode(
                     "utf8"
                 )
             )
@@ -294,7 +294,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
             # set the empty line after MOTION
             fp.write("MOTION\n\n")
             fp.write(self._frame_info_str)
-            fp.write(data_out.to_csv(float_format="%.4f", sep=" ", header=False, index=False, line_terminator=" \n"))
+            fp.write(data_out.to_csv(float_format="%.4f", sep=" ", header=False, index=False, lineterminator=" \n"))
 
     def global_pose_to_gzip_csv(self, file_path: path_t):
         """Export global pose information to gzip-compressed csv file.
