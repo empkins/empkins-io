@@ -20,7 +20,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
 
     start: datetime = None
     num_frames: int = 0
-    sampling_rate: float = 0.0
+    sampling_rate_hz: float = 0.0
     segments: List[str] = None
     joints: List[str] = None
     sensors: List[str] = None

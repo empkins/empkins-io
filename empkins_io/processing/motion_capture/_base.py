@@ -20,7 +20,7 @@ class _BaseMotionCaptureProcessor(ABC):
     def __init__(self, data: _BaseMotionCaptureDataFormat):
         self.data_dict = {}
         self.add_data("raw", data)
-        self.sampling_rate: float = data.sampling_rate
+        self.sampling_rate: float = data.sampling_rate_hz
 
     def add_data(self, key: str, data: _BaseMotionCaptureDataFormat):
         self.data_dict[key] = deepcopy(data)

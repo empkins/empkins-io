@@ -24,7 +24,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
     root: "BvhJoint" = None
     joints: Dict[str, "BvhJoint"] = {}
     num_frames: int = 0
-    sampling_rate: float = 0.0
+    sampling_rate_hz: float = 0.0
     data_global: pd.DataFrame = None
 
     def __init__(self, file_path: path_t, system: Optional[MOTION_CAPTURE_SYSTEM] = "perception_neuron"):

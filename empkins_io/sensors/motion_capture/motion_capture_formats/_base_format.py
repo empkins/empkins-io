@@ -10,7 +10,7 @@ from empkins_io.utils._types import T
 class _BaseMotionCaptureDataFormat:
     system: MOTION_CAPTURE_SYSTEM
     data: pd.DataFrame
-    sampling_rate: float
+    sampling_rate_hz: float
     body_parts: Sequence[str]
     channels: Sequence[str]
     axis: Sequence[str]
@@ -27,7 +27,7 @@ class _BaseMotionCaptureDataFormat:
     ):
         self.system = system
         self.data = data
-        self.sampling_rate = sampling_rate
+        self.sampling_rate_hz = sampling_rate
         self.body_parts = get_all_body_parts(system)
         self.channels = channels
         self.axis = axis
