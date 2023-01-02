@@ -1,6 +1,5 @@
 import re
-
-from typing import Any, Dict, Literal, Optional, Tuple, Sequence, get_args
+from typing import Any, Dict, Literal, Optional, Sequence, Tuple, get_args
 
 import numpy as np
 import pandas as pd
