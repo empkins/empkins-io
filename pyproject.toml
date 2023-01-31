@@ -6,16 +6,16 @@ authors = ["Robert Richer <robert.richer@fau.de>"]
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
-numpy = "^1"
+numpy = ">=1.19,<1.24"
 pandas = "^1.2.0"
 scipy = "^1.7.0"
 matplotlib = "^3"
 seaborn = "^0.11.1"
 statsmodels = "^0"
-ffmpeg-python = "^0.2.0"
 pyquaternion = "^0.9.9"
-biopsykit = {git="https://github.com/mad-lab-fau/BioPsyKit.git", branch="main", extras=["jupyter", "biopac"]}
+biopsykit = {git="https://github.com/mad-lab-fau/BioPsyKit.git", branch="main", extras=["jupyter"]}
 h5py = "^3.5.0"
+tpcp = "^0.11"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
