@@ -105,7 +105,8 @@ class _MvnxParser:
                 "jointAngle": 10,
                 "jointAngleXZY": 11,
                 "jointAngleErgo": 12,
-                "centerOfMass": 13,
+                "jointAngleErgoXZY": 13,
+                "centerOfMass": 14,
             }
         if time is None:
             self.time = []
