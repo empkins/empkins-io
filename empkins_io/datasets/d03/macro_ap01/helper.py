@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 import pandas as pd
+from biopsykit.io import load_atimelogger_file
 from biopsykit.io.nilspod import _handle_counter_inconsistencies_session
 from empkins_io.sensors.motion_capture.motion_capture_formats import mvnx
 from empkins_io.utils._types import path_t
@@ -103,7 +104,7 @@ def _get_times_for_mocap(
     timelog_path = data_path.joinpath("timelog/cleaned")
     timelog_file = timelog_path.joinpath(f"{subject_id}_{condition}_timelog_test.csv")
 
-    timelog = _read_timelog(timelog_file)
+    timelog = load_atimelogger_file(timelog_file, timezone="Europe/Berlin")
 
     # relative times
     timelog[["start", "end"]] = (timelog[["start", "end"]] - start).apply(pd.to_timedelta, axis=1)
@@ -116,14 +117,6 @@ def _get_times_for_mocap(
         timelog_slice = timelog[["start", "end"]].drop("prep")
 
     return timelog_slice
-
-
-def _read_timelog(path: path_t) -> pd.DataFrame:
-    timelog = pd.read_csv(path)
-    timelog.index = timelog["phase"]
-    timelog[["start", "end"]] = timelog[["start", "end"]].apply(pd.to_datetime, axis=1)
-
-    return timelog
 
 
 def rearrange_hr_ensemble_data(
