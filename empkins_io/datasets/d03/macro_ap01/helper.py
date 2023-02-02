@@ -6,7 +6,7 @@ import pandas as pd
 from biopsykit.io import load_atimelogger_file
 from biopsykit.io.nilspod import _handle_counter_inconsistencies_session
 from empkins_io.sensors.motion_capture.motion_capture_formats import mvnx
-from empkins_io.utils._types import path_t
+from empkins_io.utils._types import path_t, str_t
 
 from empkins_io.datasets.d03.macro_ap01._custom_synced_session import CustomSyncedSession
 from empkins_io.utils.exceptions import NilsPodDataNotFoundException
@@ -89,34 +89,20 @@ def _load_gait_mocap_data(
 
 
 def _get_times_for_mocap(
-    base_path: path_t,
-    start: datetime,
-    subject_id: str,
-    condition: str,
-    phase: Optional[str] = "total",
+    timelog: pd.DataFrame,
+    start_time: datetime,
+    phase: Optional[str_t] = "total",
 ) -> pd.DataFrame:
-
-    data_path = _build_data_path(
-        base_path.joinpath("data_per_subject"),
-        subject_id=subject_id,
-        condition=condition,
-    )
-    timelog_path = data_path.joinpath("timelog/cleaned")
-    timelog_file = timelog_path.joinpath(f"{subject_id}_{condition}_timelog_test.csv")
-
-    timelog = load_atimelogger_file(timelog_file, timezone="Europe/Berlin")
-
-    # relative times
-    timelog[["start", "end"]] = (timelog[["start", "end"]] - start).apply(pd.to_timedelta, axis=1)
-    timelog["start"] = timelog["start"].dt.total_seconds()
-    timelog["end"] = timelog["end"].dt.total_seconds()
-
-    if phase != "total":
-        timelog_slice = timelog.loc[phase][["start", "end"]]
+    if phase == "total":
+        timelog = timelog.drop(columns="Prep", level="phase")
     else:
-        timelog_slice = timelog[["start", "end"]].drop("prep")
+        if isinstance(phase, str):
+            phase = [phase]
+        timelog = timelog.loc[:, phase]
 
-    return timelog_slice
+    timelog = (timelog - start_time).apply(lambda x: x.dt.total_seconds())
+    timelog = timelog.T["time"].unstack("start_end")
+    return timelog
 
 
 def rearrange_hr_ensemble_data(

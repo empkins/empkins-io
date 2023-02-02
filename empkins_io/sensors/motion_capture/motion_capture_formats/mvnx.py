@@ -38,8 +38,9 @@ class MvnxData(_BaseMotionCaptureDataFormat):
     _quat: Tuple[str] = ("q0", "q1", "q2", "q3")
     _xyz: Tuple[str] = ("x", "y", "z")
     _footContacts: Tuple[str] = ("heel", "toe")
+    _tz: str = None
 
-    def __init__(self, file_path: path_t, load_sensor_data: bool = False):
+    def __init__(self, file_path: path_t, load_sensor_data: bool = False, tz: str = "Europe/Berlin"):
         file_path = Path(file_path)
         _assert_file_extension(file_path, [".mvnx", ".gz"])
         check_file_exists(file_path)
@@ -54,6 +55,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         sampling_rate = _raw_data.frameRate
         self.num_frames = len(_raw_data.acceleration)
         self._index = np.float_(_raw_data.time) / 1000
+        self._tz = tz
 
         self._parse_start_time(_raw_data)
 
@@ -74,11 +76,14 @@ class MvnxData(_BaseMotionCaptureDataFormat):
     def _parse_start_time(self, _raw_data: _MvnxParser):
         locale.setlocale(locale.LC_TIME, "en_US.UTF-8")
 
-        try:  # english date format
-            self.start = datetime.strptime(_raw_data.recordingDate, "%a %b %d %H:%M:%S.%f %Y")
-        except ValueError:  # if not its probably german
-            locale.setlocale(locale.LC_TIME, "de_DE.UTF-8")
-            self.start = datetime.strptime(_raw_data.recordingDate, "%a %b %d %H:%M:%S.%f %Y")
+        start_time = pd.to_datetime(_raw_data.recordingDate, unit="ms").tz_localize("UTC").tz_convert(self._tz)
+        self.start = start_time.to_pydatetime()
+
+        # try:  # english date format
+        #     self.start = datetime.strptime(_raw_data.recordingDate, "%a %b %d %H:%M:%S.%f %Y")
+        # except ValueError:  # if not its probably german
+        #     locale.setlocale(locale.LC_TIME, "de_DE.UTF-8")
+        #     self.start = datetime.strptime(_raw_data.recordingDate, "%a %b %d %H:%M:%S.%f %Y")
 
     def _parse_segment_df(self, _raw_data: _MvnxParser) -> pd.DataFrame:
         data_type = "segment"

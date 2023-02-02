@@ -68,21 +68,20 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         if self.is_single(None) or self.is_single(["subject", "condition"]):
             subject_id = self.index["subject"][0]
             condition = self.index["condition"][0]
-            data, start = self._get_mocap_data(subject_id, condition)
+            data, start_time = self._get_mocap_data(subject_id, condition)
             if self.is_single(None):
                 phase = self.index["phase"].unique()[0]
             else:
                 phase = "total"
-            times = _get_times_for_mocap(self.base_path, start, subject_id, condition, phase)
+
+            timelog = self.timelog_test
+            times = _get_times_for_mocap(timelog, start_time=start_time, phase=phase)
             data_total = {}
 
-            if phase == "total":
-                for idx, phase in times.iterrows():
-                    data_total[idx] = data.loc[phase["start"] : phase["end"]]
-                data_total = pd.concat(data_total).droplevel(0)
-            else:
-                data_total = data.loc[times["start"] : times["end"]]
+            for idx, row in times.iterrows():
+                data_total[idx] = data.loc[row["start"] : row["end"]]
 
+            data_total = pd.concat(data_total).droplevel(0)
             return data_total
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
