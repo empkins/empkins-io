@@ -8,10 +8,17 @@ from biopsykit.utils.dataframe_handling import multi_xs, wide_to_long
 from biopsykit.utils.file_handling import get_subject_dirs
 from empkins_io.utils._types import path_t
 from tpcp import Dataset
+from pathlib import Path
 
-from empkins_io.datasets.d03.macro_prestudy.helper import get_times_for_mocap, load_mocap_data
+from empkins_io.datasets.d03.macro_prestudy.helper import get_times_for_mocap, load_mocap_data, \
+    load_opendbm_facial_data, load_opendbm_acoustic_data, load_opendbm_movement_data, get_times_for_video, \
+    get_video_path, get_audio_path, get_opendbm_pitch_data, get_opendbm_eyeblink_data
+
 
 _cached_load_mocap_data = lru_cache(maxsize=4)(load_mocap_data)
+_cached_load_opendbm_facial_data = lru_cache(maxsize=4)(load_opendbm_facial_data)
+_cached_load_opendbm_acoustic_data = lru_cache(maxsize=4)(load_opendbm_acoustic_data)
+_cached_load_opendbm_movement_data = lru_cache(maxsize=4)(load_opendbm_movement_data)
 
 
 class MacroPreStudyDataset(Dataset):
@@ -21,8 +28,11 @@ class MacroPreStudyDataset(Dataset):
     base_path: path_t
     exclude_without_mocap: bool
     normalize_mocap_time: bool
+    normalize_video_time: bool
     use_cache: bool
     _sampling_rate: float = 1.0 / 0.017
+    _sampling_rate_video: float = 29 # frames per second
+    _sampling_rate_audio: float = 1160 # Hz
     _sample_times: Tuple[int] = (-20, -1, 0, 10, 20, 45)
 
     def __init__(
@@ -32,6 +42,7 @@ class MacroPreStudyDataset(Dataset):
         subset_index: Optional[Sequence[str]] = None,
         exclude_without_mocap: Optional[bool] = True,
         normalize_mocap_time: Optional[bool] = True,
+        normalize_video_time: Optional[bool] = True,
         use_cache: Optional[bool] = True,
     ):
         # ensure pathlib
@@ -39,6 +50,7 @@ class MacroPreStudyDataset(Dataset):
         self.exclude_without_mocap = exclude_without_mocap
         self.use_cache = use_cache
         self.normalize_mocap_time = normalize_mocap_time
+        self.normalize_video_time = normalize_video_time
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
     def create_index(self):
@@ -60,6 +72,14 @@ class MacroPreStudyDataset(Dataset):
     @property
     def sampling_rate(self) -> float:
         return self._sampling_rate
+
+    @property
+    def sampling_rate_video(self) -> float:
+        return self._sampling_rate_video
+
+    @property
+    def sampling_rate_audio(self) -> float:
+        return self._sampling_rate_audio
 
     @property
     def sample_times(self) -> Sequence[int]:
@@ -119,6 +139,73 @@ class MacroPreStudyDataset(Dataset):
             return data
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
+    @cached_property
+    def opendbm_facial_data(self) -> pd.DataFrame:
+        if self.is_single(None) or self.is_single(["subject", "condition"]):
+            subject_id = self.index["subject"][0]
+            condition = self.index["condition"][0]
+            data = self._get_opendbm_facial_data(subject_id, condition)
+
+            if self.is_single(None):
+                phase = self.index["phase"].unique()[0]
+            else:
+                phase = "total"
+
+            times = get_times_for_video(self.base_path, subject_id, condition, phase)
+            data = data.loc[times[0] : times[1]]
+
+            if self.normalize_video_time:
+                data.index -= data.index[0]
+
+            return data
+
+        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+
+    @cached_property
+    def opendbm_acoustic_data(self) -> pd.DataFrame:
+        if self.is_single(None) or self.is_single(["subject", "condition"]):
+            subject_id = self.index["subject"][0]
+            condition = self.index["condition"][0]
+            data = self._get_opendbm_acoustic_data(subject_id, condition)
+
+            if self.is_single(None):
+                phase = self.index["phase"].unique()[0]
+            else:
+                phase = "total"
+
+            times = get_times_for_video(self.base_path, subject_id, condition, phase)
+            data = data.loc[times[0] : times[1]]
+
+            if self.normalize_video_time:
+                data.index -= data.index[0]
+
+            return data
+
+        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+
+    @cached_property
+    def opendbm_movement_data(self) -> pd.DataFrame:
+        if self.is_single(None) or self.is_single(["subject", "condition"]):
+            subject_id = self.index["subject"][0]
+            condition = self.index["condition"][0]
+            data = self._get_opendbm_movement_data(subject_id, condition)
+
+            if self.is_single(None):
+                phase = self.index["phase"].unique()[0]
+            else:
+                phase = "total"
+
+            times = get_times_for_video(self.base_path, subject_id, condition, phase)
+            data = data.loc[times[0] : times[1]]
+
+            if self.normalize_video_time:
+                data.index -= data.index[0]
+
+            return data
+
+        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+
+
     @property
     def panas_diff(self) -> pd.DataFrame:
         panas_data = wide_to_long(self.questionnaire, "PANAS", levels=["subscale", "condition", "time"]).dropna()
@@ -145,6 +232,43 @@ class MacroPreStudyDataset(Dataset):
             ["subject", "condition_first", "non_responder", "subscale"]
         )
 
+    @property
+    def video_path(self) -> Path:
+        if self.is_single(None) or self.is_single(["subject", "condition"]):
+            subject_id = self.index["subject"][0]
+            condition = self.index["condition"][0]
+            return self._get_video_path(subject_id, condition)
+
+        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+
+    @property
+    def audio_path(self) -> Path:
+        if self.is_single(None) or self.is_single(["subject", "condition"]):
+            subject_id = self.index["subject"][0]
+            condition = self.index["condition"][0]
+            return self._get_audio_path(subject_id, condition)
+
+        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+
+    @property
+    def opendbm_pitch_data(self) -> pd.DataFrame:
+        if self.is_single(None) or self.is_single(["subject", "condition"]):
+            subject_id = self.index["subject"][0]
+            condition = self.index["condition"][0]
+            return self._get_opendbm_pitch_data(subject_id, condition)
+
+        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+
+    @property
+    def opendbm_eyeblink_data(self) -> pd.DataFrame:
+        if self.is_single(None) or self.is_single(["subject", "condition"]):
+            subject_id = self.index["subject"][0]
+            condition = self.index["condition"][0]
+            return self._get_opendbm_eyeblink_data(subject_id, condition)
+
+        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+
+
     def _apply_indices(self, data: pd.DataFrame) -> pd.DataFrame:
         data = data.join(self.condition_first).join(self.cortisol_non_responder)
         data = data.set_index(["condition_first", "non_responder"], append=True)
@@ -154,6 +278,33 @@ class MacroPreStudyDataset(Dataset):
         if self.use_cache:
             return _cached_load_mocap_data(self.base_path, subject_id, condition)
         return load_mocap_data(self.base_path, subject_id, condition)
+
+    def _get_opendbm_facial_data(self, subject_id: str, condition: str) -> pd.DataFrame:
+        if self.use_cache:
+            return _cached_load_opendbm_facial_data(self.base_path, subject_id, condition, self.sampling_rate_video)
+        return load_opendbm_facial_data(self.base_path, subject_id, condition, self.sampling_rate_video)
+
+    def _get_opendbm_acoustic_data(self, subject_id: str, condition: str) -> pd.DataFrame:
+        if self.use_cache:
+            return _cached_load_opendbm_acoustic_data(self.base_path, subject_id, condition, self.sampling_rate_audio)
+        return load_opendbm_acoustic_data(self.base_path, subject_id, condition, self.sampling_rate_audio)
+
+    def _get_opendbm_movement_data(self, subject_id: str, condition: str) -> pd.DataFrame:
+        if self.use_cache:
+            return _cached_load_opendbm_movement_data(self.base_path, subject_id, condition, self.sampling_rate_video)
+        return load_opendbm_movement_data(self.base_path, subject_id, condition, self.sampling_rate_video)
+
+    def _get_video_path(self, subject_id: str, condition: str) -> Path:
+        return get_video_path(self.base_path, subject_id, condition)
+
+    def _get_audio_path(self, subject_id: str, condition: str) -> Path:
+        return get_audio_path(self.base_path, subject_id, condition)
+
+    def _get_opendbm_pitch_data(self, subject_id: str, condition: str) -> pd.DataFrame:
+        return get_opendbm_pitch_data(self.base_path, subject_id, condition)
+
+    def _get_opendbm_eyeblink_data(self, subject_id: str, condition: str) -> pd.DataFrame:
+        return get_opendbm_eyeblink_data(self.base_path, subject_id, condition)
 
     def _load_questionnaire_data(self) -> pd.DataFrame:
         data_path = self.base_path.joinpath("questionnaire_total/processed/empkins_macro_questionnaire_data.csv")
