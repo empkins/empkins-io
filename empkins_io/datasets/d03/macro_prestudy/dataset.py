@@ -31,8 +31,8 @@ class MacroPreStudyDataset(Dataset):
     normalize_video_time: bool
     use_cache: bool
     _sampling_rate: float = 1.0 / 0.017
-    _sampling_rate_video: float = 29 # frames per second
-    _sampling_rate_audio: float = 1160 # Hz
+    _sampling_rate_video: float = 25 # frames per second
+    _sampling_rate_audio: float = 1000 # Hz
     _sample_times: Tuple[int] = (-20, -1, 0, 10, 20, 45)
 
     def __init__(

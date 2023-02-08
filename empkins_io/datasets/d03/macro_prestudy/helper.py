@@ -24,7 +24,7 @@ def build_opendbm_tarfile_path(base_path: path_t, subject_id: str, condition: st
         assert path.exists()
 
     else:
-        path = path.joinpath(f"opendbm_output_{subject_id}_{condition}_new2.tar.gz")
+        path = path.joinpath(f"opendbm_output_{subject_id}_{condition}_new.tar.gz")
 
     return path
 
@@ -71,17 +71,20 @@ def build_opendbm_raw_data_path(subject_id: str, condition: str, group: str, sub
         if group == "acoustic" and subgroup == "pitch":
             data_path = [f"{path}pitch/{subject_id}_{condition}_pitch.csv"]
 
-        if group == "acoustic" and subgroup == "jitter":
-            data_path = [f"{path}jitter_recomp/{subject_id}_{condition}_jitter.csv"]
+        elif group == "acoustic" and subgroup == "jitter_recomputed":
+            data_path = [f"{path}jitter_recomputed/{subject_id}_{condition}_jitter.csv"]
 
-        if group == "acoustic" and subgroup == "shimmer":
-            data_path = [f"{path}shimmer/{subject_id}_{condition}_shimmer.csv"]
+        elif group == "acoustic" and subgroup == "shimmer_recomputed":
+            data_path = [f"{path}shimmer_recomputed/{subject_id}_{condition}_shimmer.csv"]
 
-        if group == "acoustic" and subgroup == "gne":
-            data_path = [f"{path}glottal_noise/{subject_id}_{condition}_gne.csv"]
+        elif group == "acoustic" and subgroup == "gne_recomputed":
+            data_path = [f"{path}glottal_noise_recomputed/{subject_id}_{condition}_gne.csv"]
 
         elif group == "movement" and subgroup == "eyeblink":
             data_path = [f"{path}eye_blink/{subject_id}_{condition}_eyeblinks.csv"]
+
+        elif group == "movement" and subgroup == "eyeblink_binarized":
+            data_path = [f"{path}eye_blink_binarized/{subject_id}_{condition}_eyeblinks.csv"]
 
     return data_path
 
@@ -111,9 +114,8 @@ def load_opendbm_facial_data(base_path: path_t, subject_id: str, condition: str,
         "neu_exp_full",
         "cai_exp_full",
     ]
-    tar = tarfile.open(name=tar_path, mode="r")
-    print(tar.getmembers())
 
+    tar = tarfile.open(name=tar_path, mode="r")
     data = []
     for path in facial_paths:
         file = tar.extractfile(path)
