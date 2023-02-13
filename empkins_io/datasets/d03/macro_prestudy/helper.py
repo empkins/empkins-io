@@ -80,11 +80,20 @@ def build_opendbm_raw_data_path(subject_id: str, condition: str, group: str, sub
         elif group == "acoustic" and subgroup == "gne_recomputed":
             data_path = [f"{path}glottal_noise_recomputed/{subject_id}_{condition}_gne.csv"]
 
+        elif group == "acoustic" and subgroup == "pause_segment_recomputed":
+            data_path = [f"{path}pause_segment_recomputed/{subject_id}_{condition}_pausechar.csv"]
+
+        elif group == "acoustic" and subgroup == "voice_frame_score_recomputed":
+            data_path = [f"{path}voice_frame_score_recomputed/{subject_id}_{condition}_voiceprev.csv"]
+
         elif group == "movement" and subgroup == "eyeblink":
             data_path = [f"{path}eye_blink/{subject_id}_{condition}_eyeblinks.csv"]
 
         elif group == "movement" and subgroup == "eyeblink_binarized":
             data_path = [f"{path}eye_blink_binarized/{subject_id}_{condition}_eyeblinks.csv"]
+
+        elif group == "movement" and subgroup == "voice_tremor_recomputed":
+            data_path = [f"{path}voice_tremor_recomputed/{subject_id}_{condition}_vtremor.csv"]
 
     return data_path
 
@@ -174,6 +183,12 @@ def load_opendbm_movement_data(
     data.index = data.index / sampling_rate
     data.index.name = "time [s]"
     tar.close()
+    return data
+
+def load_speaker_diarization(base_path: path_t, subject_id: str, condition: str):
+    data_path = build_data_path(base_path.joinpath("data_per_subject"), subject_id=subject_id, condition=condition)
+    data_path = data_path.joinpath("video", "processed", f"{subject_id}_{condition}_speaker_diarization.csv")
+    data = pd.read_csv(data_path, index_col="segment_id")
     return data
 
 

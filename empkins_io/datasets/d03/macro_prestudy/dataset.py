@@ -12,13 +12,14 @@ from pathlib import Path
 
 from empkins_io.datasets.d03.macro_prestudy.helper import get_times_for_mocap, load_mocap_data, \
     load_opendbm_facial_data, load_opendbm_acoustic_data, load_opendbm_movement_data, get_times_for_video, \
-    get_video_path, get_audio_path, get_opendbm_pitch_data, get_opendbm_eyeblink_data
+    get_video_path, get_audio_path, get_opendbm_pitch_data, get_opendbm_eyeblink_data, load_speaker_diarization
 
 
 _cached_load_mocap_data = lru_cache(maxsize=4)(load_mocap_data)
 _cached_load_opendbm_facial_data = lru_cache(maxsize=4)(load_opendbm_facial_data)
 _cached_load_opendbm_acoustic_data = lru_cache(maxsize=4)(load_opendbm_acoustic_data)
 _cached_load_opendbm_movement_data = lru_cache(maxsize=4)(load_opendbm_movement_data)
+_cached_load_speaker_diarization = lru_cache(maxsize=4)(load_speaker_diarization)
 
 
 class MacroPreStudyDataset(Dataset):
@@ -205,6 +206,15 @@ class MacroPreStudyDataset(Dataset):
 
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
+    @cached_property
+    def speaker_diarization(self) -> pd.DataFrame:
+        if self.is_single(None) or self.is_single(["subject", "condition"]):
+            subject_id = self.index["subject"][0]
+            condition = self.index["condition"][0]
+            data = self._get_speaker_diarization(subject_id, condition)
+            return data
+
+        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
     @property
     def panas_diff(self) -> pd.DataFrame:
@@ -293,6 +303,11 @@ class MacroPreStudyDataset(Dataset):
         if self.use_cache:
             return _cached_load_opendbm_movement_data(self.base_path, subject_id, condition, self.sampling_rate_video)
         return load_opendbm_movement_data(self.base_path, subject_id, condition, self.sampling_rate_video)
+
+    def _get_speaker_diarization(self, subject_id: str, condition: str) -> pd.DataFrame:
+        if self.use_cache:
+            return _cached_load_speaker_diarization(self.base_path, subject_id, condition)
+        return load_speaker_diarization(self.base_path, subject_id, condition)
 
     def _get_video_path(self, subject_id: str, condition: str) -> Path:
         return get_video_path(self.base_path, subject_id, condition)
