@@ -132,7 +132,7 @@ def load_mocap_data(base_path: path_t, subject_id: str, condition: str) -> pd.Da
 
 
 def load_opendbm_facial_data(base_path: path_t, subject_id: str, condition: str, sampling_rate: float) -> pd.DataFrame:
-    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition)
+    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, new=True)
     facial_paths = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="facial")
     columns_to_drop = [
         "frame", "error_reason", "face_id", "timestamp", "confidence", "success", "dbm_master_url", "s_confidence",
@@ -158,7 +158,7 @@ def load_opendbm_facial_data(base_path: path_t, subject_id: str, condition: str,
 def load_opendbm_acoustic_data(
         base_path: path_t, subject_id: str, condition: str, sampling_rate: float
 ) -> pd.DataFrame:
-    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition)
+    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, new=True)
     acoustic_paths = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="acoustic")
     columns_to_drop = ["error_reason", "Frames", "dbm_master_url"]
     tar = tarfile.open(name=tar_path, mode="r")
@@ -181,7 +181,7 @@ def load_opendbm_acoustic_data(
 def load_opendbm_movement_data(
         base_path: path_t, subject_id: str, condition: str, sampling_rate: float
 ) -> pd.DataFrame:
-    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition)
+    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, new=True)
     movement_paths = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="movement")
     columns_to_drop = ["error_reason", "Frames", "dbm_master_url"]
     tar = tarfile.open(name=tar_path, mode="r")
@@ -248,7 +248,7 @@ def load_opendbm_audio_seg_data(base_path: path_t, subject_id: str, condition: s
 def load_opendbm_facial_tremor_data(
         base_path: path_t, subject_id: str, condition: str, sampling_rate: float
     ) -> pd.DataFrame:
-    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition)
+    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, new=True)
     facial_tremor_path = build_opendbm_raw_data_path(
         subject_id=subject_id, condition=condition, group="facial_tremor"
     )[0]

@@ -221,7 +221,6 @@ class MacroPreStudyDataset(Dataset):
             condition = self.index["condition"][0]
             data = self._get_opendbm_acoustic_seg_data(subject_id, condition)
             data = self._apply_diarization_aco_seg(data)
-
             if self.is_single(None):
                 phase = self.index["phase"].unique()[0]
             else:
@@ -231,7 +230,6 @@ class MacroPreStudyDataset(Dataset):
             data = data.loc[(data["start_time"] > times[0]) & (data["end_time"] < times[1])]
             if self.normalize_video_time:
                 data.index -= data.index[0]
-
             # TODO remove start_time ... from data df?
 
             return data
@@ -362,13 +360,9 @@ class MacroPreStudyDataset(Dataset):
         df = df.round({"start_time": 3, "end_time": 3})
         max_time = np.max([df.tail(1)["end_time"], dia_segments.tail(1)["stop"]])
         bin_dia = self.binarize_diarization(max_time, dia_segments, self.sampling_rate_audio)
+        start, stop = (df[["start_time", "end_time"]].to_numpy() * self.sampling_rate_audio).astype(int).T
+        indices = [np.all(bin_dia[t1:t2]) for t1, t2 in zip(start, stop)]
 
-        start = df["start_time"].to_numpy() * self.sampling_rate_audio
-        start = start.astype(int)
-        stop = df["end_time"].to_numpy() * self.sampling_rate_audio
-        stop = stop.astype(int)
-
-        indices = bin_dia[start] & bin_dia[stop]
         return df.loc[indices].reset_index(drop=True)
 
     def _prepare_diarization(self):
