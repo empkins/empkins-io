@@ -230,7 +230,6 @@ class MacroPreStudyDataset(Dataset):
             data = data.loc[(data["start_time"] > times[0]) & (data["end_time"] < times[1])]
             if self.normalize_video_time:
                 data.index -= data.index[0]
-            # TODO remove start_time ... from data df?
 
             return data
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
@@ -252,8 +251,6 @@ class MacroPreStudyDataset(Dataset):
             if self.normalize_video_time:
                 data.index -= data.index[0]
 
-            # TODO remove start ... from data df?
-
             return data
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
@@ -270,11 +267,52 @@ class MacroPreStudyDataset(Dataset):
                 phase = "total"
 
             times = get_times_for_video(self.base_path, subject_id, condition, phase)
-            data = data.loc[times[0]: times[1]]
 
-            if self.normalize_video_time:
-                data.index -= data.index[0]
+            try:
+                data = data.loc[times[0]: times[1]]
+                if self.normalize_video_time:
+                    data.index -= data.index[0]
+            except Exception as e:
+                print(f"error while cutting facial tremor data occured (data shape: {data.shape}):", e)
 
+            return data
+        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+
+    @property
+    def opendbm_pitch_data(self) -> pd.DataFrame:
+        if self.is_single(None) or self.is_single(["subject", "condition"]):
+            subject_id = self.index["subject"][0]
+            condition = self.index["condition"][0]
+            return self._get_opendbm_pitch_data(subject_id, condition)
+
+        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+
+    @property
+    def opendbm_eyeblink_data(self) -> pd.DataFrame:
+        if self.is_single(None) or self.is_single(["subject", "condition"]):
+            subject_id = self.index["subject"][0]
+            condition = self.index["condition"][0]
+            return self._get_opendbm_eyeblink_data(subject_id, condition)
+        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+
+    @property
+    def opendbm_eyeblink_ear_data(self) -> pd.DataFrame:
+        if self.is_single(None) or self.is_single(["subject", "condition"]):
+            subject_id = self.index["subject"][0]
+            condition = self.index["condition"][0]
+            data = self._get_opendbm_eyeblink_data(subject_id, condition)
+            if len(data.index) != 0:
+                fps = data.at[0, "fps"]
+                data.index = data["mov_blinkframes"] / fps
+                data.index.name = "time [s]"
+                if self.is_single(None):
+                    phase = self.index["phase"].unique()[0]
+                else:
+                    phase = "total"
+                times = get_times_for_video(self.base_path, subject_id, condition, phase)
+                data = data.loc[times[0]: times[1]]
+
+            data = data.drop(["vid_dur", "fps", "mov_blinkframes", "mov_blinkdur", "dbm_master_url"], axis=1)
             return data
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
@@ -332,26 +370,9 @@ class MacroPreStudyDataset(Dataset):
 
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
-    @property
-    def opendbm_pitch_data(self) -> pd.DataFrame:
-        if self.is_single(None) or self.is_single(["subject", "condition"]):
-            subject_id = self.index["subject"][0]
-            condition = self.index["condition"][0]
-            return self._get_opendbm_pitch_data(subject_id, condition)
-
-        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
-
-    @property
-    def opendbm_eyeblink_data(self) -> pd.DataFrame:
-        if self.is_single(None) or self.is_single(["subject", "condition"]):
-            subject_id = self.index["subject"][0]
-            condition = self.index["condition"][0]
-            return self._get_opendbm_eyeblink_data(subject_id, condition)
-        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
-
     def _apply_diarization_aco(self, df):
         dia_segments = self._prepare_diarization()
-        bin_dia = self.binarize_diarization(df.index[-1], dia_segments, self.sampling_rate_audio)
+        bin_dia = self._binarize_diarization(df.index[-1], dia_segments, self.sampling_rate_audio)
         df["diarization"] = bin_dia
         return df
 
@@ -359,7 +380,7 @@ class MacroPreStudyDataset(Dataset):
         dia_segments = self._prepare_diarization()
         df = df.round({"start_time": 3, "end_time": 3})
         max_time = np.max([df.tail(1)["end_time"], dia_segments.tail(1)["stop"]])
-        bin_dia = self.binarize_diarization(max_time, dia_segments, self.sampling_rate_audio)
+        bin_dia = self._binarize_diarization(max_time, dia_segments, self.sampling_rate_audio)
         start, stop = (df[["start_time", "end_time"]].to_numpy() * self.sampling_rate_audio).astype(int).T
         indices = [np.all(bin_dia[t1:t2]) for t1, t2 in zip(start, stop)]
 
@@ -376,7 +397,7 @@ class MacroPreStudyDataset(Dataset):
         dia_segments = dia_segments.round({"start": 3, "stop": 3})
         return dia_segments
 
-    def binarize_diarization(self, max_time, diarization, fs):
+    def _binarize_diarization(self, max_time, diarization, fs):
         bin_dia = np.zeros(int(max_time * fs + 1), dtype=bool)
         for _, seg in diarization.iterrows():
             bin_dia[int(seg["start"]*fs):int(seg["stop"]*fs)] = True
@@ -423,6 +444,12 @@ class MacroPreStudyDataset(Dataset):
                                                            self.sampling_rate_video)
         return load_opendbm_facial_tremor_data(self.base_path, subject_id, condition, self.sampling_rate_video)
 
+    def _get_opendbm_pitch_data(self, subject_id: str, condition: str) -> pd.DataFrame:
+        return get_opendbm_pitch_data(self.base_path, subject_id, condition)
+
+    def _get_opendbm_eyeblink_data(self, subject_id: str, condition: str) -> pd.DataFrame:
+        return get_opendbm_eyeblink_data(self.base_path, subject_id, condition)
+
     def _get_speaker_diarization(self, subject_id: str, condition: str) -> pd.DataFrame:
         if self.use_cache:
             return _cached_load_speaker_diarization(self.base_path, subject_id, condition)
@@ -433,12 +460,6 @@ class MacroPreStudyDataset(Dataset):
 
     def _get_audio_path(self, subject_id: str, condition: str) -> Path:
         return get_audio_path(self.base_path, subject_id, condition)
-
-    def _get_opendbm_pitch_data(self, subject_id: str, condition: str) -> pd.DataFrame:
-        return get_opendbm_pitch_data(self.base_path, subject_id, condition)
-
-    def _get_opendbm_eyeblink_data(self, subject_id: str, condition: str) -> pd.DataFrame:
-        return get_opendbm_eyeblink_data(self.base_path, subject_id, condition)
 
     def _load_questionnaire_data(self) -> pd.DataFrame:
         data_path = self.base_path.joinpath("questionnaire_total/processed/empkins_macro_questionnaire_data.csv")

@@ -183,7 +183,7 @@ def load_opendbm_movement_data(
 ) -> pd.DataFrame:
     tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, new=True)
     movement_paths = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="movement")
-    columns_to_drop = ["error_reason", "Frames", "dbm_master_url"]
+    columns_to_drop = ["error", "error_reason", "Frames", "dbm_master_url"]
     tar = tarfile.open(name=tar_path, mode="r")
 
     data = []
