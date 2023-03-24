@@ -15,8 +15,9 @@ import numpy as np
 from empkins_io.datasets.d03.macro_prestudy.helper import get_times_for_mocap, load_mocap_data, \
     load_opendbm_facial_data, load_opendbm_acoustic_data, load_opendbm_movement_data, get_times_for_video, \
     get_video_path, get_audio_path, get_opendbm_pitch_data, get_opendbm_eyeblink_data, load_speaker_diarization, \
-    load_opendbm_acoustic_seg_data, load_opendbm_audio_seg_data, load_opendbm_facial_tremor_data, fix_stop_time, \
-    clean_diarization
+    load_opendbm_acoustic_seg_data, load_opendbm_audio_seg_data, load_opendbm_facial_tremor_data, \
+    apply_diarization_aco, apply_diarization_aco_seg, extract_opendbm_data, compress_opendbm_data, \
+    write_file_to_opendbm_tar
 
 _cached_load_mocap_data = lru_cache(maxsize=4)(load_mocap_data)
 _cached_load_opendbm_facial_data = lru_cache(maxsize=4)(load_opendbm_facial_data)
@@ -38,7 +39,7 @@ class MacroPreStudyDataset(Dataset):
     use_cache: bool
     _sampling_rate: float = 1.0 / 0.017
     _sampling_rate_video: float = 25  # frames per second
-    _sampling_rate_audio: float = 1000  # Hz
+    _sampling_rate_audio: float = 1000  # down sampled fs of extracted features in opendbm
     _sample_times: Tuple[int] = (-20, -1, 0, 10, 20, 45)
 
     def __init__(
@@ -83,7 +84,7 @@ class MacroPreStudyDataset(Dataset):
     def sampling_rate_video(self) -> float:
         return self._sampling_rate_video
 
-    @property
+    @property  # down sampled fs of extracted features in opendbm
     def sampling_rate_audio(self) -> float:
         return self._sampling_rate_audio
 
@@ -173,7 +174,7 @@ class MacroPreStudyDataset(Dataset):
             subject_id = self.index["subject"][0]
             condition = self.index["condition"][0]
             data = self._get_opendbm_acoustic_data(subject_id, condition)
-            data = self._apply_diarization_aco(data)
+            data = apply_diarization_aco(data, self.speaker_diarization, self.sampling_rate_audio)
 
             if self.is_single(None):
                 phase = self.index["phase"].unique()[0]
@@ -220,14 +221,15 @@ class MacroPreStudyDataset(Dataset):
             subject_id = self.index["subject"][0]
             condition = self.index["condition"][0]
             data = self._get_opendbm_acoustic_seg_data(subject_id, condition)
-            data = self._apply_diarization_aco_seg(data)
+            data = apply_diarization_aco_seg(data, self.speaker_diarization, self.sampling_rate_audio)
+
             if self.is_single(None):
                 phase = self.index["phase"].unique()[0]
             else:
                 phase = "total"
 
             times = get_times_for_video(self.base_path, subject_id, condition, phase)
-            data = data.loc[(data["start_time"] > times[0]) & (data["end_time"] < times[1])]
+            data = data.loc[(data["start_time"] >= times[0]) & (data["end_time"] <= times[1])]
             if self.normalize_video_time:
                 data.index -= data.index[0]
 
@@ -273,7 +275,7 @@ class MacroPreStudyDataset(Dataset):
                 if self.normalize_video_time:
                     data.index -= data.index[0]
             except Exception as e:
-                print(f"error while cutting facial tremor data occured (data shape: {data.shape}):", e)
+                print(f"warning: cutting facial tremor data failed (data shape: {data.shape}):", e)
 
             return data
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
@@ -370,38 +372,28 @@ class MacroPreStudyDataset(Dataset):
 
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
-    def _apply_diarization_aco(self, df):
-        dia_segments = self._prepare_diarization()
-        bin_dia = self._binarize_diarization(df.index[-1], dia_segments, self.sampling_rate_audio)
-        df["diarization"] = bin_dia
-        return df
+    def extract_opendbm_data(self, new: Optional[str] = None):
+        subject_id = self.index["subject"][0]
+        condition = self.index["condition"][0]
+        return extract_opendbm_data(self.base_path, subject_id, condition, new)
 
-    def _apply_diarization_aco_seg(self, df):
-        dia_segments = self._prepare_diarization()
-        df = df.round({"start_time": 3, "end_time": 3})
-        max_time = np.max([df.tail(1)["end_time"], dia_segments.tail(1)["stop"]])
-        bin_dia = self._binarize_diarization(max_time, dia_segments, self.sampling_rate_audio)
-        start, stop = (df[["start_time", "end_time"]].to_numpy() * self.sampling_rate_audio).astype(int).T
-        indices = [np.all(bin_dia[t1:t2]) for t1, t2 in zip(start, stop)]
+    def compress_opendbm_data(self, new: Optional[str] = None):
+        subject_id = self.index["subject"][0]
+        condition = self.index["condition"][0]
+        return compress_opendbm_data(self.base_path, subject_id, condition, new)
 
-        return df.loc[indices].reset_index(drop=True)
-
-    def _prepare_diarization(self):
-        diarization = self.speaker_diarization
-        dia_segments = clean_diarization(diarization)
-        if math.isnan(dia_segments.tail(1)["stop"]):
-            idx = len(dia_segments.index) - 1
-            t_stop = fix_stop_time(diarization)
-            dia_segments.loc[idx, "stop"] = t_stop
-            dia_segments.loc[idx, "length"] = dia_segments.loc[idx, "stop"] - dia_segments.loc[idx, "start"]
-        dia_segments = dia_segments.round({"start": 3, "stop": 3})
-        return dia_segments
-
-    def _binarize_diarization(self, max_time, diarization, fs):
-        bin_dia = np.zeros(int(max_time * fs + 1), dtype=bool)
-        for _, seg in diarization.iterrows():
-            bin_dia[int(seg["start"]*fs):int(seg["stop"]*fs)] = True
-        return bin_dia
+    def write_file_to_opendbm(self, data: pd.DataFrame, data_type: Optional[str] = None, raw: Optional[bool] = False,
+                              derived: Optional[bool] = False, group: Optional[str] = None,
+                              subgroup: Optional[str] = None):
+        subject_id = self.index["subject"][0]
+        condition = self.index["condition"][0]
+        if self.is_single(None):
+            phase = self.index["phase"].unique()[0]
+        else:
+            phase = "total"
+        write_file_to_opendbm_tar(base_path=self.base_path, subject_id=subject_id, condition=condition, data=data,
+                                  data_type=data_type, raw=raw, derived=derived, phase=phase, group=group,
+                                  subgroup=subgroup)
 
     def _apply_indices(self, data: pd.DataFrame) -> pd.DataFrame:
         data = data.join(self.condition_first).join(self.cortisol_non_responder)
