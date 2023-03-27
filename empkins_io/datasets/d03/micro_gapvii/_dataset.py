@@ -16,7 +16,7 @@ _cached_get_biopac_data = lru_cache(maxsize=4)(_load_biopac_data)
 # TODO warning oder exception für Datensätze, wo was fehlt?
 
 
-class PepEstimationDataset(Dataset):
+class MicroBaseDataset(Dataset):
 
     base_path: path_t
     sync_on_load: bool

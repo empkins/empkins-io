@@ -34,7 +34,7 @@ def _load_biopac_data(base_path: path_t, participant_id: str, study_protocol: st
 
 def _load_timelog(base_path: path_t, participant_id: str, study_protocol: str) -> pd.DataFrame:
     timelog_dir_path = _build_data_path(base_path, participant_id=participant_id, study_protocol=study_protocol).joinpath("timelog/cleaned")
-    timelog_file_path = timelog_dir_path.joinpath(f"{participant_id}_{study_protocol}_timelog.csv")
+    timelog_file_path = timelog_dir_path.joinpath(f"{participant_id}_{study_protocol}_cleaned_timelog.csv")
     if timelog_file_path.exists():
         timelog = load_atimelogger_file(timelog_file_path, timezone="Europe/Berlin")
         return timelog
