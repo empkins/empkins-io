@@ -9,6 +9,8 @@ from empkins_io.utils._types import path_t
 import math
 import shutil
 
+from empkins_io.utils.exceptions import TimelogNotFoundException
+
 
 def build_data_path(base_path: path_t, subject_id: str, condition: str) -> Path:
     base_path = Path(base_path)
@@ -146,8 +148,18 @@ def load_opendbm_facial_data(base_path: path_t, subject_id: str, condition: str,
     tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, new="new")
     facial_paths = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="facial")
     columns_to_drop = [
-        "frame", "error_reason", "face_id", "timestamp", "confidence", "success", "dbm_master_url", "s_confidence",
-        "neu_exp", "cai_exp", "neu_exp_full", "cai_exp_full",
+        "frame",
+        "error_reason",
+        "face_id",
+        "timestamp",
+        "confidence",
+        "success",
+        "dbm_master_url",
+        "s_confidence",
+        "neu_exp",
+        "cai_exp",
+        "neu_exp_full",
+        "cai_exp_full",
     ]
 
     tar = tarfile.open(name=tar_path, mode="r")
@@ -167,7 +179,7 @@ def load_opendbm_facial_data(base_path: path_t, subject_id: str, condition: str,
 
 
 def load_opendbm_acoustic_data(
-        base_path: path_t, subject_id: str, condition: str, sampling_rate: float
+    base_path: path_t, subject_id: str, condition: str, sampling_rate: float
 ) -> pd.DataFrame:
     tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, new="new")
     acoustic_paths = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="acoustic")
@@ -190,7 +202,7 @@ def load_opendbm_acoustic_data(
 
 
 def load_opendbm_movement_data(
-        base_path: path_t, subject_id: str, condition: str, sampling_rate: float
+    base_path: path_t, subject_id: str, condition: str, sampling_rate: float
 ) -> pd.DataFrame:
     tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, new="new")
     movement_paths = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="movement")
@@ -214,9 +226,7 @@ def load_opendbm_movement_data(
 
 def load_opendbm_acoustic_seg_data(base_path: path_t, subject_id: str, condition: str) -> pd.DataFrame:
     tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, new="new")
-    acoustic_seg_path = build_opendbm_raw_data_path(
-        subject_id=subject_id, condition=condition, group="acoustic_seg"
-    )
+    acoustic_seg_path = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="acoustic_seg")
     columns_to_drop = ["error"]
     tar = tarfile.open(name=tar_path, mode="r")
 
@@ -236,9 +246,7 @@ def load_opendbm_acoustic_seg_data(base_path: path_t, subject_id: str, condition
 
 def load_opendbm_audio_seg_data(base_path: path_t, subject_id: str, condition: str) -> pd.DataFrame:
     tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, new="new")
-    audio_seg_path = build_opendbm_raw_data_path(
-        subject_id=subject_id, condition=condition, group="audio_seg"
-    )
+    audio_seg_path = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="audio_seg")
     columns_to_drop = ["error"]
     tar = tarfile.open(name=tar_path, mode="r")
 
@@ -257,12 +265,12 @@ def load_opendbm_audio_seg_data(base_path: path_t, subject_id: str, condition: s
 
 
 def load_opendbm_facial_tremor_data(
-        base_path: path_t, subject_id: str, condition: str, sampling_rate: float
-    ) -> pd.DataFrame:
+    base_path: path_t, subject_id: str, condition: str, sampling_rate: float
+) -> pd.DataFrame:
     tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, new="new")
-    facial_tremor_path = build_opendbm_raw_data_path(
-        subject_id=subject_id, condition=condition, group="facial_tremor"
-    )[0]
+    facial_tremor_path = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="facial_tremor")[
+        0
+    ]
     tar = tarfile.open(name=tar_path, mode="r")
     file = tar.extractfile(facial_tremor_path)
     data = pd.read_csv(file)
@@ -302,7 +310,7 @@ def get_opendbm_eyeblink_data(base_path: path_t, subject_id: str, condition: str
 
 
 def get_times_for_mocap(
-        base_path: path_t, sampling_rate: float, subject_id: str, condition: str, phase: Optional[str] = "total"
+    base_path: path_t, sampling_rate: float, subject_id: str, condition: str, phase: Optional[str] = "total"
 ) -> Sequence[float]:
     data_path = build_data_path(base_path.joinpath("data_per_subject"), subject_id=subject_id, condition=condition)
     time_file = data_path.joinpath(f"{subject_id}_times_{condition}.json")
@@ -320,7 +328,10 @@ def get_times_for_mocap(
 def get_times_for_video(base_path: path_t, subject_id: str, condition: str, phase: Optional[str] = "total") -> list:
     data_path = build_data_path(base_path.joinpath("data_per_subject"), subject_id=subject_id, condition=condition)
     time_file = data_path.joinpath(f"{subject_id}_times_{condition}.json")
-    time_json = json.load(time_file.open(encoding="utf-8"))
+    try:
+        time_json = json.load(time_file.open(encoding="utf-8"))
+    except FileNotFoundError as e:
+        raise TimelogNotFoundException(f"Video timelogs not found for {subject_id} {condition}!") from e
     times_video = list(time_json["video"][phase].values())
     return times_video
 
@@ -391,16 +402,18 @@ def _prepare_diarization(diarization):
 def _binarize_diarization(max_time, diarization, fs):
     bin_dia = np.zeros(int(max_time * fs + 1), dtype=bool)
     for _, seg in diarization.iterrows():
-        bin_dia[int(seg["start"]*fs):int(seg["stop"]*fs)] = True
+        bin_dia[int(seg["start"] * fs) : int(seg["stop"] * fs)] = True
     return bin_dia
 
 
 def extract_opendbm_data(base_path: path_t, subject_id: str, condition: str, new: Optional[str] = None):
-    tarfile_path = build_opendbm_tarfile_path(base_path=base_path.joinpath("data_per_subject"),
-                                              subject_id=subject_id, condition=condition, new=new)
+    tarfile_path = build_opendbm_tarfile_path(
+        base_path=base_path.joinpath("data_per_subject"), subject_id=subject_id, condition=condition, new=new
+    )
 
-    data_path = build_opendbm_extracted_tar_path(base_path=base_path.joinpath("data_per_subject"),
-                                                 subject_id=subject_id, condition=condition)
+    data_path = build_opendbm_extracted_tar_path(
+        base_path=base_path.joinpath("data_per_subject"), subject_id=subject_id, condition=condition
+    )
     if data_path.exists():
         shutil.rmtree(data_path)
 
@@ -410,18 +423,27 @@ def extract_opendbm_data(base_path: path_t, subject_id: str, condition: str, new
         tar.extractall(path=data_path)
 
 
-def write_file_to_opendbm_tar(base_path: path_t, subject_id: str, condition: str, data: pd.DataFrame,
-                              data_type: Optional[str] = None,
-                              raw: Optional[bool] = False, derived: Optional[bool] = False, phase: Optional[str] = None,
-                              group: Optional[str] = None, subgroup: Optional[str] = None):
-    tarfile_path = build_opendbm_tarfile_path(base_path=base_path.joinpath("data_per_subject"),
-                                              subject_id=subject_id, condition=condition)
+def write_file_to_opendbm_tar(
+    base_path: path_t,
+    subject_id: str,
+    condition: str,
+    data: pd.DataFrame,
+    data_type: Optional[str] = None,
+    raw: Optional[bool] = False,
+    derived: Optional[bool] = False,
+    phase: Optional[str] = None,
+    group: Optional[str] = None,
+    subgroup: Optional[str] = None,
+):
+    tarfile_path = build_opendbm_tarfile_path(
+        base_path=base_path.joinpath("data_per_subject"), subject_id=subject_id, condition=condition
+    )
     data_path = tarfile_path.parent
 
     if raw:
-        path = build_opendbm_raw_data_path(
-            subject_id=subject_id, condition=condition, group=group, subgroup=subgroup
-        )[0]
+        path = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group=group, subgroup=subgroup)[
+            0
+        ]
         path = data_path.joinpath(path)
     elif derived:
         path = build_opendbm_derived_data_path()
@@ -438,14 +460,12 @@ def write_file_to_opendbm_tar(base_path: path_t, subject_id: str, condition: str
 
 def compress_opendbm_data(base_path: path_t, subject_id: str, condition: str, new: Optional[str] = None):
     tarfile_path = build_opendbm_tarfile_path(
-        base_path=base_path.joinpath("data_per_subject"),
-        subject_id=subject_id,
-        condition=condition,
-        new=new
+        base_path=base_path.joinpath("data_per_subject"), subject_id=subject_id, condition=condition, new=new
     )
 
-    data_path = build_opendbm_extracted_tar_path(base_path=base_path.joinpath("data_per_subject"),
-                                                 subject_id=subject_id, condition=condition)
+    data_path = build_opendbm_extracted_tar_path(
+        base_path=base_path.joinpath("data_per_subject"), subject_id=subject_id, condition=condition
+    )
 
     with tarfile.open(tarfile_path, "w:gz") as tar:
         tar.add(data_path, arcname=data_path.name)
