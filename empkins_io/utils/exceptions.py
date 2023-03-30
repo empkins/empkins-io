@@ -44,3 +44,9 @@ class HeartRateDataNotFoundException(Exception):
     """An error indicating that no processed heart rate data are available."""
 
     pass
+
+
+class SamplingRateMismatchException(Exception):
+    """An error indicating that no timelog file is available."""
+
+    pass
