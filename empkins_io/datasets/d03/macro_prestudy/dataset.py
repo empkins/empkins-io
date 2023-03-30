@@ -1,23 +1,38 @@
+import math
 from functools import cached_property, lru_cache
 from itertools import product
+from pathlib import Path
 from typing import Optional, Sequence, Tuple
 
+import numpy as np
 import pandas as pd
 from biopsykit.io import load_long_format_csv, load_questionnaire_data
 from biopsykit.utils.dataframe_handling import multi_xs, wide_to_long
 from biopsykit.utils.file_handling import get_subject_dirs
-from empkins_io.utils._types import path_t
 from tpcp import Dataset
-from pathlib import Path
-import math
-import numpy as np
 
-from empkins_io.datasets.d03.macro_prestudy.helper import get_times_for_mocap, load_mocap_data, \
-    load_opendbm_facial_data, load_opendbm_acoustic_data, load_opendbm_movement_data, get_times_for_video, \
-    get_video_path, get_audio_path, get_opendbm_pitch_data, get_opendbm_eyeblink_data, load_speaker_diarization, \
-    load_opendbm_acoustic_seg_data, load_opendbm_audio_seg_data, load_opendbm_facial_tremor_data, \
-    apply_diarization_aco, apply_diarization_aco_seg, extract_opendbm_data, compress_opendbm_data, \
-    write_file_to_opendbm_tar
+from empkins_io.datasets.d03.macro_prestudy.helper import (
+    apply_diarization_aco,
+    apply_diarization_aco_seg,
+    compress_opendbm_data,
+    extract_opendbm_data,
+    get_audio_path,
+    get_opendbm_eyeblink_data,
+    get_opendbm_pitch_data,
+    get_times_for_mocap,
+    get_times_for_video,
+    get_video_path,
+    load_mocap_data,
+    load_opendbm_acoustic_data,
+    load_opendbm_acoustic_seg_data,
+    load_opendbm_audio_seg_data,
+    load_opendbm_facial_data,
+    load_opendbm_facial_tremor_data,
+    load_opendbm_movement_data,
+    load_speaker_diarization,
+    write_file_to_opendbm_tar,
+)
+from empkins_io.utils._types import path_t
 
 _cached_load_mocap_data = lru_cache(maxsize=4)(load_mocap_data)
 _cached_load_opendbm_facial_data = lru_cache(maxsize=4)(load_opendbm_facial_data)
@@ -43,14 +58,14 @@ class MacroPreStudyDataset(Dataset):
     _sample_times: Tuple[int] = (-20, -1, 0, 10, 20, 45)
 
     def __init__(
-            self,
-            base_path: path_t,
-            groupby_cols: Optional[Sequence[str]] = None,
-            subset_index: Optional[Sequence[str]] = None,
-            exclude_without_mocap: Optional[bool] = True,
-            normalize_mocap_time: Optional[bool] = True,
-            normalize_video_time: Optional[bool] = True,
-            use_cache: Optional[bool] = True,
+        self,
+        base_path: path_t,
+        groupby_cols: Optional[Sequence[str]] = None,
+        subset_index: Optional[Sequence[str]] = None,
+        exclude_without_mocap: Optional[bool] = True,
+        normalize_mocap_time: Optional[bool] = True,
+        normalize_video_time: Optional[bool] = True,
+        use_cache: Optional[bool] = True,
     ):
         # ensure pathlib
         self.base_path = base_path
@@ -140,7 +155,7 @@ class MacroPreStudyDataset(Dataset):
             else:
                 phase = "total"
             times = get_times_for_mocap(self.base_path, self.sampling_rate, subject_id, condition, phase)
-            data = data.loc[times[0]: times[1]]
+            data = data.loc[times[0] : times[1]]
             if self.normalize_mocap_time:
                 data.index -= data.index[0]
             return data
@@ -159,7 +174,7 @@ class MacroPreStudyDataset(Dataset):
                 phase = "total"
 
             times = get_times_for_video(self.base_path, subject_id, condition, phase)
-            data = data.loc[times[0]: times[1]]
+            data = data.loc[times[0] : times[1]]
 
             if self.normalize_video_time:
                 data.index -= data.index[0]
@@ -182,7 +197,7 @@ class MacroPreStudyDataset(Dataset):
                 phase = "total"
 
             times = get_times_for_video(self.base_path, subject_id, condition, phase)
-            data = data.loc[times[0]: times[1]]
+            data = data.loc[times[0] : times[1]]
 
             if self.normalize_video_time:
                 data.index -= data.index[0]
@@ -206,7 +221,7 @@ class MacroPreStudyDataset(Dataset):
                 phase = "total"
 
             times = get_times_for_video(self.base_path, subject_id, condition, phase)
-            data = data.loc[times[0]: times[1]]
+            data = data.loc[times[0] : times[1]]
 
             if self.normalize_video_time:
                 data.index -= data.index[0]
@@ -271,7 +286,7 @@ class MacroPreStudyDataset(Dataset):
             times = get_times_for_video(self.base_path, subject_id, condition, phase)
 
             try:
-                data = data.loc[times[0]: times[1]]
+                data = data.loc[times[0] : times[1]]
                 if self.normalize_video_time:
                     data.index -= data.index[0]
             except Exception as e:
@@ -312,7 +327,7 @@ class MacroPreStudyDataset(Dataset):
                 else:
                     phase = "total"
                 times = get_times_for_video(self.base_path, subject_id, condition, phase)
-                data = data.loc[times[0]: times[1]]
+                data = data.loc[times[0] : times[1]]
 
             data = data.drop(["vid_dur", "fps", "mov_blinkframes", "mov_blinkdur", "dbm_master_url"], axis=1)
             return data
@@ -382,18 +397,33 @@ class MacroPreStudyDataset(Dataset):
         condition = self.index["condition"][0]
         return compress_opendbm_data(self.base_path, subject_id, condition, new)
 
-    def write_file_to_opendbm(self, data: pd.DataFrame, data_type: Optional[str] = None, raw: Optional[bool] = False,
-                              derived: Optional[bool] = False, group: Optional[str] = None,
-                              subgroup: Optional[str] = None):
+    def write_file_to_opendbm(
+        self,
+        data: pd.DataFrame,
+        data_type: Optional[str] = None,
+        raw: Optional[bool] = False,
+        derived: Optional[bool] = False,
+        group: Optional[str] = None,
+        subgroup: Optional[str] = None,
+    ):
         subject_id = self.index["subject"][0]
         condition = self.index["condition"][0]
         if self.is_single(None):
             phase = self.index["phase"].unique()[0]
         else:
             phase = "total"
-        write_file_to_opendbm_tar(base_path=self.base_path, subject_id=subject_id, condition=condition, data=data,
-                                  data_type=data_type, raw=raw, derived=derived, phase=phase, group=group,
-                                  subgroup=subgroup)
+        write_file_to_opendbm_tar(
+            base_path=self.base_path,
+            subject_id=subject_id,
+            condition=condition,
+            data=data,
+            data_type=data_type,
+            raw=raw,
+            derived=derived,
+            phase=phase,
+            group=group,
+            subgroup=subgroup,
+        )
 
     def _apply_indices(self, data: pd.DataFrame) -> pd.DataFrame:
         data = data.join(self.condition_first).join(self.cortisol_non_responder)
@@ -432,8 +462,9 @@ class MacroPreStudyDataset(Dataset):
 
     def _get_opendbm_facial_tremor_data(self, subject_id: str, condition: str) -> pd.DataFrame:
         if self.use_cache:
-            return _cached_load_opendbm_facial_tremor_data(self.base_path, subject_id, condition,
-                                                           self.sampling_rate_video)
+            return _cached_load_opendbm_facial_tremor_data(
+                self.base_path, subject_id, condition, self.sampling_rate_video
+            )
         return load_opendbm_facial_tremor_data(self.base_path, subject_id, condition, self.sampling_rate_video)
 
     def _get_opendbm_pitch_data(self, subject_id: str, condition: str) -> pd.DataFrame:

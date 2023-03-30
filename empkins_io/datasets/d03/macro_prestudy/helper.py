@@ -1,14 +1,15 @@
 import json
-from pathlib import Path
-from typing import Optional, Sequence
-import tarfile
-import numpy as np
-import pandas as pd
-from empkins_io.sensors.motion_capture.perception_neuron import PerceptionNeuronDataset
-from empkins_io.utils._types import path_t
 import math
 import shutil
+import tarfile
+from pathlib import Path
+from typing import Optional, Sequence
 
+import numpy as np
+import pandas as pd
+
+from empkins_io.sensors.motion_capture.perception_neuron import PerceptionNeuronDataset
+from empkins_io.utils._types import path_t
 from empkins_io.utils.exceptions import TimelogNotFoundException
 
 
