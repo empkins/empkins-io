@@ -19,17 +19,10 @@ class MicroBaseDataset(Dataset):
     use_cache: bool
     _sampling_rates: Dict[str, float] = {"biopac": 1000}
 
-    PHASES = ["Prep",           # underscores
-              "Pause 1",
-              "Talk",
-              "Pause 2",
-              "Pause 3",
-              "Math",
-              "Pause 4",
-
     # TODO sebbo: divide phases into Talk_1, Talk_2, and Talk etc.
     #  (or introduce two index levels: "phase_coarse" and "phase_fine")
-    PHASES = ["Prep", "Pause 1", "Talk", "Pause 2", "Pause 3", "Math", "Pause 4", "Pause 5"]
+    PHASES = ["Prep", "Pause_1", "Talk", "Talk_1", "Talk_2", "Pause_2", "Pause_3",
+              "Math", "Math_1", "Math_2", "Pause_4", "Pause_5"]
 
 
     CONDITIONS = ["tsst", "ftsst"]
@@ -65,8 +58,11 @@ class MicroBaseDataset(Dataset):
                     if p_id in participant_ids:
                         participant_ids.remove(p_id)
 
-        index = list(product(participant_ids, self.CONDITIONS, self.PHASES))
-        index = pd.DataFrame(index, columns=["participant", "condition", "phase"])
+        Phases = [["Prep"], ["Pause_1"], ["Talk"], ["Talk", "Talk_1"], ["Talk", "Talk_2"],
+                                      ["Pause_2"], ["Pause_3"], ["Math"], ["Math", "Math_1"], ["Math", "Math_2"],
+                                      ["Pause_4"], ["Pause_5"]]
+        index = list(product(participant_ids, self.CONDITIONS, Phases))
+        index = pd.DataFrame(index, columns=["participant", "condition", "phase_coarse", "phase_fine"])
         return index
 
     @property
