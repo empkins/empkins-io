@@ -23,7 +23,7 @@ class MicroBaseDataset(Dataset):
     use_cache: bool
     _sampling_rates: Dict[str, float] = {"biopac": 1000}
 
-    PHASES = ["Prep",
+    PHASES = ["Prep",           # underscores
               "Pause 1",
               "Talk",
               "Pause 2",

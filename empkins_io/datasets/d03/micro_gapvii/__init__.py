@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from empkins_io.datasets.d03.micro_gapvii._dataset import PepEstimationDataset
+from empkins_io.datasets.d03.micro_gapvii._dataset import MicroBaseDataset
 
 __version__ = "0.1.0"
 
-__all__ = ["PepEstimationDataset"]
+__all__ = ["MicroBaseDataset"]
 
 def conf_rel_path():
     """Configure relative path imports for the experiments folder."""
