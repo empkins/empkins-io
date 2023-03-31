@@ -1,15 +1,12 @@
 from datetime import datetime, time, timedelta
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union, Sequence
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 import pandas as pd
 from biopsykit.io import load_pandas_dict_excel, load_time_log
 from biopsykit.io.nilspod import load_dataset_nilspod
 from biopsykit.utils.data_processing import resample_sec
-from empkins_io.sensors.utils import cut_data_to_overlap
-from empkins_io.signal_alignment import signal_align
-from empkins_io.utils._types import path_t, str_t
 
 from empkins_io.datasets.d03.micro_prestudy.constants import (
     ARTIFACT_MAPPING,
@@ -18,6 +15,9 @@ from empkins_io.datasets.d03.micro_prestudy.constants import (
     STUDY_PARTS,
     VIDEO_FRAME_RATE,
 )
+from empkins_io.sensors.utils import cut_data_to_overlap
+from empkins_io.signal_alignment import signal_align
+from empkins_io.utils._types import path_t, str_t
 
 __all__ = [
     "build_data_path",

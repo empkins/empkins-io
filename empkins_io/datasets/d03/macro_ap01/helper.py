@@ -5,10 +5,10 @@ from typing import Dict, Optional, Tuple
 import pandas as pd
 from biopsykit.io import load_atimelogger_file
 from biopsykit.io.nilspod import _handle_counter_inconsistencies_session
-from empkins_io.sensors.motion_capture.motion_capture_formats import mvnx
-from empkins_io.utils._types import path_t, str_t
 
 from empkins_io.datasets.d03.macro_ap01._custom_synced_session import CustomSyncedSession
+from empkins_io.sensors.motion_capture.motion_capture_formats import mvnx
+from empkins_io.utils._types import path_t, str_t
 from empkins_io.utils.exceptions import NilsPodDataNotFoundException
 
 

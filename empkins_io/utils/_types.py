@@ -1,7 +1,7 @@
 """Some custom helper types to make type hints and type checking easier."""
 
 from pathlib import Path
-from typing import Hashable, TypeVar, Union, Sequence
+from typing import Hashable, Sequence, TypeVar, Union
 
 import numpy as np
 import pandas as pd
