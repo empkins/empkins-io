@@ -1,10 +1,8 @@
-import math
 from functools import cached_property, lru_cache
 from itertools import product
 from pathlib import Path
 from typing import Optional, Sequence, Tuple
 
-import numpy as np
 import pandas as pd
 from biopsykit.io import load_long_format_csv, load_questionnaire_data
 from biopsykit.utils.dataframe_handling import multi_xs, wide_to_long
@@ -17,6 +15,7 @@ from empkins_io.datasets.d03.macro_prestudy.helper import (
     compress_opendbm_data,
     extract_opendbm_data,
     get_audio_path,
+    get_opendbm_derived_features,
     get_opendbm_eyeblink_data,
     get_opendbm_pitch_data,
     get_times_for_mocap,
@@ -188,6 +187,22 @@ class MacroPreStudyDataset(Dataset):
                 data.index -= data.index[0]
 
             return data
+
+        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+
+    @property
+    def opendbm_derived_features(self) -> pd.DataFrame:
+        if self.is_single(["subject", "condition"]):
+            subject_id = self.index["subject"][0]
+            condition = self.index["condition"][0]
+
+            feature_list = []
+            for phase in self.index["phase"].unique():
+                data = get_opendbm_derived_features(self.base_path, subject_id, condition, phase)
+                feature_list.append(data)
+            feature_data = pd.concat(feature_list, axis=0)
+
+            return feature_data
 
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
@@ -395,15 +410,15 @@ class MacroPreStudyDataset(Dataset):
 
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
-    def extract_opendbm_data(self, new: Optional[str] = None):
+    def extract_opendbm_data(self, suffix: Optional[str] = None):
         subject_id = self.index["subject"][0]
         condition = self.index["condition"][0]
-        return extract_opendbm_data(self.base_path, subject_id, condition, new)
+        return extract_opendbm_data(self.base_path, subject_id, condition, suffix)
 
-    def compress_opendbm_data(self, new: Optional[str] = None):
+    def compress_opendbm_data(self, suffix: Optional[str] = None):
         subject_id = self.index["subject"][0]
         condition = self.index["condition"][0]
-        return compress_opendbm_data(self.base_path, subject_id, condition, new)
+        return compress_opendbm_data(self.base_path, subject_id, condition, suffix)
 
     def write_file_to_opendbm(
         self,
