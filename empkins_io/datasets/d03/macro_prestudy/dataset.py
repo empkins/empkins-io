@@ -46,9 +46,11 @@ _cached_load_speaker_diarization = lru_cache(maxsize=4)(load_speaker_diarization
 
 class MacroPreStudyDataset(Dataset):
     SUBJECTS_WITHOUT_MOCAP: Tuple[str] = ("VP_01",)
+    SUBJECTS_DIARIZATION_FAILED: Tuple[str] = ("VP_19",)
 
     base_path: path_t
     exclude_without_mocap: bool
+    exclude_diarization_failed: bool
     normalize_mocap_time: bool
     normalize_video_time: bool
     use_cache: bool
@@ -63,6 +65,7 @@ class MacroPreStudyDataset(Dataset):
         groupby_cols: Optional[Sequence[str]] = None,
         subset_index: Optional[Sequence[str]] = None,
         exclude_without_mocap: Optional[bool] = True,
+        exclude_diarization_failed: Optional[bool] = False,
         normalize_mocap_time: Optional[bool] = True,
         normalize_video_time: Optional[bool] = True,
         use_cache: Optional[bool] = True,
@@ -70,6 +73,7 @@ class MacroPreStudyDataset(Dataset):
         # ensure pathlib
         self.base_path = base_path
         self.exclude_without_mocap = exclude_without_mocap
+        self.exclude_diarization_failed = exclude_diarization_failed
         self.use_cache = use_cache
         self.normalize_mocap_time = normalize_mocap_time
         self.normalize_video_time = normalize_video_time
@@ -82,6 +86,10 @@ class MacroPreStudyDataset(Dataset):
         conditions = ["ftsst", "tsst"]
         if self.exclude_without_mocap:
             for subject_id in self.SUBJECTS_WITHOUT_MOCAP:
+                if subject_id in subject_ids:
+                    subject_ids.remove(subject_id)
+        if self.exclude_diarization_failed:
+            for subject_id in self.SUBJECTS_DIARIZATION_FAILED:
                 if subject_id in subject_ids:
                     subject_ids.remove(subject_id)
 
