@@ -37,14 +37,18 @@ def _load_biopac_data(base_path: path_t, participant_id: str, condition: str) ->
     return biopac_df, fs
 
 
-def _load_timelog(base_path: path_t, participant_id: str, condition: str) -> pd.DataFrame:
+def _load_timelog(base_path: path_t, participant_id: str, condition: str, phase: str) -> pd.DataFrame:
     timelog_dir_path = _build_data_path(base_path, participant_id=participant_id, condition=condition).joinpath(
         "timelog/cleaned"
     )
     timelog_file_path = timelog_dir_path.joinpath(f"{participant_id}_{condition}_cleaned_timelog.csv")
     if timelog_file_path.exists():
         timelog = load_atimelogger_file(timelog_file_path, timezone="Europe/Berlin")
-        return timelog
+        if phase == "all":
+            return timelog
+        else:
+            timelog = timelog.iloc[:, timelog.columns.get_level_values(0) == phase]
+            return timelog
     raise TimelogNotFoundException(
         f"No cleaned timelog file was found for {participant_id}! "
         "Run the 'notebooks/clean_timelog.ipynb' notebook first!"
