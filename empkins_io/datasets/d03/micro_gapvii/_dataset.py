@@ -5,6 +5,7 @@ from typing import Dict, Optional, Sequence, Tuple
 import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
 from tpcp import Dataset
+import warnings
 
 from empkins_io.datasets.d03.micro_gapvii.helper import _load_biopac_data, _load_timelog
 from empkins_io.utils._types import path_t
@@ -17,12 +18,12 @@ class MicroBaseDataset(Dataset):
     base_path: path_t
     sync_on_load: bool
     use_cache: bool
+    phase_fine: bool
     _sampling_rates: Dict[str, float] = {"biopac": 1000}
 
-    # TODO sebbo: divide phases into Talk_1, Talk_2, and Talk etc.
-    #  (or introduce two index levels: "phase_coarse" and "phase_fine")
-    PHASES = ["Prep", "Pause_1", "Talk", "Pause_2", "Pause_3",
-              "Math", "Pause_4", "Pause_5"]
+    PHASE_COARSE = ["Prep", "Pause_1", "Talk", "Pause_2", "Pause_3", "Math", "Pause_4", "Pause_5"]
+
+    PHASE_FINE = ["Prep", "Pause_1", "Talk_1", "Talk_2", "Pause_2", "Pause_3", "Math_1", "Math_2", "Pause_4", "Pause_5"]
 
     CONDITIONS = ["tsst", "ftsst"]
 
@@ -35,11 +36,13 @@ class MicroBaseDataset(Dataset):
         subset_index: Optional[Sequence[str]] = None,
         exclude_missing_data: Optional[bool] = False,
         use_cache: Optional[bool] = True,
+        phase_fine: Optional[bool] = False,
     ):
         # ensure pathlib
         self.base_path = base_path
         self.exclude_missing_data = exclude_missing_data
         self.use_cache = use_cache
+        self.phase_fine = phase_fine
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
     def create_index(self):
@@ -57,16 +60,14 @@ class MicroBaseDataset(Dataset):
                     if p_id in participant_ids:
                         participant_ids.remove(p_id)
 
-        phaseidx = pd.DataFrame([("Prep", "Prep"), ("Pause_1", "Pause_1"), ("Talk", "Talk_1"), ("Talk", "Talk_2"),
-                                ("Pause_2", "Pause_2"), ("Pause_3", "Pause_3"), ("Math", "Math_1"), ("Math", "Math_2"),
-                                ("Pause_4", "Pause_4"), ("Pause_5", "Pause_5")], columns=["phase_coarse", "phase_fine"])
-
-        index = list(product(participant_ids, self.CONDITIONS, self.PHASES))
-        idx = pd.DataFrame(index, columns=['participant', 'condition', 'phase_coarse'])
-        index = pd.merge(idx, phaseidx, on='phase_coarse', how='left')
-        index.sort_values(by=['participant'])
-        index.reset_index()
-        return index
+        if self.phase_fine:
+            index = list(product(participant_ids, self.CONDITIONS, self.PHASE_FINE))
+            index = pd.DataFrame(index, columns=['participant', 'condition', 'phase'])
+            return index
+        elif not self.phase_fine:
+            index = list(product(participant_ids, self.CONDITIONS, self.PHASE_COARSE))
+            index = pd.DataFrame(index, columns=['participant', 'condition', 'phase'])
+            return index
 
     @property
     def sampling_rates(self) -> Dict[str, float]:
@@ -74,18 +75,21 @@ class MicroBaseDataset(Dataset):
 
     @cached_property
     def biopac(self) -> pd.DataFrame:
-        if self.is_single(["participant", "condition", "phase_coarse"]):
+        if self.is_single(["participant", "condition", "phase"]):
 
             participant_id = self.index["participant"][0]
             condition = self.index["condition"][0]
-            phase_coarse = self.index["phase_coarse"][0]
+            phase = self.index["phase"][0]
 
-            data, fs = self._get_bioapc_data(participant_id, condition, phase_coarse)
+            data, fs = self._get_bioapc_data(participant_id, condition, phase)
             return data
 
+
         if self.is_single(["participant", "condition"]):
-            if len(self.index["phase_coarse"]) not in [1, len(self.PHASES) + 2]:
-                raise ValueError("Biopac data can only be accessed for all phases or one specific phase!")
+            if self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]:
+                warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
+            elif not self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]:
+                warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
 
             participant_id = self.index["participant"][0]
             condition = self.index["condition"][0]
@@ -94,6 +98,11 @@ class MicroBaseDataset(Dataset):
             return data
 
         if self.is_single(None):
+            if self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]:
+                warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
+            elif not self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]:
+                warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
+
             # get biopac data for specified participant and specified phase and study protocol
             participant_id = self.index["participant"][0]
             condition = self.index["condition"][0]
@@ -101,16 +110,22 @@ class MicroBaseDataset(Dataset):
             data, fs = self._get_bioapc_data(participant_id, condition, "all")
             return data
 
-        raise ValueError("Biopac data can only be accessed for a single participant and a single condition!")
+        raise ValueError("Biopac data can only be accessed for all phases or one specific phase!")
 
     @property
     def timelog(self) -> pd.DataFrame:
-        if self.is_single(["participant", "condition", "phase_coarse"]):
+        if self.is_single(["participant", "condition", "phase"]):
             participant_id = self.index["participant"][0]
             condition = self.index["condition"][0]
-            phase_coarse = self.index['phase_coarse'][0]
-            return self._get_timelog(participant_id, condition, phase_coarse)
-        elif self.is_single(["participant", "condition"]):
+            phase = self.index['phase'][0]
+            return self._get_timelog(participant_id, condition, phase)
+
+        if self.is_single(["participant", "condition"]):
+            if self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]:
+                warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
+            elif not self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]:
+                warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
+
             participant_id = self.index["participant"][0]
             condition = self.index["condition"][0]
             return self._get_timelog(participant_id, condition, "all")
@@ -124,11 +139,9 @@ class MicroBaseDataset(Dataset):
             data, fs = _load_biopac_data(self.base_path, participant_id, condition)
 
         if phase == "all":
-            print(f"_get_biopac_data Phase: {phase}")
             return data, fs
         else:
             # cut biopac data to specified phase
-            print(f"_get_biopac_data Phase: {phase}")
             timelog = self.timelog
             phase_start = timelog[phase]["start"][0]
             phase_end = timelog[phase]["end"][0]
@@ -136,4 +149,4 @@ class MicroBaseDataset(Dataset):
             return data, fs
 
     def _get_timelog(self, participant_id: str, condition: str, phase: str) -> pd.DataFrame:
-        return _load_timelog(self.base_path, participant_id, condition, phase)
+        return _load_timelog(self.base_path, participant_id, condition, phase, self.phase_fine)

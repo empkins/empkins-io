@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Tuple
 
 import pandas as pd
+import numpy as np
 from biopsykit.io import load_atimelogger_file
 from biopsykit.io.biopac import BiopacDataset
 
@@ -37,15 +38,23 @@ def _load_biopac_data(base_path: path_t, participant_id: str, condition: str) ->
     return biopac_df, fs
 
 
-def _load_timelog(base_path: path_t, participant_id: str, condition: str, phase: str) -> pd.DataFrame:
+def _load_timelog(base_path: path_t, participant_id: str, condition: str, phase: str, phase_fine: bool) -> pd.DataFrame:
     timelog_dir_path = _build_data_path(base_path, participant_id=participant_id, condition=condition).joinpath(
         "timelog/cleaned"
     )
-    timelog_file_path = timelog_dir_path.joinpath(f"{participant_id}_{condition}_cleaned_timelog.csv")
+    timelog_file_path = timelog_dir_path.joinpath(f"{participant_id}_{condition}_processed_phases_timelog.csv")
     if timelog_file_path.exists():
         timelog = load_atimelogger_file(timelog_file_path, timezone="Europe/Berlin")
-        if phase == "all":
-            return timelog
+        if (phase == "all") & phase_fine:
+            timelog_fine = timelog.drop('Talk', axis=1, level=0)
+            timelog_fine = timelog_fine.drop('Math', axis=1, level=0)
+            return timelog_fine
+        elif (phase == "all") & (not phase_fine):
+            timelog_coarse = timelog.drop('Talk_1', axis=1, level=0)
+            timelog_coarse = timelog_coarse.drop('Talk_2', axis=1, level=0)
+            timelog_coarse = timelog_coarse.drop('Math_1', axis=1, level=0)
+            timelog_coarse = timelog_coarse.drop('Math_2', axis=1, level=0)
+            return timelog_coarse
         else:
             timelog = timelog.iloc[:, timelog.columns.get_level_values(0) == phase]
             return timelog
