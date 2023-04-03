@@ -53,6 +53,7 @@ class MacroPreStudyDataset(Dataset):
     normalize_mocap_time: bool
     normalize_video_time: bool
     use_cache: bool
+    opendbm_suffix: str
     _sampling_rate: float = 1.0 / 0.017
     _sampling_rate_video: float = 25  # frames per second
     _sampling_rate_audio: float = 1000  # down sampled fs of extracted features in opendbm
@@ -68,6 +69,7 @@ class MacroPreStudyDataset(Dataset):
         normalize_mocap_time: Optional[bool] = True,
         normalize_video_time: Optional[bool] = True,
         use_cache: Optional[bool] = True,
+        opendbm_suffix: Optional[str] = None,
     ):
         # ensure pathlib
         self.base_path = base_path
@@ -76,6 +78,7 @@ class MacroPreStudyDataset(Dataset):
         self.use_cache = use_cache
         self.normalize_mocap_time = normalize_mocap_time
         self.normalize_video_time = normalize_video_time
+        self.opendbm_suffix = opendbm_suffix
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
     def create_index(self):
@@ -220,7 +223,7 @@ class MacroPreStudyDataset(Dataset):
                 phase = "total"
 
             times = get_times_for_video(self.base_path, subject_id, condition, phase)
-            data = data.loc[times[0] : times[1]]
+            data = data.loc[times[0]:times[1]]
 
             if self.normalize_video_time:
                 data.index -= data.index[0]
@@ -244,7 +247,7 @@ class MacroPreStudyDataset(Dataset):
                 phase = "total"
 
             times = get_times_for_video(self.base_path, subject_id, condition, phase)
-            data = data.loc[times[0] : times[1]]
+            data = data.loc[times[0]:times[1]]
 
             if self.normalize_video_time:
                 data.index -= data.index[0]
@@ -460,41 +463,48 @@ class MacroPreStudyDataset(Dataset):
 
     def _get_opendbm_facial_data(self, subject_id: str, condition: str) -> pd.DataFrame:
         if self.use_cache:
-            return _cached_load_opendbm_facial_data(self.base_path, subject_id, condition, self.sampling_rate_video)
-        return load_opendbm_facial_data(self.base_path, subject_id, condition, self.sampling_rate_video)
+            return _cached_load_opendbm_facial_data(self.base_path, subject_id, condition, self.sampling_rate_video,
+                                                    self.opendbm_suffix)
+        return load_opendbm_facial_data(self.base_path, subject_id, condition, self.sampling_rate_video,
+                                        self.opendbm_suffix)
 
     def _get_opendbm_acoustic_data(self, subject_id: str, condition: str) -> pd.DataFrame:
         if self.use_cache:
-            return _cached_load_opendbm_acoustic_data(self.base_path, subject_id, condition, self.sampling_rate_audio)
-        return load_opendbm_acoustic_data(self.base_path, subject_id, condition, self.sampling_rate_audio)
+            return _cached_load_opendbm_acoustic_data(self.base_path, subject_id, condition, self.sampling_rate_audio,
+                                                      self.opendbm_suffix)
+        return load_opendbm_acoustic_data(self.base_path, subject_id, condition, self.sampling_rate_audio,
+                                          self.opendbm_suffix)
 
     def _get_opendbm_movement_data(self, subject_id: str, condition: str) -> pd.DataFrame:
         if self.use_cache:
-            return _cached_load_opendbm_movement_data(self.base_path, subject_id, condition, self.sampling_rate_video)
-        return load_opendbm_movement_data(self.base_path, subject_id, condition, self.sampling_rate_video)
+            return _cached_load_opendbm_movement_data(self.base_path, subject_id, condition, self.sampling_rate_video,
+                                                      self.opendbm_suffix)
+        return load_opendbm_movement_data(self.base_path, subject_id, condition, self.sampling_rate_video,
+                                          self.opendbm_suffix)
 
     def _get_opendbm_acoustic_seg_data(self, subject_id: str, condition: str) -> pd.DataFrame:
         if self.use_cache:
-            return _cached_load_opendbm_acoustic_seg_data(self.base_path, subject_id, condition)
-        return load_opendbm_acoustic_seg_data(self.base_path, subject_id, condition)
+            return _cached_load_opendbm_acoustic_seg_data(self.base_path, subject_id, condition, self.opendbm_suffix)
+        return load_opendbm_acoustic_seg_data(self.base_path, subject_id, condition, self.opendbm_suffix)
 
     def _get_opendbm_audio_seg_data(self, subject_id: str, condition: str) -> pd.DataFrame:
         if self.use_cache:
-            return _cached_load_opendbm_audio_seg_data(self.base_path, subject_id, condition)
-        return load_opendbm_audio_seg_data(self.base_path, subject_id, condition)
+            return _cached_load_opendbm_audio_seg_data(self.base_path, subject_id, condition, self.opendbm_suffix)
+        return load_opendbm_audio_seg_data(self.base_path, subject_id, condition, self.opendbm_suffix)
 
     def _get_opendbm_facial_tremor_data(self, subject_id: str, condition: str) -> pd.DataFrame:
         if self.use_cache:
             return _cached_load_opendbm_facial_tremor_data(
-                self.base_path, subject_id, condition, self.sampling_rate_video
+                self.base_path, subject_id, condition, self.sampling_rate_video, self.opendbm_suffix
             )
-        return load_opendbm_facial_tremor_data(self.base_path, subject_id, condition, self.sampling_rate_video)
+        return load_opendbm_facial_tremor_data(self.base_path, subject_id, condition, self.sampling_rate_video,
+                                               self.opendbm_suffix)
 
     def _get_opendbm_pitch_data(self, subject_id: str, condition: str) -> pd.DataFrame:
-        return get_opendbm_pitch_data(self.base_path, subject_id, condition)
+        return get_opendbm_pitch_data(self.base_path, subject_id, condition, self.opendbm_suffix)
 
     def _get_opendbm_eyeblink_data(self, subject_id: str, condition: str) -> pd.DataFrame:
-        return get_opendbm_eyeblink_data(self.base_path, subject_id, condition)
+        return get_opendbm_eyeblink_data(self.base_path, subject_id, condition, self.opendbm_suffix)
 
     def _get_speaker_diarization(self, subject_id: str, condition: str) -> pd.DataFrame:
         if self.use_cache:
