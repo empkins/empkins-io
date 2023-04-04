@@ -201,7 +201,7 @@ class MacroPreStudyDataset(Dataset):
 
             feature_list = []
             for phase in self.index["phase"].unique():
-                data = get_opendbm_derived_features(self.base_path, subject_id, condition, phase)
+                data = get_opendbm_derived_features(self.base_path, subject_id, condition, phase, self.opendbm_suffix)
                 feature_list.append(data)
             feature_data = pd.concat(feature_list, axis=0)
 
@@ -261,18 +261,22 @@ class MacroPreStudyDataset(Dataset):
         if self.is_single(None) or self.is_single(["subject", "condition"]):
             subject_id = self.index["subject"][0]
             condition = self.index["condition"][0]
-            data = self._get_opendbm_acoustic_seg_data(subject_id, condition)
-            data = apply_diarization_aco_seg(data, self.speaker_diarization, self.sampling_rate_audio)
+            try:
+                data = self._get_opendbm_acoustic_seg_data(subject_id, condition)
+                data = apply_diarization_aco_seg(data, self.speaker_diarization, self.sampling_rate_audio)
 
-            if self.is_single(None):
-                phase = self.index["phase"].unique()[0]
-            else:
-                phase = "total"
+                if self.is_single(None):
+                    phase = self.index["phase"].unique()[0]
+                else:
+                    phase = "total"
 
-            times = get_times_for_video(self.base_path, subject_id, condition, phase)
-            data = data.loc[(data["start_time"] >= times[0]) & (data["end_time"] <= times[1])]
-            if self.normalize_video_time:
-                data.index -= data.index[0]
+                times = get_times_for_video(self.base_path, subject_id, condition, phase)
+                data = data.loc[(data["start_time"] >= times[0]) & (data["end_time"] <= times[1])]
+
+                if self.normalize_video_time:
+                    data.index -= data.index[0]
+            except Exception as e:
+                print(f"loading acoustic_seg opendbm data failed for phase {phase}: {e}")
 
             return data
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
@@ -282,17 +286,20 @@ class MacroPreStudyDataset(Dataset):
         if self.is_single(None) or self.is_single(["subject", "condition"]):
             subject_id = self.index["subject"][0]
             condition = self.index["condition"][0]
-            data = self._get_opendbm_audio_seg_data(subject_id, condition)
+            try:
+                data = self._get_opendbm_audio_seg_data(subject_id, condition)
 
-            if self.is_single(None):
-                phase = self.index["phase"].unique()[0]
-            else:
-                phase = "total"
+                if self.is_single(None):
+                    phase = self.index["phase"].unique()[0]
+                else:
+                    phase = "total"
 
-            times = get_times_for_video(self.base_path, subject_id, condition, phase)
-            data = data.loc[(data["start"] > times[0]) & (data["stop"] < times[1])]
-            if self.normalize_video_time:
-                data.index -= data.index[0]
+                times = get_times_for_video(self.base_path, subject_id, condition, phase)
+                data = data.loc[(data["start"] > times[0]) & (data["stop"] < times[1])]
+                if self.normalize_video_time:
+                    data.index -= data.index[0]
+            except Exception as e:
+                print(f"loading audio_seg opendbm data failed for phase {phase}: {e}")
 
             return data
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
@@ -312,7 +319,7 @@ class MacroPreStudyDataset(Dataset):
             times = get_times_for_video(self.base_path, subject_id, condition, phase)
 
             try:
-                data = data.loc[times[0] : times[1]]
+                data = data.loc[times[0]:times[1]]
                 if self.normalize_video_time:
                     data.index -= data.index[0]
             except Exception as e:

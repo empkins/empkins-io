@@ -1,5 +1,6 @@
 import json
 import math
+import pathlib
 import shutil
 import tarfile
 from pathlib import Path
@@ -323,7 +324,12 @@ def get_opendbm_derived_features(
         .joinpath(f"{subject_id}_{condition}_{phase}_derived_features_long.csv")
     )
     tar = tarfile.open(name=tar_path, mode="r")
-    file = tar.extractfile(str(file_path))
+    if type(file_path) == pathlib.WindowsPath:
+        file_path = str(file_path)
+        file_path = file_path.replace("\\", "/")
+    else:
+        file_path = str(file_path)
+    file = tar.extractfile(file_path)
     data = pd.read_csv(file)
     index_cols = list(data.columns)[:-1]
     data = data.set_index(index_cols)
