@@ -120,7 +120,7 @@ def rearrange_hr_ensemble_data(
 
 def _compute_ensemble(data: pd.DataFrame) -> pd.DataFrame:
     data = pd.concat(data, names=["phase"])
-    data = data.reindex(["Baseline", "Prep", "Talk", "Math"], level="phase")
+    data = data.reindex(["baseline", "prep", "talk", "math"], level="phase")
     data = data.reset_index(drop=True)
     data.index.name = "time"
     return data
