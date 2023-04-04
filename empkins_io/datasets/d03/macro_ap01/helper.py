@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 import pandas as pd
-from biopsykit.io import load_atimelogger_file
 from biopsykit.io.nilspod import _handle_counter_inconsistencies_session
 
 from empkins_io.datasets.d03.macro_ap01._custom_synced_session import CustomSyncedSession
@@ -94,7 +93,7 @@ def _get_times_for_mocap(
     phase: Optional[str_t] = "total",
 ) -> pd.DataFrame:
     if phase == "total":
-        timelog = timelog.drop(columns="Prep", level="phase")
+        timelog = timelog.drop(columns="prep", level="phase")
     else:
         if isinstance(phase, str):
             phase = [phase]
