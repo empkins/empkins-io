@@ -20,7 +20,7 @@ class _BaseMotionCaptureProcessor(ABC):
     def __init__(self, data: _BaseMotionCaptureDataFormat):
         self.data_dict = {}
         self.add_data("raw", data)
-        self.sampling_rate: float = data.sampling_rate
+        self.sampling_rate: float = data.sampling_rate_hz
 
     def add_data(self, key: str, data: _BaseMotionCaptureDataFormat):
         self.data_dict[key] = deepcopy(data)
@@ -72,7 +72,8 @@ class _BaseMotionCaptureProcessor(ABC):
             if drift_data is None:
                 drift_data = drift_data_new
             else:
-                drift_data.loc[:, drift_data_new.columns] = drift_data.loc[:, :]
+                # TODO: check if this is correct?
+                drift_data.loc[:, drift_data_new.columns] = drift_data_new.loc[:, :]
 
             rot_data_new = rotate_quat_hierarchical(rot_data, drift_data, body_parts)
             rot_data.loc[:, rot_data_new.columns] = rot_data_new.iloc[:, :]

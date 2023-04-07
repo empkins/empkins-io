@@ -105,7 +105,8 @@ class _MvnxParser:
                 "jointAngle": 10,
                 "jointAngleXZY": 11,
                 "jointAngleErgo": 12,
-                "centerOfMass": 13,
+                "jointAngleErgoXZY": 13,
+                "centerOfMass": 14,
             }
         if time is None:
             self.time = []
@@ -164,7 +165,7 @@ class _MvnxParser:
         self.label = self.root[2].attrib["label"]
         self.frameRate = self.root[2].attrib["frameRate"]
         self.segmentCount = self.root[2].attrib["segmentCount"]
-        self.recordingDate = self.root[2].attrib["recDate"]
+        self.recordingDate = self.root[2].attrib["recDateMSecsSinceEpoch"]
         self.configuration = self.root[2].attrib["configuration"]
         self.userScenario = self.root[2].attrib["userScenario"]
         self.securityCode = self.root[3].attrib["code"]
