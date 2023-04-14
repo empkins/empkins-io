@@ -153,6 +153,9 @@ class MacroBaseDataset(Dataset):
                 f"No time log data was found for {timelog_type} in the {condition} condition of {subject_id}!"
             )
         timelog = load_atimelogger_file(file_path, timezone="Europe/Berlin")
+        # convert all column names of the multi-level column index to lower case
+        timelog.columns = timelog.columns.set_levels([level.str.lower() for level in timelog.columns.levels])
+
         return timelog
 
     @property

@@ -92,6 +92,35 @@ BODY_PART_XSENS = Literal[
     "T8",
 ]
 
+BODY_PART_OPENPOSE = Literal[
+    "Nose",
+    "Neck",
+    "RightShoulder",
+    "RightElbow",
+    "RightWrist",
+    "LeftShoulder",
+    "LeftElbow",
+    "LeftWrist",
+    "MidHip",
+    "RightHip",
+    "RightKnee",
+    "RightAnkle",
+    "LeftHip",
+    "LeftKnee",
+    "LeftAnkle",
+    "RightEye",
+    "LeftEye",
+    "RightEar",
+    "LeftEar",
+    "LeftBigToe",
+    "LeftSmallToe",
+    "LeftHeel",
+    "RightBigToe",
+    "RightSmallToe",
+    "RightHeel",
+    "Background"
+]
+
 BODY_PART_GROUP = Literal["TotalBody", "UpperExtremities", "LowerExtremities", "Trunk"]
 
 BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[BODY_PART_GROUP, Sequence[BODY_PART_PERCEPTION_NEURON]] = {
@@ -115,6 +144,31 @@ BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[BODY_PART_GROUP, Sequence[BODY_PART_PE
         "LeftFoot",
     ],
     "Trunk": ["Hips", "Spine", "Spine1", "Spine2", "Spine3", "Neck"],
+}
+
+BODY_PART_MAPPING_OPENPOSE: Dict[BODY_PART_GROUP, Sequence[BODY_PART_OPENPOSE]] = {
+    "TotalBody": get_args(BODY_PART_OPENPOSE),
+    "UpperExtremities": [
+        "RightShoulder",
+        "RightElbow",
+        "RightWrist",
+        "LeftShoulder",
+        "LeftElbow",
+        "LeftWrist",
+    ],
+    "LowerExtremities": [
+        "RightKnee",
+        "RightAnkle",
+        "RightBigToe",
+        "RightSmallToe",
+        "RightHeel",
+        "LeftKnee",
+        "LeftAnkle",
+        "LeftBigToe",
+        "LeftSmallToe",
+        "LeftHeel",
+    ],
+    "Trunk": ["RightHip", "LeftHip", "RightShoulder", "LeftShoulder", "Neck"],
 }
 
 BODY_PART_MAPPING_XSENS: Dict[BODY_PART_GROUP, Sequence[BODY_PART_XSENS]] = {
@@ -162,6 +216,8 @@ def get_all_body_parts(system: MOTION_CAPTURE_SYSTEM) -> Sequence[str]:
         raise ValueError(f"Invalid 'system'! Expected one of {get_args(MOTION_CAPTURE_SYSTEM)}, got {system}.")
     if system == "perception_neuron":
         return get_args(BODY_PART_PERCEPTION_NEURON)
+    elif system == "openpose":
+        return get_args(BODY_PART_OPENPOSE)
     else:
         return get_args(BODY_PART_XSENS)
 
@@ -199,5 +255,7 @@ def get_body_parts_by_group(
         )
     if system == "perception_neuron":
         return BODY_PART_MAPPING_PERCEPTION_NEURON[body_part_group]
+    elif system == "openpose":
+        return BODY_PART_MAPPING_OPENPOSE[body_part_group]
     else:
         return BODY_PART_MAPPING_XSENS[body_part_group]
