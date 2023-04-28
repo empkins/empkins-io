@@ -25,14 +25,20 @@ class EmradDataset:
     """
 
     _RADAR_NODES = ["rad1", "rad2", "rad3", "rad4"]
-    _SAMPLING_RATE_HZ: int = 1953
+    _sampling_rate_hz: float
     _start_time_unix: int
 
     _tz: str
 
     _radar_data: Dict[str, pd.DataFrame]
 
-    def __init__(self, radar_data: Dict[str, pd.DataFrame], start_time: int, tz: Optional[str] = None):
+    def __init__(
+        self,
+        radar_data: Dict[str, pd.DataFrame],
+        start_time: int,
+        tz: Optional[str] = None,
+        sampling_rate_hz: float = 1953.125,
+    ):
         """Get new Dataset instance.
 
         .. note::
@@ -48,11 +54,12 @@ class EmradDataset:
         self._radar_data = radar_data
         self._start_time_unix = start_time
         self._tz = tz
+        self._sampling_rate_hz = sampling_rate_hz
 
     @property
-    def sampling_rate_hz(self):
+    def sampling_rate_hz(self) -> float:
         """Sampling rate of the radar sensor in Hz."""
-        return self._SAMPLING_RATE_HZ
+        return self._sampling_rate_hz
 
     @property
     def timezone(self):
@@ -67,7 +74,6 @@ class EmradDataset:
     def data_as_df(
         self,
         nodes: Optional[Sequence[str]] = None,
-        drop_empty_nodes: Optional[bool] = True,
         index: Optional[str] = None,
         add_sync_in: Optional[bool] = False,
         add_sync_out: Optional[bool] = False,
@@ -86,8 +92,6 @@ class EmradDataset:
             * "utc_datetime": for a pandas DateTime index in UTC time
             * "local_datetime": for a pandas DateTime index in the timezone set for the session
             * None: For a simple index (0...N)
-        drop_empty_nodes : bool, optional
-            ``True`` to exclude empty radar nodes in the dataframe. Default: ``True``
         add_sync_in : bool, optional
             ``True`` to include the "Sync_In" channel for each radar node. Default: ``False``
         add_sync_out : bool, optional
@@ -104,12 +108,9 @@ class EmradDataset:
         if isinstance(nodes, str):
             nodes = [nodes]
 
-        radar_data = {node: self.radar_data[node] for node in nodes}
-
+        radar_data = {node: self.radar_data[node] for node in nodes if not self.radar_data[node].empty}
         data = pd.concat(radar_data, axis=1, names=["node"])
 
-        if drop_empty_nodes:
-            data = data.dropna(axis=1, how="all")
         if not add_sync_in:
             data = data.drop(columns="Sync_In", level="channel")
         if not add_sync_out:
@@ -154,9 +155,7 @@ class EmradDataset:
 
     @classmethod
     def from_hd5_file(
-        cls,
-        path: path_t,
-        tz: Optional[str] = "Europe/Berlin",
+        cls, path: path_t, tz: Optional[str] = "Europe/Berlin", sampling_rate_hz: Optional[float] = 1953.125
     ) -> Self:
         """Create a new Dataset from a valid .hd5 file.
 
@@ -168,6 +167,8 @@ class EmradDataset:
             Timezone str of the recording. This can be used to localize the start and end time.
             Note, this should not be the timezone of your current PC, but the timezone relevant for the specific
             recording.
+        sampling_rate_hz : float, optional
+            Sampling rate of the radar sensor in Hz. Default: 1953.125 Hz
 
         """
         path = Path(path)
@@ -186,4 +187,4 @@ class EmradDataset:
             for key in file.keys()
         }
 
-        return cls(data, start_time, tz)
+        return cls(data, start_time, tz, sampling_rate_hz)
