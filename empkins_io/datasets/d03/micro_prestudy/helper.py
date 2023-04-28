@@ -378,7 +378,7 @@ def _find_study_part_file(path: path_t, study_part: str, file_ending: str):
 
 def extract_annotated_data(
     data: pd.DataFrame, annotations: pd.DataFrame, sync_interval: Optional[Tuple[time, time]] = None
-) -> list[pd.DataFrame]:
+) -> Sequence[pd.DataFrame]:
     if sync_interval:
         # cut to synced interval that was considered for labeling
         data = data.between_time(sync_interval[0], sync_interval[1])
