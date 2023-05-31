@@ -1,12 +1,14 @@
 import re
-from typing import Any, Dict, Literal, Optional, Sequence, Tuple, get_args
+from typing import Any, Dict, Literal, Optional, Sequence, Tuple, get_args, Union
 
 import numpy as np
 import pandas as pd
+import resampy
 from biopsykit.utils._datatype_validation_helper import _assert_is_dtype
 from matplotlib import pyplot as plt
 from scipy import signal
 from scipy.interpolate import interp1d
+from scipy.signal import periodogram, find_peaks
 
 from empkins_io.utils.exceptions import SynchronizationError, ValidationError
 
@@ -64,6 +66,36 @@ class SyncedDataset:
 
         return fig, axs
 
+    def resample_datasets(self, fs_out: float, method: Literal["static", "dynamic"], **kwargs) -> None:
+        for name in self.datasets:
+            dataset = self.datasets[name]
+            if method == "static":
+                fs_in = dataset["sampling_rate"]
+            elif method == "dynamic":
+                fs_in = self._determine_actual_sampling_rate(dataset, **kwargs)
+            else:
+                # this should never happen
+                raise ValueError(f"Method '{method}' not supported.")
+
+            data_resample = resampy.resample(
+                dataset["data"].values, sr_orig=fs_in, sr_new=fs_out, axis=0, parallel=True
+            )
+            index_resample = pd.date_range(
+                start=dataset["data"].index[0],
+                periods=len(data_resample),
+                freq=f"{1/fs_out*1000}ms",
+                tz=dataset["data"].index.tz,
+            )
+            index_resample.name = dataset["data"].index.name
+            data_resample = pd.DataFrame(
+                data_resample,
+                columns=dataset["data"].columns,
+                index=index_resample,
+            )
+            dataset["sampling_rate_resampled"] = fs_out
+            dataset["data_resampled"] = data_resample
+            setattr(self, f"{name}_resampled_", data_resample)
+
     def cut_to_sync_start(self, sync_params: Optional[Dict[str, Any]] = None):
         """Cut all datasets to the region where all datasets are synced."""
         if sync_params is None:
@@ -75,17 +107,14 @@ class SyncedDataset:
             setattr(self, f"{name}_cut_", data_cut)
 
     def _cut_dataset_to_sync_start(self, dataset: Dict[str, Any], sync_params: Dict[str, Any]) -> pd.DataFrame:
-        sync_channel = dataset["sync_channel"]
-        data = dataset["data"]
 
-        # if self.sync_type == "m-sequence":
-        #     # get the highest sampling rate of all datasets
-        #     sampling_rate = max(dataset["sampling_rate"] for dataset in self.datasets.values())
-        #     sync_params["sampling_rate"] = sampling_rate
-        #     sync_params["sampling_rate_old"] = dataset["sampling_rate"]
-        #     start = SyncedDataset._find_sync_cross_correlation(data[sync_channel], sync_params)
-        #     data_cut = data.iloc[start:]
-        # else:
+        if self.sync_type == "m-sequence":
+            raise NotImplementedError(
+                "For cutting and aligning datasets, please use the 'cut_to_sync_start_m_sequence' method."
+            )
+
+        data = dataset["data"]
+        sync_channel = dataset["sync_channel"]
         if self.sync_type == "peak":
             # sync_type is "peak"
             sync_data = data[sync_channel]
@@ -102,10 +131,6 @@ class SyncedDataset:
                 sync_params["max_expected_peaks"] = 2 + sync_params.get("wave_frequency") * (
                     len(data) / dataset["sampling_rate"]
                 )
-        elif self.sync_type == "m-sequence":
-            # sync_type is "m-sequence"
-            sync_data = np.abs(np.ediff1d(data[sync_channel]))
-            sync_params["expected_peaks"] = len(sync_data)
         else:
             raise AttributeError("This should never happen.")
 
@@ -117,6 +142,121 @@ class SyncedDataset:
             data_cut = data.iloc[peaks[0] : peaks[-1]]
 
         return data_cut
+
+    def align_and_cut_m_sequence(
+        self,
+        primary: str,
+        cut_to_shortest: Optional[bool] = False,
+        reset_time_axis: Optional[bool] = False,
+        sync_params: Optional[Dict[str, Any]] = None,
+    ):
+        if sync_params is None:
+            sync_params = {}
+
+        # assert that sampling rates are equal for all datasets
+        sampling_rates = set(dataset["sampling_rate"] for dataset in self.datasets.values())
+        if len(sampling_rates) != 1:
+            # check if there are resampled datasets
+            if all("sampling_rate_resampled" in dataset for dataset in self.datasets.values()):
+                sampling_rates = set(dataset["sampling_rate_resampled"] for dataset in self.datasets.values())
+            else:
+                raise ValueError(
+                    "Sampling rates of datasets are not equal. Please resample all datasets to a "
+                    "common sampling rate using `SyncedDataset.resample_datasets()`."
+                )
+
+        sync_params["sampling_rate"] = list(sampling_rates)[0]
+
+        sync_channel_primary = self.datasets[primary]["sync_channel"]
+
+        fs = sync_params["sampling_rate"]
+
+        dict_data_pad = {}
+        dict_lags = {}
+
+        data_primary = self.datasets[primary].get("data_resampled", self.datasets[primary].get("data"))
+        data_primary = data_primary.copy()
+        data_primary.loc[:, sync_channel_primary] = self._binarize_signal(data_primary[sync_channel_primary])
+
+        for name, dataset in self.datasets.items():
+            if name == primary:
+                continue
+
+            data_secondary = dataset.get("data_resampled", dataset.get("data"))
+            sync_channel_secondary = dataset["sync_channel"]
+            data_secondary.loc[:, sync_channel_secondary] = self._binarize_signal(
+                data_secondary[sync_channel_secondary]
+            )
+
+            # zero-pad the shorter signal in the end. This is necessary for the cross-correlation
+            padlen_samples = len(data_secondary) - len(data_primary)
+
+            if padlen_samples > 0:
+                # the primary signal is shorter than the secondary signal => cut the secondary signal
+                data_secondary = data_secondary.iloc[:-padlen_samples]
+            else:
+                # the secondary signal is shorter than the primary signal => pad the secondary signal
+                data_secondary = self._pad_signal(data_secondary, -padlen_samples, start=False, fs=fs)
+
+            data_primary = data_primary.reset_index()
+            data_secondary = data_secondary.reset_index()
+
+            # cut to search region
+            sync_region_samples = sync_params.get("sync_region_samples", (0, len(data_primary)))
+            data_primary_search = data_primary.iloc[sync_region_samples[0] : sync_region_samples[1]]
+            data_secondary_search = data_secondary.iloc[sync_region_samples[0] : sync_region_samples[1]]
+
+            lag_samples = self._find_sync_cross_correlation(
+                data_primary_search[sync_channel_primary], data_secondary_search[sync_channel_secondary], fs
+            )
+
+            dict_data_pad[name] = data_secondary
+            dict_lags[name] = lag_samples
+
+            data_primary = data_primary.set_index(data_primary.columns[0])
+
+        setattr(self, f"{primary}_aligned_", data_primary)
+
+        # align all the signals that are *behind* the primary signal by cutting the beginning
+        for name, data in dict_data_pad.items():
+            if dict_lags[name] < 0:
+                data = data.iloc[-dict_lags[name] :].reset_index(drop=True)
+
+            data = data.set_index(data.columns[0])
+            dict_data_pad[name] = data
+            setattr(self, f"{name}_aligned_", data)
+
+        # align all the signals that are *ahead* of the primary signal by cutting the beginning of all other signals
+        for name, data in dict_data_pad.items():
+            if dict_lags[name] > 0:
+                # shift all the others to match this one
+                for name2, data2 in dict_data_pad.items():
+                    if name2 == name:
+                        continue
+                    data2 = self._reset_and_shift(data2, dict_lags[name])
+
+                    setattr(self, f"{name2}_aligned_", data2)
+
+                # shift primary
+                data_primary = getattr(self, f"{primary}_aligned_")
+                data_primary = self._reset_and_shift(data_primary, dict_lags[name])
+                setattr(self, f"{primary}_aligned_", data_primary)
+
+        if reset_time_axis:
+            data_primary = getattr(self, f"{primary}_aligned_")
+            for name in self.datasets:
+                if name == primary:
+                    continue
+                data_aligned = getattr(self, f"{name}_aligned_")
+                data_aligned.index = data_aligned.index - data_aligned.index[0] + data_primary.index[0]
+                setattr(self, f"{name}_aligned_", data_aligned)
+
+        if cut_to_shortest:
+            shortest_length = min(len(data) for name, data in self.datasets_aligned.items())
+            for name in self.datasets:
+                data_aligned = getattr(self, f"{name}_aligned_")
+                data_aligned = data_aligned.iloc[:shortest_length]
+                setattr(self, f"{name}_aligned_", data_aligned)
 
     def align_datasets(
         self, primary: str, cut_to_shortest: Optional[bool] = False, reset_time_axis: Optional[bool] = False
@@ -169,6 +309,11 @@ class SyncedDataset:
                 setattr(self, f"{name}_aligned_", data_aligned)
 
     @property
+    def datasets_resampled(self):
+        # get all datasets that were cut to sync start
+        return {attr: getattr(self, attr) for attr in dir(self) if attr.endswith("resampled_")}
+
+    @property
     def datasets_cut(self):
         # get all datasets that were cut to sync start
         return {attr: getattr(self, attr) for attr in dir(self) if attr.endswith("cut_")}
@@ -206,30 +351,22 @@ class SyncedDataset:
 
         return peaks
 
-    @staticmethod
-    def _find_sync_cross_correlation(data: np.ndarray, sync_params: Dict[str, Any]) -> int:
-        # sampling_rate_old = sync_params["sampling_rate_old"]
-        # sampling_rate = sync_params["sampling_rate"]
-        # interpolate data to sampling rate
-        # x_old = np.arange(len(data)) / sampling_rate_old
-        # x_new = np.arange(len(data)) / sampling_rate
-        # interpol_f = interp1d(x_old, data, kind="nearest")
-        # data = interpol_f(x_new)
+    def _find_sync_cross_correlation(
+        self,
+        primary: Union[np.ndarray, pd.DataFrame],
+        secondary: Union[np.ndarray, pd.DataFrame],
+        fs: float,
+    ) -> int:
 
-        #     len_primary = len(data_prim)
-        #     len_secondary = len(data_sec)
-        #
-        #     cross_corr = signal.correlate(data_prim[sync_ch_prim], data_sec[sync_ch_sec], mode="same")
-        #     auto_corr_prim = signal.correlate(data_prim[sync_ch_prim], data_prim[sync_ch_prim], mode="same")
-        #     auto_corr_sec = signal.correlate(data_sec[sync_ch_sec], data_sec[sync_ch_sec], mode="same")
-        #
-        #     cross_corr = cross_corr / np.sqrt(auto_corr_prim[int(len_primary / 2)] * auto_corr_sec[int(len_secondary / 2)])
-        #
-        #     delay_arr = np.linspace(-0.5 * len_primary / fs_prim, 0.5 * len_primary / fs_prim, len_primary)
-        #     delay_sec = delay_arr[np.argmax(cross_corr)]
-        #     delay_samples = int(np.around(delay_sec * fs_sec))
+        # find the cross-correlation values and the index of the maximum cross-correlation
+        lag_values = np.arange((-len(primary) + 1) / fs, len(primary) / fs, 1 / fs)
 
-        raise NotImplementedError()
+        crosscorr = signal.correlate(primary, secondary)
+        max_crosscorr_idx = np.argmax(crosscorr)
+
+        # find the lag at the cross-correlation maximum (t-value) and the number of timesteps corresponding to this lag
+        lag_samples = int(round(lag_values[max_crosscorr_idx] * fs))
+        return lag_samples
 
     def _check_valid_index(self, data: pd.DataFrame):
         index_type = list(set(type(dataset["data"].index) for dataset in self.datasets.values()))[0]
@@ -260,3 +397,55 @@ class SyncedDataset:
             f"* 'date': for a pandas DateTime index in UTC time\n"
             f"* 'date (<timezone>)': for a pandas DateTime index in the timezone set for the session\n"
         )
+
+    def _determine_actual_sampling_rate(self, dataset: Dict[str, Any], **kwargs) -> float:
+        wave_frequency = kwargs.get("wave_frequency", None)
+        data = dataset["data"]
+        sync_channel = dataset["sync_channel"]
+        fs = dataset["sampling_rate"]
+        sync_abs = np.abs(np.ediff1d(data[sync_channel]))
+        fft_sync, psd_sync = periodogram(sync_abs, fs=fs, window="hamming")
+        psd_sync = self._normalize_signal(psd_sync)
+
+        idx_peak = find_peaks(psd_sync, height=0.5)[0][0]
+        freq_sync = fft_sync[idx_peak]
+
+        fs_measured = (wave_frequency / freq_sync) * fs
+        return fs_measured
+
+    @classmethod
+    def _normalize_signal(cls, data: Union[pd.DataFrame, np.ndarray]) -> pd.DataFrame:
+        return (data - np.min(data)) / (np.max(data) - np.min(data))
+
+    @classmethod
+    def _binarize_signal(cls, data: Union[pd.DataFrame, np.ndarray]) -> pd.DataFrame:
+        return 0.5 * (np.sign(data - np.mean(data)) + 1)
+
+    @classmethod
+    def _pad_signal(cls, data: pd.DataFrame, padlen: int, start: bool, fs: float) -> pd.DataFrame:
+        if start:
+            pad_width = ((padlen, 0), (0, 0))
+            constant_values = ((0, None), (None, None))
+        else:
+            pad_width = ((0, padlen), (0, 0))
+            constant_values = ((None, 0), (None, None))
+        data_pad = np.pad(data, pad_width=pad_width, mode="constant", constant_values=constant_values)
+        data_pad = pd.DataFrame(data_pad, columns=data.columns)
+
+        if isinstance(data.index, pd.DatetimeIndex):
+            data_pad.index /= fs
+            if start:
+                data_pad -= data_pad.index[-1]
+            data_pad.index = pd.to_timedelta(data_pad.index, unit="s")
+            if start:
+                data_pad.index += data.index[-1]
+            else:
+                data_pad.index += data.index[0]
+            data_pad.index.name = data.index.name
+        return data_pad
+
+    @staticmethod
+    def _reset_and_shift(data: pd.DataFrame, shift_idx: int) -> pd.DataFrame:
+        data = data.reset_index()
+        data = data.iloc[shift_idx:].reset_index(drop=True)
+        return data.set_index(data.columns[0])
