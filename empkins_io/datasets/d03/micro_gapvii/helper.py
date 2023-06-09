@@ -6,6 +6,7 @@ import numpy as np
 from biopsykit.io import load_atimelogger_file
 from biopsykit.io.biopac import BiopacDataset
 
+from empkins_io.sensors.emrad import EmradDataset
 from empkins_io.utils._types import path_t
 from empkins_io.utils.exceptions import SamplingRateMismatchException, TimelogNotFoundException
 
@@ -37,6 +38,12 @@ def _load_biopac_data(base_path: path_t, participant_id: str, condition: str) ->
     fs = list(sampling_rates)[0]
     return biopac_df, fs
 
+def _load_emrad_data(base_path: path_t, participant_id: str, condition: str) -> EmradDataset:
+    emrad_dir = _build_data_path(base_path, participant_id=participant_id, condition=condition).joinpath("emrad/raw")
+
+    emrad_file = emrad_dir.joinpath(f"emrad_data_{participant_id}_{condition}.hdf5")
+
+    return EmradDataset.from_hd5_file(emrad_file)
 
 def _load_timelog(base_path: path_t, participant_id: str, condition: str, phase: str, phase_fine: bool) -> pd.DataFrame:
     timelog_dir_path = _build_data_path(base_path, participant_id=participant_id, condition=condition).joinpath(
