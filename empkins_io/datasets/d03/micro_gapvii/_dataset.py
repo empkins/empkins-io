@@ -62,11 +62,11 @@ class MicroBaseDataset(Dataset):
 
         if self.phase_fine:
             index = list(product(participant_ids, self.CONDITIONS, self.PHASE_FINE))
-            index = pd.DataFrame(index, columns=['participant', 'condition', 'phase'])
+            index = pd.DataFrame(index, columns=['subject', 'condition', 'phase'])
             return index
         elif not self.phase_fine:
             index = list(product(participant_ids, self.CONDITIONS, self.PHASE_COARSE))
-            index = pd.DataFrame(index, columns=['participant', 'condition', 'phase'])
+            index = pd.DataFrame(index, columns=['subject', 'condition', 'phase'])
             return index
 
     @property
@@ -80,37 +80,37 @@ class MicroBaseDataset(Dataset):
 
     @property
     def sex(self) -> pd.DataFrame:
-        return load_long_format_csv(self.base_path.joinpath("data_tabular/extras/processed/sex.csv"), index_cols=["participant"])
+        return load_long_format_csv(self.base_path.joinpath("data_tabular/extras/processed/sex.csv"), index_cols=["subject"])
 
     @property
     def condition_order(self) -> pd.DataFrame:
-        return load_long_format_csv(self.base_path.joinpath("data_tabular/extras/processed/condition_order.csv"), index_cols=["participant"])
+        return load_long_format_csv(self.base_path.joinpath("data_tabular/extras/processed/condition_order.csv"), index_cols=["subject"])
 
     @property
     def sit_stand(self) -> pd.DataFrame:
-        return load_long_format_csv(self.base_path.joinpath("data_tabular/extras/processed/sit_stand.csv"), index_cols=["participant"])
+        return load_long_format_csv(self.base_path.joinpath("data_tabular/extras/processed/sit_stand.csv"), index_cols=["subject"])
 
     @property
     def condition_day_mapping(self) -> pd.DataFrame:
-        return load_long_format_csv(self.base_path.joinpath("data_tabular/extras/processed/day_condition_mapping.csv"), index_cols=["participant", "day"])
+        return load_long_format_csv(self.base_path.joinpath("data_tabular/extras/processed/day_condition_mapping.csv"), index_cols=["subject", "day"])
 
     @cached_property
     def biopac(self) -> pd.DataFrame:
-        if self.is_single(["participant", "condition", "phase"]):
-            participant_id = self.index["participant"][0]
+        if self.is_single(["subject", "condition", "phase"]):
+            participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
             phase = self.index["phase"][0]
 
             data, fs = self._get_biopac_data(participant_id, condition, phase)
             return data
 
-        if self.is_single(["participant", "condition"]):
+        if self.is_single(["subject", "condition"]):
             if self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]:
                 warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
             elif not self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]:
                 warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
 
-            participant_id = self.index["participant"][0]
+            participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
 
             data, fs = self._get_biopac_data(participant_id, condition, "all")
@@ -123,7 +123,7 @@ class MicroBaseDataset(Dataset):
                 warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
 
             # get biopac data for specified participant and specified phase and study protocol
-            participant_id = self.index["participant"][0]
+            participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
 
             data, fs = self._get_biopac_data(participant_id, condition, "all")
@@ -133,19 +133,19 @@ class MicroBaseDataset(Dataset):
 
     @property
     def timelog(self) -> pd.DataFrame:
-        if self.is_single(["participant", "condition", "phase"]):
-            participant_id = self.index["participant"][0]
+        if self.is_single(["subject", "condition", "phase"]):
+            participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
             phase = self.index['phase'][0]
             return self._get_timelog(participant_id, condition, phase)
 
-        if self.is_single(["participant", "condition"]):
+        if self.is_single(["subject", "condition"]):
             if self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]:
                 warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
             elif not self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]:
                 warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
 
-            participant_id = self.index["participant"][0]
+            participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
             return self._get_timelog(participant_id, condition, "all")
 
@@ -153,21 +153,21 @@ class MicroBaseDataset(Dataset):
 
     @property
     def emrad(self) -> pd.DataFrame:
-        if self.is_single(["participant", "condition", "phase"]):
-            participant_id = self.index["participant"][0]
+        if self.is_single(["subject", "condition", "phase"]):
+            participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
             phase = self.index["phase"][0]
 
             data, fs = self._get_emrad_data(participant_id, condition, phase)
             return data
 
-        if self.is_single(["participant", "condition"]):
+        if self.is_single(["subject", "condition"]):
             if self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]:
                 warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
             elif not self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]:
                 warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
 
-            participant_id = self.index["participant"][0]
+            participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
 
             data, fs = self._get_biopac_data(participant_id, condition, "all")
@@ -180,7 +180,7 @@ class MicroBaseDataset(Dataset):
                 warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
 
             # get biopac data for specified participant and specified phase and study protocol
-            participant_id = self.index["participant"][0]
+            participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
 
             data, fs = self._get_emrad_data(participant_id, condition, "all")
