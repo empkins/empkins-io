@@ -170,7 +170,7 @@ class MicroBaseDataset(Dataset):
             participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
 
-            data, fs = self._get_biopac_data(participant_id, condition, "all")
+            data, fs = self._get_emrad_data(participant_id, condition, "all")
             return data
 
         if self.is_single(None):
