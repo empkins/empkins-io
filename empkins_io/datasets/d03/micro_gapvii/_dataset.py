@@ -8,6 +8,9 @@ from biopsykit.io.io import load_long_format_csv
 from tpcp import Dataset
 import warnings
 
+from resampy import resample
+
+from empkins_io.sync import SyncedDataset
 from empkins_io.datasets.d03.micro_gapvii.helper import _load_biopac_data, _load_timelog, _load_emrad_data
 from empkins_io.utils._types import path_t
 
@@ -187,6 +190,65 @@ class MicroBaseDataset(Dataset):
             return data
 
         raise ValueError("Emrad data can only be accessed for all phases or one specific phase!")
+    
+    @property
+    def emrad_biopac_synced(self) -> dict:
+        """The synchronized raw data returned as a dictionary containing the rad_i, rad_q and ecg biopac data of all phases."""
+
+        # Check if only a single entry is left inside the index
+        self.assert_is_single(["participant", "condition"], "raw_data_synchronized")
+
+        synced_data = SyncedDataset()
+
+        # Add the available raw radar datasets sensor by sensor
+        raw_radar_data = self.emrad
+        for radar_sensor in raw_radar_data.columns.get_level_values(0).unique():
+            synced_data.add_dataset(radar_sensor, raw_radar_data.xs(radar_sensor, axis=1), "Sync_In", self._sampling_rates['radar'])
+
+        # Add the biopac data
+        raw_biopac_data = self.biopac
+        synced_data.add_dataset("Biopac", raw_biopac_data, "sync", self._sampling_rates['biopac'])
+
+        # cut them to the sync start
+        synced_data.cut_to_sync_start()
+
+        # Make them represent equal time spans
+        """ min_time = min([v.index[-1] for _,v in synced_data.datasets_cut.items()])
+        synced_and_truncated_data = {k:v.truncate(after=min_time) for k, v in synced_data.datasets_cut.items()} """
+                
+        # Performs a resampling of the synced radar data to 1000 Hz
+        """  for key in [key for key in result_dict.keys() if key!="ecg" and result_dict[key] is not None]:        
+            result_dict[key] = resampy.resample(result_dict[key], self.sampling_rate_raw_radar_hz, 1000)  """
+
+        return synced_data.datasets_cut
+    
+    @property
+    def emrad_biopac_synced_and_sr_aligned(self):
+        """The synchronized raw data returned as a dictionary containing the rad_i, rad_q and ecg biopac data of all phases. Radar downsampled to
+        1000 Hz, now equaling the sample rate of the biopac data."""
+
+        # Check if only a single entry is left inside the index
+        self.assert_is_single(["participant", "condition"], "raw_data_synced_and_sr_aligned")
+
+        # get dictionary with synced data
+        synced_data = self.emrad_biopac_synced
+
+        # loop over all accessible radar sensors
+        for k in [key for key,_ in synced_data.items() if key != None and "rad" in key]:
+            synced_data[k].drop(columns=["Sync_In", "Sync_Out"], axis= 1, inplace=True)
+            #print(f"Key: {k}")
+            #print(synced_data[k].head())
+            #print("Old Len")
+            #print(len(synced_data[k].xs("I", axis=1).to_numpy()))
+            #print("New Len")
+            #print(len(resampy.resample(synced_data[k].xs("I", axis=1).to_numpy(), self._sampling_rates['radar'], 1000)))
+            resampled_I = resampy.resample(synced_data[k].xs("I", axis=1).to_numpy(), self._sampling_rates['radar'], 1000)
+            resampled_Q = resampy.resample(synced_data[k].xs("Q", axis=1).to_numpy(), self._sampling_rates['radar'], 1000)
+            new_index = pd.date_range(synced_data[k].index.values[0], periods=len(resampled_I), freq="1L")
+            synced_data[k] = pd.DataFrame({'I': resampled_I, 'Q': resampled_Q})
+            synced_data[k].set_index(new_index, inplace=True)
+        
+        return synced_data
 
     def _get_biopac_data(self, participant_id: str, condition: str, phase: str) -> Tuple[pd.DataFrame, int]:
         if self.use_cache:
