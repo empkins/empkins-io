@@ -162,7 +162,7 @@ class MicroBaseDataset(Dataset):
             phase = self.index["phase"][0]
 
             data, fs = self._get_emrad_data(participant_id, condition, phase)
-            return data
+            return data, fs
 
         if self.is_single(["subject", "condition"]):
             if self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]:
@@ -174,7 +174,7 @@ class MicroBaseDataset(Dataset):
             condition = self.index["condition"][0]
 
             data, fs = self._get_emrad_data(participant_id, condition, "all")
-            return data
+            return data, fs
 
         if self.is_single(None):
             if self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]:
@@ -187,7 +187,7 @@ class MicroBaseDataset(Dataset):
             condition = self.index["condition"][0]
 
             data, fs = self._get_emrad_data(participant_id, condition, "all")
-            return data
+            return data, fs
 
         raise ValueError("Emrad data can only be accessed for all phases or one specific phase!")
     

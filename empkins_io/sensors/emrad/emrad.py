@@ -172,7 +172,7 @@ class EmradDataset:
 
         """
         path = Path(path)
-        _assert_file_extension(path, (".h5", ".hd5"))
+        _assert_file_extension(path, (".h5", ".hd5", ".hdf5"))
 
         file: h5py.File = h5py.File(path, mode="r")
         if "Radar" not in file.keys():
