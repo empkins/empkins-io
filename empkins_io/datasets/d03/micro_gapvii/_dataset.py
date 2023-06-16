@@ -196,14 +196,14 @@ class MicroBaseDataset(Dataset):
         """The synchronized raw data returned as a dictionary containing the rad_i, rad_q and ecg biopac data of all phases."""
 
         # Check if only a single entry is left inside the index
-        self.assert_is_single(["participant", "condition"], "raw_data_synchronized")
+        self.assert_is_single(["subject", "condition"], "raw_data_synchronized")
 
         synced_data = SyncedDataset()
 
         # Add the available raw radar datasets sensor by sensor
-        raw_radar_data = self.emrad
+        raw_radar_data, fs = self.emrad
         for radar_sensor in raw_radar_data.columns.get_level_values(0).unique():
-            synced_data.add_dataset(radar_sensor, raw_radar_data.xs(radar_sensor, axis=1), "Sync_In", self._sampling_rates['radar'])
+            synced_data.add_dataset(radar_sensor, raw_radar_data.xs(radar_sensor, axis=1), "Sync_In", fs)
 
         # Add the biopac data
         raw_biopac_data = self.biopac
@@ -228,7 +228,7 @@ class MicroBaseDataset(Dataset):
         1000 Hz, now equaling the sample rate of the biopac data."""
 
         # Check if only a single entry is left inside the index
-        self.assert_is_single(["participant", "condition"], "raw_data_synced_and_sr_aligned")
+        self.assert_is_single(["subject", "condition"], "raw_data_synced_and_sr_aligned")
 
         # get dictionary with synced data
         synced_data = self.emrad_biopac_synced
