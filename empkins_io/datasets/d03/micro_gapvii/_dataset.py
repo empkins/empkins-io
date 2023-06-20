@@ -166,9 +166,9 @@ class MicroBaseDataset(Dataset):
 
         if self.is_single(["subject", "condition"]):
             if self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]:
-                warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
+                warnings.warn("Emrad data can only be accessed for all phases or one specific phase!")
             elif not self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]:
-                warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
+                warnings.warn("Emrad data can only be accessed for all phases or one specific phase!")
 
             participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
@@ -178,9 +178,9 @@ class MicroBaseDataset(Dataset):
 
         if self.is_single(None):
             if self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]:
-                warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
+                warnings.warn("Emrad data can only be accessed for all phases or one specific phase!")
             elif not self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]:
-                warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
+                warnings.warn("Emrad data can only be accessed for all phases or one specific phase!")
 
             # get biopac data for specified participant and specified phase and study protocol
             participant_id = self.index["subject"][0]
@@ -196,7 +196,7 @@ class MicroBaseDataset(Dataset):
         """The synchronized raw data returned as a dictionary containing the rad_i, rad_q and ecg biopac data of all phases."""
 
         # Check if only a single entry is left inside the index
-        self.assert_is_single(["subject", "condition"], "raw_data_synchronized")
+        self.assert_is_single(["subject", "condition"], "emrad_biopac_synced")
 
         synced_data = SyncedDataset()
 
@@ -225,14 +225,43 @@ class MicroBaseDataset(Dataset):
     @property
     def emrad_biopac_synced_and_sr_aligned(self):
         """The synchronized raw data returned as a dictionary containing the rad_i, rad_q and ecg biopac data of all phases. Radar downsampled to
-        1000 Hz, now equaling the sample rate of the biopac data."""
+        1000 Hz, now equaling the sample rate of the biopac data. Data end cut until end of last phase."""
 
         # Check if only a single entry is left inside the index
-        self.assert_is_single(["subject", "condition"], "raw_data_synced_and_sr_aligned")
+        self.assert_is_single(["subject", "condition"], "emrad_biopac_synced_and_sr_aligned")
 
-        # get dictionary with synced data
-        synced_data = self.emrad_biopac_synced
+        synced_data = SyncedDataset()
 
+        # Add the available raw radar datasets sensor by sensor
+        raw_radar_data, fs = self.emrad
+        for radar_sensor in raw_radar_data.columns.get_level_values(0).unique():
+            synced_data.add_dataset(radar_sensor, raw_radar_data.xs(radar_sensor, axis=1), "Sync_In", fs)
+
+        # Add the biopac data
+        raw_biopac_data = self.biopac
+        synced_data.add_dataset("Biopac", raw_biopac_data, "sync", self._sampling_rates['biopac'])
+
+        # cut them to the sync start
+        synced_data.cut_to_sync_start()
+
+        resampled_data = SyncedDataset()
+        
+        for cut_dataset_name, cut_dataset_vals in synced_data.datasets_cut.items():
+            if "rad" in cut_dataset_name:
+                resampled_data.add_dataset(cut_dataset_name, cut_dataset_vals, "Sync_In", fs)
+            elif "Biopac" in cut_dataset_name:
+                resampled_data.add_dataset(cut_dataset_name, cut_dataset_vals, "sync", self._sampling_rates['biopac'])
+        
+        resampled_data.resample_datasets(fs_out=1000, method='static')
+
+        """ # make them represent equal time spans
+        end_time = self.timelog["Pause 5"]["end"][0]
+        for resampled_dataset_name, resampled_dataset_vals in resampled_data.datasets_resampled:
+            resampled_dataset_vals = resampled_dataset_vals[:end_time] """
+
+        return resampled_data.datasets_resampled
+
+    """ 
         # loop over all accessible radar sensors
         for k in [key for key,_ in synced_data.items() if key != None and "rad" in key]:
             synced_data[k].drop(columns=["Sync_In", "Sync_Out"], axis= 1, inplace=True)
@@ -246,9 +275,10 @@ class MicroBaseDataset(Dataset):
             resampled_Q = resampy.resample(synced_data[k].xs("Q", axis=1).to_numpy(), self._sampling_rates['radar'], 1000)
             new_index = pd.date_range(synced_data[k].index.values[0], periods=len(resampled_I), freq="1L")
             synced_data[k] = pd.DataFrame({'I': resampled_I, 'Q': resampled_Q})
-            synced_data[k].set_index(new_index, inplace=True)
+            synced_data[k].set_index(new_index, inplace=True) 
         
-        return synced_data
+        return synced_data 
+        """
 
     def _get_biopac_data(self, participant_id: str, condition: str, phase: str) -> Tuple[pd.DataFrame, int]:
         if self.use_cache:
@@ -284,3 +314,4 @@ class MicroBaseDataset(Dataset):
 
     def _get_timelog(self, participant_id: str, condition: str, phase: str) -> pd.DataFrame:
         return _load_timelog(self.base_path, participant_id, condition, phase, self.phase_fine)
+    
