@@ -108,9 +108,9 @@ class MicroBaseDataset(Dataset):
             return data
 
         if self.is_single(["subject", "condition"]):
-            if self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]:
+            if self.phase_fine and (len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]):
                 warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
-            elif not self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]:
+            elif not self.phase_fine and (len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]):
                 warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
 
             participant_id = self.index["subject"][0]
@@ -120,9 +120,9 @@ class MicroBaseDataset(Dataset):
             return data
 
         if self.is_single(None):
-            if self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]:
+            if self.phase_fine and (len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]):
                 warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
-            elif not self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]:
+            elif not self.phase_fine and (len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]):
                 warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
 
             # get biopac data for specified participant and specified phase and study protocol
@@ -143,9 +143,9 @@ class MicroBaseDataset(Dataset):
             return self._get_timelog(participant_id, condition, phase)
 
         if self.is_single(["subject", "condition"]):
-            if self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]:
+            if self.phase_fine and (len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]):
                 warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
-            elif not self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]:
+            elif not self.phase_fine and (len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]):
                 warnings.warn("Biopac data can only be accessed for all phases or one specific phase!")
 
             participant_id = self.index["subject"][0]
@@ -165,9 +165,9 @@ class MicroBaseDataset(Dataset):
             return data, fs
 
         if self.is_single(["subject", "condition"]):
-            if self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]:
+            if self.phase_fine and (len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]):
                 warnings.warn("Emrad data can only be accessed for all phases or one specific phase!")
-            elif not self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]:
+            elif not self.phase_fine and (len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]):
                 warnings.warn("Emrad data can only be accessed for all phases or one specific phase!")
 
             participant_id = self.index["subject"][0]
@@ -177,9 +177,9 @@ class MicroBaseDataset(Dataset):
             return data, fs
 
         if self.is_single(None):
-            if self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]:
+            if self.phase_fine and (len(self.index["phase"]) not in [1, len(self.PHASE_FINE)]):
                 warnings.warn("Emrad data can only be accessed for all phases or one specific phase!")
-            elif not self.phase_fine & len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]:
+            elif not self.phase_fine and (len(self.index["phase"]) not in [1, len(self.PHASE_COARSE)]):
                 warnings.warn("Emrad data can only be accessed for all phases or one specific phase!")
 
             # get biopac data for specified participant and specified phase and study protocol
@@ -254,10 +254,10 @@ class MicroBaseDataset(Dataset):
         
         resampled_data.resample_datasets(fs_out=1000, method='static')
 
-        """ # make them represent equal time spans
+        # make them represent equal time spans
         end_time = self.timelog["Pause 5"]["end"][0]
         for resampled_dataset_name, resampled_dataset_vals in resampled_data.datasets_resampled:
-            resampled_dataset_vals = resampled_dataset_vals[:end_time] """
+            resampled_dataset_vals = resampled_dataset_vals[:end_time]
 
         return resampled_data.datasets_resampled
 
