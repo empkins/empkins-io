@@ -261,25 +261,6 @@ class MicroBaseDataset(Dataset):
 
         return resampled_data.datasets_resampled
 
-    """ 
-        # loop over all accessible radar sensors
-        for k in [key for key,_ in synced_data.items() if key != None and "rad" in key]:
-            synced_data[k].drop(columns=["Sync_In", "Sync_Out"], axis= 1, inplace=True)
-            #print(f"Key: {k}")
-            #print(synced_data[k].head())
-            #print("Old Len")
-            #print(len(synced_data[k].xs("I", axis=1).to_numpy()))
-            #print("New Len")
-            #print(len(resampy.resample(synced_data[k].xs("I", axis=1).to_numpy(), self._sampling_rates['radar'], 1000)))
-            resampled_I = resampy.resample(synced_data[k].xs("I", axis=1).to_numpy(), self._sampling_rates['radar'], 1000)
-            resampled_Q = resampy.resample(synced_data[k].xs("Q", axis=1).to_numpy(), self._sampling_rates['radar'], 1000)
-            new_index = pd.date_range(synced_data[k].index.values[0], periods=len(resampled_I), freq="1L")
-            synced_data[k] = pd.DataFrame({'I': resampled_I, 'Q': resampled_Q})
-            synced_data[k].set_index(new_index, inplace=True) 
-        
-        return synced_data 
-        """
-
     def _get_biopac_data(self, participant_id: str, condition: str, phase: str) -> Tuple[pd.DataFrame, int]:
         if self.use_cache:
             data, fs = _cached_get_biopac_data(self.base_path, participant_id, condition)

@@ -54,11 +54,11 @@ def _load_timelog(base_path: path_t, participant_id: str, condition: str, phase:
     timelog_file_path = timelog_dir_path.joinpath(f"{participant_id}_{condition}_processed_phases_timelog.csv")
     if timelog_file_path.exists():
         timelog = load_atimelogger_file(timelog_file_path, timezone="Europe/Berlin")
-        if (phase == "all") & phase_fine:
+        if (phase == "all") and phase_fine:
             timelog_fine = timelog.drop('Talk', axis=1, level=0)
             timelog_fine = timelog_fine.drop('Math', axis=1, level=0)
             return timelog_fine
-        elif (phase == "all") & (not phase_fine):
+        elif (phase == "all") and (not phase_fine):
             timelog_coarse = timelog.drop('Talk_1', axis=1, level=0)
             timelog_coarse = timelog_coarse.drop('Talk_2', axis=1, level=0)
             timelog_coarse = timelog_coarse.drop('Math_1', axis=1, level=0)
