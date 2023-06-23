@@ -192,37 +192,6 @@ class MicroBaseDataset(Dataset):
         raise ValueError("Emrad data can only be accessed for all phases or one specific phase!")
     
     @property
-    def emrad_biopac_synced(self) -> dict:
-        """The synchronized raw data returned as a dictionary containing the rad_i, rad_q and ecg biopac data of all phases."""
-
-        # Check if only a single entry is left inside the index
-        self.assert_is_single(["subject", "condition"], "emrad_biopac_synced")
-
-        synced_data = SyncedDataset()
-
-        # Add the available raw radar datasets sensor by sensor
-        raw_radar_data, fs = self.emrad
-        for radar_sensor in raw_radar_data.columns.get_level_values(0).unique():
-            synced_data.add_dataset(radar_sensor, raw_radar_data.xs(radar_sensor, axis=1), "Sync_In", fs)
-
-        # Add the biopac data
-        raw_biopac_data = self.biopac
-        synced_data.add_dataset("Biopac", raw_biopac_data, "sync", self._sampling_rates['biopac'])
-
-        # cut them to the sync start
-        synced_data.cut_to_sync_start()
-
-        # Make them represent equal time spans
-        """ min_time = min([v.index[-1] for _,v in synced_data.datasets_cut.items()])
-        synced_and_truncated_data = {k:v.truncate(after=min_time) for k, v in synced_data.datasets_cut.items()} """
-                
-        # Performs a resampling of the synced radar data to 1000 Hz
-        """  for key in [key for key in result_dict.keys() if key!="ecg" and result_dict[key] is not None]:        
-            result_dict[key] = resampy.resample(result_dict[key], self.sampling_rate_raw_radar_hz, 1000)  """
-
-        return synced_data.datasets_cut
-    
-    @property
     def emrad_biopac_synced_and_sr_aligned(self):
         """The synchronized raw data returned as a dictionary containing the rad_i, rad_q and ecg biopac data of all phases. Radar downsampled to
         1000 Hz, now equaling the sample rate of the biopac data. Data end cut until end of last phase."""
@@ -244,20 +213,22 @@ class MicroBaseDataset(Dataset):
         # cut them to the sync start
         synced_data.cut_to_sync_start()
 
+        synced_data.align_datasets(primary="Biopac", cut_to_shortest=True)
+
         resampled_data = SyncedDataset()
         
-        for cut_dataset_name, cut_dataset_vals in synced_data.datasets_cut.items():
-            if "rad" in cut_dataset_name:
-                resampled_data.add_dataset(cut_dataset_name, cut_dataset_vals, "Sync_In", fs)
-            elif "Biopac" in cut_dataset_name:
-                resampled_data.add_dataset(cut_dataset_name, cut_dataset_vals, "sync", self._sampling_rates['biopac'])
+        for aligned_dataset_name, aligned_dataset_vals in synced_data.datasets_aligned.items():
+            if "rad" in aligned_dataset_name:
+                resampled_data.add_dataset(aligned_dataset_name, aligned_dataset_vals, "Sync_In", fs)
+            elif "Biopac" in aligned_dataset_name:
+                resampled_data.add_dataset(aligned_dataset_name, aligned_dataset_vals, "sync", self._sampling_rates['biopac'])
         
         resampled_data.resample_datasets(fs_out=1000, method='static')
 
         # make them represent equal time spans
-        end_time = self.timelog["Pause 5"]["end"][0]
-        for resampled_dataset_name, resampled_dataset_vals in resampled_data.datasets_resampled:
-            resampled_dataset_vals = resampled_dataset_vals[:end_time]
+        end_time = self.timelog["Pause_5"]["end"][0]
+        for name in resampled_data.datasets:
+            setattr(resampled_data, f"{name}_resampled_", resampled_data.datasets_resampled[f"{name}_resampled_"][:end_time])
 
         return resampled_data.datasets_resampled
 
