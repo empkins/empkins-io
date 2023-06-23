@@ -1,10 +1,11 @@
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Dict
 
 import pandas as pd
 import numpy as np
 from biopsykit.io import load_atimelogger_file
 from biopsykit.io.biopac import BiopacDataset
+from pandas import DataFrame
 
 from empkins_io.sensors.emrad import EmradDataset
 from empkins_io.utils._types import path_t
@@ -38,14 +39,15 @@ def _load_biopac_data(base_path: path_t, participant_id: str, condition: str) ->
     fs = list(sampling_rates)[0]
     return biopac_df, fs
 
-def _load_emrad_data(base_path: path_t, participant_id: str, condition: str) -> EmradDataset:
-    emrad_dir = _build_data_path(base_path, participant_id=participant_id, condition=condition).joinpath("emrad/raw")
 
-    emrad_file = emrad_dir.joinpath(f"emrad_data_{participant_id}_{condition}.h5")
+def _load_radar_data(base_path: path_t, participant_id: str, condition: str) -> tuple[DataFrame, float]:
+    radar_dir = _build_data_path(base_path, participant_id=participant_id, condition=condition).joinpath("emrad/raw")
 
-    emrad_dataset = EmradDataset.from_hd5_file(emrad_file)
+    radar_file = radar_dir.joinpath(f"emrad_data_{participant_id}_{condition}.h5")
+
+    radar_dataset = EmradDataset.from_hd5_file(radar_file)
     
-    return (emrad_dataset.data_as_df(add_sync_in=True, add_sync_out=True, index='local_datetime'), emrad_dataset.sampling_rate_hz)
+    return (radar_dataset.data_as_df(add_sync_in=True, add_sync_out=True, index='local_datetime'), radar_dataset.sampling_rate_hz)
 
 def _load_timelog(base_path: path_t, participant_id: str, condition: str, phase: str, phase_fine: bool) -> pd.DataFrame:
     timelog_dir_path = _build_data_path(base_path, participant_id=participant_id, condition=condition).joinpath(

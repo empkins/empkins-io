@@ -5,17 +5,18 @@ from typing import Dict, Optional, Sequence, Tuple
 import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
 from biopsykit.io.io import load_long_format_csv
+from pandas import DataFrame
 from tpcp import Dataset
 import warnings
 
 from resampy import resample
 
 from empkins_io.sync import SyncedDataset
-from empkins_io.datasets.d03.micro_gapvii.helper import _load_biopac_data, _load_timelog, _load_emrad_data
+from empkins_io.datasets.d03.micro_gapvii.helper import _load_biopac_data, _load_timelog, _load_radar_data
 from empkins_io.utils._types import path_t
 
 _cached_get_biopac_data = lru_cache(maxsize=4)(_load_biopac_data)
-_cached_get_emrad_data = lru_cache(maxsize=4)(_load_emrad_data)
+_cached_get_radar_data = lru_cache(maxsize=4)(_load_radar_data)
 
 
 class MicroBaseDataset(Dataset):
@@ -31,7 +32,7 @@ class MicroBaseDataset(Dataset):
 
     CONDITIONS = ["tsst", "ftsst"]
 
-    MISSING_DATA: Sequence[str] = ["VP_21", "VP_24", "VP_41", "VP_45"]  # Missing data (add participant IDs here)
+    MISSING_DATA: Sequence[str] = ["VP_21", "VP_24", "VP_29", "VP_41", "VP_45"]  # Missing data (add participant IDs here)
 
     def __init__(
             self,
@@ -161,7 +162,7 @@ class MicroBaseDataset(Dataset):
             condition = self.index["condition"][0]
             phase = self.index["phase"][0]
 
-            data, fs = self._get_emrad_data(participant_id, condition, phase)
+            data, fs = self._get_radar_data(participant_id, condition, phase)
             return data, fs
 
         if self.is_single(["subject", "condition"]):
@@ -173,7 +174,7 @@ class MicroBaseDataset(Dataset):
             participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
 
-            data, fs = self._get_emrad_data(participant_id, condition, "all")
+            data, fs = self._get_radar_data(participant_id, condition, "all")
             return data, fs
 
         if self.is_single(None):
@@ -186,7 +187,7 @@ class MicroBaseDataset(Dataset):
             participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
 
-            data, fs = self._get_emrad_data(participant_id, condition, "all")
+            data, fs = self._get_radar_data(participant_id, condition, "all")
             return data, fs
 
         raise ValueError("Emrad data can only be accessed for all phases or one specific phase!")
@@ -248,16 +249,16 @@ class MicroBaseDataset(Dataset):
             data = data.loc[phase_start:phase_end]
             return data, fs
 
-    def _get_emrad_data(self, participant_id: str, condition: str, phase: str) -> Tuple[pd.DataFrame, int]:
+    def _get_radar_data(self, participant_id: str, condition: str, phase: str) -> tuple[DataFrame, float]:
         if self.use_cache:
-            data, fs = _cached_get_emrad_data(self.base_path, participant_id, condition)
+            data, fs = _cached_get_radar_data(self.base_path, participant_id, condition)
         else:
-            data, fs = _load_emrad_data(self.base_path, participant_id, condition)
+            data, fs = _load_radar_data(self.base_path, participant_id, condition)
 
         if phase == "all":
             return data, fs
         else:
-            # cut biopac data to specified phase
+            # cut radar data to specified phase
             timelog = self.timelog
             phase_start = timelog[phase]["start"][0]
             phase_end = timelog[phase]["end"][0]
@@ -266,4 +267,4 @@ class MicroBaseDataset(Dataset):
 
     def _get_timelog(self, participant_id: str, condition: str, phase: str) -> pd.DataFrame:
         return _load_timelog(self.base_path, participant_id, condition, phase, self.phase_fine)
-    
+
