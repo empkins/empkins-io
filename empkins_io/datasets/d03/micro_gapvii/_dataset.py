@@ -31,6 +31,8 @@ class MicroBaseDataset(Dataset):
 
     MISSING_DATA: Sequence[str] = ["VP_21", "VP_24", "VP_29", "VP_41", "VP_45"]  # Missing data (add participant IDs here)
 
+    MISSING_RADAR_SYNC_IN_PEAKS : Sequence[str] = ["VP_02", "VP_03"]
+
     def __init__(
             self,
             base_path: path_t,
