@@ -21,7 +21,7 @@ class MicroBaseDataset(Dataset):
     sync_on_load: bool
     use_cache: bool
     phase_fine: bool
-    _sampling_rates: Dict[str, float] = {"biopac": 1000}
+    _sampling_rates: Dict[str, float] = {"biopac": 1000, "emrad": 1953.125}
 
     PHASE_COARSE = ["Prep", "Pause_1", "Talk", "Pause_2", "Pause_3", "Math", "Pause_4", "Pause_5"]
 
@@ -188,6 +188,10 @@ class MicroBaseDataset(Dataset):
             return data
 
         raise ValueError("Emrad data can only be accessed for all phases or one specific phase!")
+
+    @property
+    def nilspod(self) -> pd.DataFrame:  # TODO: implement
+        raise NotImplementedError("NilsPod data is not yet implemented!")
 
     def _get_biopac_data(self, participant_id: str, condition: str, phase: str) -> Tuple[pd.DataFrame, int]:
         if self.use_cache:
