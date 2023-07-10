@@ -1,3 +1,5 @@
+from datetime import time
+from functools import lru_cache
 from typing import Optional, Sequence
 
 import pandas as pd
@@ -5,11 +7,16 @@ from biopsykit.utils.file_handling import get_subject_dirs
 from tpcp import Dataset
 
 from empkins_io.utils._types import path_t
+from empkins_io.datasets.vrsr.tp_01.helper import _load_ecg_data, _load_raw_log
+
+_cached_load_ecg_data = lru_cache(maxsize=4)(_load_ecg_data)
 
 
 class VRSR_Dataset(Dataset):
 
     MISSING_DATA = {}
+
+    ECG_SAMPLING_RATE = 256
 
     def __init__(
         self,
@@ -29,8 +36,12 @@ class VRSR_Dataset(Dataset):
 
     def create_index(self):
         subject_ids = [
-            subject_dir.name for subject_dir in get_subject_dirs(self.base_path, "*")
+            subject_dir.name
+            for subject_dir in get_subject_dirs(
+                self.base_path.joinpath("data_per_subject"), "\d{3}"
+            )
         ]
+
         if self.exclude_missing_data:
             for missing_type, sids in self.MISSING_DATA.items():
                 for sid in sids:
@@ -39,3 +50,41 @@ class VRSR_Dataset(Dataset):
 
         index = pd.DataFrame(subject_ids, columns=["subject"])
         return index
+
+    @property
+    def subject(self) -> str:
+        if not self.is_single("subject"):
+            raise ValueError("Dataset is not single-subject dataset!")
+
+        return self.index["subject"].iloc[0]
+
+    @property
+    def ecg_data(self) -> pd.DataFrame:
+        if not self.is_single("subject"):
+            raise ValueError("Dataset is not single-subject dataset!")
+
+        if self.use_cache:
+            return _cached_load_ecg_data(self.base_path, self.subject)
+        else:
+            return _load_ecg_data(self.base_path, self.subject)
+
+    @property
+    def raw_log(self) -> pd.DataFrame:
+        if not self.is_single("subject"):
+            raise ValueError("Dataset is not single-subject dataset!")
+
+        return _load_raw_log(self.base_path, self.subject)
+
+    @property
+    def cleaned_log(self) -> pd.DataFrame:
+        if not self.is_single("subject"):
+            raise ValueError("Dataset is not single-subject dataset!")
+
+        return pd.read_csv(
+            self.base_path.joinpath(
+                "data_per_subject",
+                self.subject,
+                f"{self.subject}_timelog_cleaned.csv",
+            ),
+            index_col=0,
+        )
