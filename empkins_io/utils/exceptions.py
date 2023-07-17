@@ -40,6 +40,12 @@ class NilsPodDataNotFoundException(Exception):
     pass
 
 
+class NilsPodDataLoadException(Exception):
+    """An error indicating that an error occurred while attempting to load the NilsPod data."""
+
+    pass
+
+
 class HeartRateDataNotFoundException(Exception):
     """An error indicating that no processed heart rate data are available."""
 

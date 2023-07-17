@@ -1,6 +1,5 @@
 from typing import Optional
 
-import pandas as pd
 from nilspodlib import Dataset, SyncedSession
 from packaging.version import Version
 
