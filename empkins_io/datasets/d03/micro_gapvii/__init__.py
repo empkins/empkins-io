@@ -6,6 +6,7 @@ __version__ = "0.1.0"
 
 __all__ = ["MicroBaseDataset"]
 
+
 def conf_rel_path():
     """Configure relative path imports for the experiments folder."""
 

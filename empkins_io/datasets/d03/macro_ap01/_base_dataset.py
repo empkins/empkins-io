@@ -25,7 +25,6 @@ _cached_load_nilspod_data = lru_cache(maxsize=4)(_load_nilspod_session)
 class MacroBaseDataset(Dataset):
     base_path: path_t
     use_cache: bool
-    _sampling_rate: float = 60
     _sample_times_saliva: Tuple[int] = (-40, -1, 16, 25, 35, 45, 60, 75)
     _sample_times_bloodspot: Tuple[int] = (-40, 60)
 
@@ -42,13 +41,11 @@ class MacroBaseDataset(Dataset):
         base_path: path_t,
         groupby_cols: Optional[Sequence[str]] = None,
         subset_index: Optional[Sequence[str]] = None,
-        exclude_without_mocap: Optional[bool] = True,
-        exclude_missing_data: Optional[bool] = False,
-        use_cache: Optional[bool] = True,
+        exclude_missing_data: bool = False,
+        use_cache: bool = True,
     ):
         # ensure pathlib
         self.base_path = base_path
-        self.exclude_without_mocap = exclude_without_mocap
         self.exclude_missing_data = exclude_missing_data
         self.use_cache = use_cache
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
@@ -71,7 +68,8 @@ class MacroBaseDataset(Dataset):
 
     @property
     def sampling_rate(self) -> float:
-        return self._sampling_rate
+        """Sampling rate of the MoCap system"""
+        return 60
 
     @property
     def sample_times_saliva(self) -> Sequence[int]:
