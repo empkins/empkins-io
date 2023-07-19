@@ -1,6 +1,6 @@
 import pandas as pd
 
-from empkins_d03_macro_analysis.exceptions import OpenposeDataNotFoundException, CleanedOpenposeDataNotFoundException
+from empkins_io.utils.exceptions import OpenposeDataNotFoundException, CleanedOpenposeDataNotFoundException
 
 
 def get_uncleaned_openpose_data(file_path):
