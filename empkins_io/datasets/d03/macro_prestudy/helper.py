@@ -9,6 +9,7 @@ from typing import Optional, Sequence
 import numpy as np
 import pandas as pd
 
+from empkins_io.datasets.d03._utils.dataset_utils import get_uncleaned_openpose_data
 from empkins_io.sensors.motion_capture.perception_neuron import PerceptionNeuronDataset
 from empkins_io.utils._types import path_t
 from empkins_io.utils.exceptions import TimelogNotFoundException
@@ -500,3 +501,9 @@ def compress_opendbm_data(base_path: path_t, subject_id: str, condition: str, su
         tar.add(data_path, arcname=data_path.name)
 
     shutil.rmtree(data_path)
+
+
+def get_uncleaned_openpose_prestudy_data(base_path: path_t, subject_id: str, condition: str) -> pd.DataFrame:
+    data_path = build_data_path(base_path.joinpath("data_per_subject"), subject_id, condition)
+    file_path = data_path.joinpath("video/processed/openpose_output.csv")
+    return get_uncleaned_openpose_data(file_path)
