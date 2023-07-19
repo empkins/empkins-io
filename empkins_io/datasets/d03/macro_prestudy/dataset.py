@@ -8,7 +8,7 @@ import pandas as pd
 from biopsykit.io import load_long_format_csv, load_questionnaire_data
 from biopsykit.utils.dataframe_handling import multi_xs, wide_to_long
 from biopsykit.utils.file_handling import get_subject_dirs
-from empkins_io.datasets.d03._utils.dataset_utils import get_openpose_cleaned_data
+from empkins_io.datasets.d03._utils.dataset_utils import get_cleaned_openpose_data
 from empkins_io.utils.exceptions import SyncDataNotFoundException
 from tpcp import Dataset
 
@@ -431,7 +431,7 @@ class MacroPreStudyDataset(Dataset):
         phase = self._determine_phase()
         file_path = self._openpose_data_path
         timings = self.sync_data["video"][phase]
-        data = get_openpose_cleaned_data(file_path, timings["begin_sec"], timings["end_sec"])
+        data = get_cleaned_openpose_data(file_path, timings["begin_sec"], timings["end_sec"])
         if self.normalize_openpose_time:
             data.index -= data.index[0]
         return data

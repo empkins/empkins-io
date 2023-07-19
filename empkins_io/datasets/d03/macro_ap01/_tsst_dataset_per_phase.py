@@ -4,7 +4,7 @@ from typing import Optional, Sequence
 
 import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
-from empkins_io.datasets.d03._utils.dataset_utils import get_openpose_cleaned_data
+from empkins_io.datasets.d03._utils.dataset_utils import get_cleaned_openpose_data
 from empkins_io.datasets.d03.macro_ap01 import MacroStudyTsstDataset
 from empkins_io.datasets.d03.macro_ap01.helper import _load_tsst_mocap_data
 from empkins_io.utils._types import path_t
@@ -98,7 +98,7 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
             )
 
         file_path = self.body_video_path.joinpath("cleaned/openpose.csv")
-        openpose_cleaned_for_subject_and_condition = get_openpose_cleaned_data(file_path)
+        openpose_cleaned_for_subject_and_condition = get_cleaned_openpose_data(file_path)
 
         # MISSING: crop data to single phase, if this feature is needed
         return openpose_cleaned_for_subject_and_condition

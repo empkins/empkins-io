@@ -6,7 +6,7 @@ from typing import Optional, Sequence
 
 import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
-from empkins_io.datasets.d03._utils.dataset_utils import get_openpose_cleaned_data
+from empkins_io.datasets.d03._utils.dataset_utils import get_cleaned_openpose_data
 
 from empkins_io.datasets.d03.macro_ap01._base_dataset import MacroBaseDataset
 from empkins_io.datasets.d03.macro_ap01.helper import _get_times_for_mocap, _load_tsst_mocap_data
@@ -218,7 +218,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
             raise ValueError("OpenPose data can only be accessed for a single condition of a single participant!")
         file_path = self._openpose_cleaned_path
-        return get_openpose_cleaned_data(file_path)
+        return get_cleaned_openpose_data(file_path)
 
     @property
     def video_timestamps(self) -> pd.DataFrame:
