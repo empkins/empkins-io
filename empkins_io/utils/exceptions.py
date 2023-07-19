@@ -56,3 +56,27 @@ class SamplingRateMismatchException(Exception):
     """An error indicating that no timelog file is available."""
 
     pass
+
+
+class SyncDataNotFoundException(Exception):
+    """An error indicating that no sync.json file is available."""
+
+    pass
+
+
+class OpenposeDataNotFoundException(Exception):
+    """An error indicating that no openpose_output.csv file is available."""
+
+    pass
+
+
+class CleanedOpenposeDataNotFoundException(Exception):
+    """An error indicating that no openpose.csv file is available."""
+
+    pass
+
+
+class TimestampDataNotFoundException(Exception):
+    """An error indicating that no timestamps.csv file is available."""
+
+    pass

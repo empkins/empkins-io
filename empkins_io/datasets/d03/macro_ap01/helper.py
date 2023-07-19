@@ -124,3 +124,9 @@ def _compute_ensemble(data: pd.DataFrame) -> pd.DataFrame:
     data = data.reset_index(drop=True)
     data.index.name = "time"
     return data
+
+
+def get_uncleaned_openpose_macro_data(base_path: path_t, subject_id: str, condition: str) -> pd.DataFrame:
+    body_video_path = base_path.joinpath("data_per_subject").joinpath(f"{subject_id}/{condition}/video/body")
+    file_path = body_video_path.joinpath("processed/openpose_output.csv")
+    return get_uncleaned_openpose_data(file_path)

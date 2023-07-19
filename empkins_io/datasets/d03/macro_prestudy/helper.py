@@ -149,7 +149,8 @@ def load_mocap_data(base_path: path_t, subject_id: str, condition: str) -> pd.Da
 
 
 def load_opendbm_facial_data(
-        base_path: path_t, subject_id: str, condition: str, sampling_rate: float, suffix: str) -> pd.DataFrame:
+    base_path: path_t, subject_id: str, condition: str, sampling_rate: float, suffix: str
+) -> pd.DataFrame:
     tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, suffix=suffix)
     facial_paths = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="facial")
     columns_to_drop = [
@@ -315,8 +316,8 @@ def get_opendbm_eyeblink_data(base_path: path_t, subject_id: str, condition: str
 
 
 def get_opendbm_derived_features(
-        base_path: path_t, subject_id: str, condition: str, phase: str, suffix: str
-    ) -> pd.DataFrame:
+    base_path: path_t, subject_id: str, condition: str, phase: str, suffix: str
+) -> pd.DataFrame:
     tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, suffix)
     file_path = (
         build_opendbm_derived_data_path()

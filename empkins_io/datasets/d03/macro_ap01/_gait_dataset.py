@@ -14,7 +14,6 @@ _cached_load_mocap_data = lru_cache(maxsize=4)(_load_gait_mocap_data)
 
 
 class MacroStudyGaitDataset(MacroBaseDataset):
-
     SUBJECTS_WITHOUT_MOCAP = (
         "VP_01",
         "VP_02",
