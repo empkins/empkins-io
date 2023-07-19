@@ -389,7 +389,7 @@ class MacroPreStudyDataset(Dataset):
 
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
-    def _determine_phase(self) -> Tuple[str, str, str]:
+    def _determine_phase(self) -> str:
         """Checks if single phase or both phases from a single condition are selected and sets phase accordingly."""
         if self.is_single(None):
             phase = self.index["phase"][0]

@@ -13,6 +13,11 @@ _cached_load_mocap_data = lru_cache(maxsize=4)(_load_tsst_mocap_data)
 
 
 class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
+    """Class to conveniently access the data of the macro study dataset on a phase-level.
+    If access is only required per-condition, use :class:`MacroStudyTsstDataset` instead."""
+
+    phases = ("prep", "talk", "math")
+
     def __init__(
         self,
         base_path: path_t,

@@ -17,6 +17,9 @@ _cached_load_mocap_data = lru_cache(maxsize=4)(_load_tsst_mocap_data)
 
 
 class MacroStudyTsstDataset(MacroBaseDataset):
+    """Class to conveniently access the data of the macro study dataset for subject and condition.
+    If access is required per-phase, use :class:`MacroStudyTsstDatasetPerPhase` instead."""
+
     SUBJECTS_WITHOUT_MOCAP = (
         "VP_03",
         "VP_31",
@@ -49,7 +52,6 @@ class MacroStudyTsstDataset(MacroBaseDataset):
     )
 
     conditions = ("ftsst", "tsst")
-    phases = ("prep", "talk", "math")
 
     def __init__(
         self,
@@ -125,7 +127,8 @@ class MacroStudyTsstDataset(MacroBaseDataset):
 
     def _get_mocap_data_per_phase(self, subject_id: str, condition: str, phase: str = "total"):
         data, start = self._get_mocap_data(subject_id, condition)
-        times = _get_times_for_mocap(self.base_path, start, subject_id, condition, phase)
+        timelog = self.timelog_test
+        times = _get_times_for_mocap(timelog, start, phase)
         data_total = {}
 
         if phase == "total":
@@ -153,7 +156,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
 
     @property
     def sync_data(self) -> dict:
-        """Dict that contains timestamps of important events for syncronisation, e.g. clapsin the video.
+        """Dict that contains timestamps of important events for synchronisation, e.g. claps in the video.
 
         ! Watch out: The video timestamps are NOT realtime timestamps! They do correspond to the `cfr_video_timestamps`
         column (and the `cfr_time_seconds` column) in the timestamps.csv file/video_timestamps property.

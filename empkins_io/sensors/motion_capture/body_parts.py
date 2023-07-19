@@ -118,7 +118,6 @@ BODY_PART_OPENPOSE = Literal[
     "RightBigToe",
     "RightSmallToe",
     "RightHeel",
-    "Background"
 ]
 
 BODY_PART_GROUP = Literal["TotalBody", "UpperExtremities", "LowerExtremities", "Trunk"]
