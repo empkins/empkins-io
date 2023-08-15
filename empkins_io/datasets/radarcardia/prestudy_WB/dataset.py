@@ -19,21 +19,31 @@ Pre Study data for whole body
 """
 
 class RadarCardiaPreStudyWBDataset(BaseDataset):
+    exclude_without_sync: bool
+
+    PARTICIPANTS_WITHOUT_SYNC: Tuple[str] = ("VP_01",)
 
     def __init__(
             self,
             base_path: path_t,
             groupby_cols: Optional[Sequence[str]] = None,
             subset_index: Optional[Sequence[str]] = None,
-            use_cache: bool = True
+            use_cache: bool = True,
+            exclude_without_sync: Optional[bool] = True
     ):
-
+        self.exclude_without_sync = exclude_without_sync
         super().__init__(base_path=base_path, groupby_cols=groupby_cols, subset_index=subset_index, use_cache=use_cache)
 
     def create_index(self):
         participant_ids = [
             participant_dir.name for participant_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_*")
         ]
+
+        if self.exclude_without_sync:
+            for p_id in self.PARTICIPANTS_WITHOUT_SYNC:
+                if p_id in participant_ids:
+                    participant_ids.remove(p_id)
+
         breathing = ["normal", "hold"]
         # front
         body_parts_1 = ["thorax"]
