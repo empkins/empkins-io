@@ -1,11 +1,13 @@
-from pathlib import Path
-from typing import Tuple, Dict
 import datetime
+from pathlib import Path
+from typing import Dict, Literal, Optional, Sequence, Tuple, Union
+
 import pandas as pd
 import numpy as np
 from biopsykit.io.biopac import BiopacDataset
+from biopsykit.utils.time import tz
 from pandas import DataFrame
-from typing import Optional, Tuple, Union
+
 from empkins_io.sensors.emrad import EmradDataset
 from empkins_io.utils._types import path_t
 from empkins_io.utils.exceptions import (
@@ -13,14 +15,18 @@ from empkins_io.utils.exceptions import (
     TimelogNotFoundException,
 )
 
-
 def _build_data_path(base_path: path_t, participant_id: str) -> Path:
     data_path = base_path.joinpath(f"data_per_subject/{participant_id}")
     assert data_path.exists()
     return data_path
 
 
-def _load_biopac_data(base_path: path_t, participant_id: str, channel_mapping: dict) -> Tuple[pd.DataFrame, int]:
+def _load_biopac_data(base_path: path_t, participant_id: str, channel_mapping: dict, state: str) -> Tuple[pd.DataFrame, int]:
+    if state == "raw":
+        return _load_biopac_raw_data(base_path=base_path, participant_id=participant_id, channel_mapping=channel_mapping)
+
+
+def _load_biopac_raw_data(base_path: path_t, participant_id: str, channel_mapping: dict) -> Tuple[pd.DataFrame, int]:
     biopac_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
         "biopac/raw"
     )
@@ -28,7 +34,8 @@ def _load_biopac_data(base_path: path_t, participant_id: str, channel_mapping: d
 
     dataset_biopac = BiopacDataset.from_acq_file(biopac_file_path, channel_mapping=channel_mapping)
 
-    biopac_df = dataset_biopac.data_as_df(index="local_datetime")
+    # biopac_df = dataset_biopac.data_as_df(index="local_datetime")
+    biopac_df = dataset_biopac.data_as_df(index="time")
     fs = dataset_biopac._sampling_rate
 
     # check if biopac sampling rate is the same for each channel
@@ -42,7 +49,12 @@ def _load_biopac_data(base_path: path_t, participant_id: str, channel_mapping: d
     return biopac_df, fs
 
 
-def _load_radar_data(base_path: path_t, participant_id: str, fs: float) -> tuple[DataFrame, float]:
+def _load_radar_data(base_path: path_t, participant_id: str, fs: float, state: str) -> tuple[DataFrame, float]:
+    if state == "raw":
+        return _load_radar_raw_data(base_path=base_path, participant_id=participant_id, fs=fs)
+
+
+def _load_radar_raw_data(base_path: path_t, participant_id: str, fs: float) -> tuple[DataFrame, float]:
     radar_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
         "emrad/raw"
     )
@@ -54,17 +66,11 @@ def _load_radar_data(base_path: path_t, participant_id: str, fs: float) -> tuple
     return radar_df, fs
 
 
-def _load_timelog(base_path: path_t, participant_id: str, exclude_fail: bool) -> pd.DataFrame:
-
+def _load_timelog(base_path: path_t, participant_id: str) -> pd.DataFrame:
     timelog_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
-        f"timelog/clean"
+        "timelog/clean"
     )
-    if exclude_fail:
-        suffix = "clean"
-    else:
-        suffix = "all"
-
-    timelog_file_path = timelog_dir_path.joinpath(f"timelog_{participant_id}_{suffix}.csv")
+    timelog_file_path = timelog_dir_path.joinpath(f"timelog_{participant_id}.csv")
     if timelog_file_path.exists():
         timelog = load_atimelogger_file(timelog_file_path, timezone="Europe/Berlin")
         return timelog
@@ -100,6 +106,9 @@ def load_atimelogger_file(file_path: path_t, timezone: Optional[Union[datetime.t
     """
     # ensure pathlib
     file_path = Path(file_path)
+
+    if timezone is None:
+        timezone = tz
     timelog = pd.read_csv(file_path)
     # find out if file is german or english and get the right column names
     if "Aktivitätstyp" in timelog.columns:
@@ -123,4 +132,6 @@ def load_atimelogger_file(file_path: path_t, timezone: Optional[Union[datetime.t
     timelog = pd.DataFrame(timelog.T.unstack(), columns=["time"])
     timelog = timelog[::-1].reindex(["start", "end"], level="start_end")
     timelog = timelog.T
+
     return timelog
+

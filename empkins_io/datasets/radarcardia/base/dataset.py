@@ -6,12 +6,13 @@ from typing import Dict, Optional, Sequence, Tuple
 import pandas as pd
 from tpcp import Dataset
 import pandas as pd
+import warnings
 
 from biopsykit.io import load_long_format_csv
 from biopsykit.utils.dataframe_handling import multi_xs, wide_to_long
 from biopsykit.utils.file_handling import get_subject_dirs
 
-from empkins_io.datasets.radarcardia.study.helper import (
+from empkins_io.datasets.radarcardia.base.helper import (
     _load_biopac_data,
     _load_radar_data,
     _load_timelog
@@ -23,12 +24,13 @@ from empkins_io.utils._types import path_t
 _cached_get_biopac_data = lru_cache(maxsize=4)(_load_biopac_data)
 _cached_get_radar_data = lru_cache(maxsize=4)(_load_radar_data)
 
-class RadarCardiaPreStudy1Dataset(Dataset):
+
+class BaseDataset(Dataset):
 
     base_path: path_t
     use_cache: bool
     _sampling_rates: Dict[str, float] = {
-        "radar_original": 2400,
+        "radar_original": 8000000 / 4096,
         "biopac_original": 2000,
         "resampled": 1000
     }
@@ -37,7 +39,7 @@ class RadarCardiaPreStudy1Dataset(Dataset):
         "ECG (.05 - 150 Hz)": "ecg",
         "Cardiac Output - Z": "icg",
         "Cardiac Output - dZ/dt": "icg_der",
-        "Digital input": "sync"
+        "Sync": "sync"
     }
 
     def __init__(
@@ -45,46 +47,22 @@ class RadarCardiaPreStudy1Dataset(Dataset):
             base_path: path_t,
             groupby_cols: Optional[Sequence[str]] = None,
             subset_index: Optional[Sequence[str]] = None,
-            use_cache: bool = True
+            use_cache: Optional[bool] = True
     ):
         self.base_path = base_path
         self.use_cache = use_cache
 
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
-    def create_index(self):
-        participant_ids = [
-            participant_dir.name for participant_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_*")
-        ]
-        breathing = ["normal", "hold"]
-        # front
-        body_parts_1 = ["heart", "sternum", "belly_button"]
-        body_parts_2 = ["thigh_left", "elbow_left"]
-
-        index = list(product(body_parts_1, breathing))
-        index.extend(list(product(body_parts_2, ["normal"])))
-        index = [(pos, *i) for pos, i in product(["front"], index)]
-
-        # back
-        body_parts_1 = ["heart", "sternum", "L5"]
-        body_parts_2 = ["knee", "palm"]
-        index_back = list(product(body_parts_1, breathing))
-        index_back.extend(list(product(body_parts_2, ["normal"])))
-        index_back = [(pos, *i) for pos, i in product(["back"], index_back)]
-
-        # both
-        index.extend(index_back)
-        index = [(participant, *i) for participant, i in product(participant_ids, index)]
-        index = pd.DataFrame(index, columns=["participant", "position", "location", "breathing"])
-
-        return index
+    def create_index(self) -> pd.DataFrame:
+        raise NotImplementedError()
 
     @property
     def sampling_rates(self) -> Dict[str, float]:
         return self._sampling_rates
 
-    @cached_property
-    def biopac_unsynced(self) -> pd.DataFrame:
+    @property
+    def biopac_raw_unsynced(self) -> pd.DataFrame:
         if not self.is_single(["participant"]):
             raise ValueError("BIOPAC data can only be accessed for one single participant at once")
 
@@ -92,12 +70,14 @@ class RadarCardiaPreStudy1Dataset(Dataset):
 
         if self.is_single(None):
             location = self._get_locations_from_index()
-            return self._get_biopac_data(participant_id, location)
+            return self._get_biopac_data(participant_id=participant_id, location=location, state="raw")
 
-        return self._get_biopac_data(participant_id, "all")
+        print(f"Complete BIOPAC Dataset for {participant_id}:")
+
+        return self._get_biopac_data(participant_id=participant_id, location="all", state="raw")
 
     @property
-    def emrad_unsynced(self) -> pd.DataFrame:
+    def emrad_raw_unsynced(self) -> pd.DataFrame:
         if not self.is_single(["participant"]):
             raise ValueError("Radar data can only be accessed for one single participant at once")
 
@@ -105,12 +85,14 @@ class RadarCardiaPreStudy1Dataset(Dataset):
 
         if self.is_single(None):
             location = self._get_locations_from_index()
-            return self._get_radar_data(participant_id, location)
+            return self._get_radar_data(participant_id=participant_id, location=location, state="raw")
 
-        return self._get_radar_data(participant_id, "all")
+        print(f"Complete Radar Dataset for {participant_id}:")
+
+        return self._get_radar_data(participant_id=participant_id, location="all", state="raw")
 
     @property
-    def biopac_synced(self) -> pd.DataFrame:
+    def biopac_raw_synced(self) -> pd.DataFrame:
         if not self.is_single(["participant"]):
             raise ValueError("BIOPAC data can only be accessed for one single participant at once")
 
@@ -118,13 +100,12 @@ class RadarCardiaPreStudy1Dataset(Dataset):
 
         if self.is_single(None):
             location = self._get_locations_from_index()
-            return self._load_and_sync_datasets(participant_id, location, biopac=True)
+            return self._load_and_sync_datasets(participant_id=participant_id, location=location, biopac=True, state="raw")
 
-        if self.is_single(["participant"]):
-            return self._load_and_sync_datasets(participant_id, "all", biopac=True)
+        return self._load_and_sync_datasets(participant_id=participant_id, location="all", biopac=True, state="raw")
 
     @property
-    def emrad_synced(self) -> pd.DataFrame:
+    def emrad_raw_synced(self) -> pd.DataFrame:
         if not self.is_single(["participant"]):
             raise ValueError("Radar data can only be accessed for one single participant at once")
 
@@ -132,13 +113,12 @@ class RadarCardiaPreStudy1Dataset(Dataset):
 
         if self.is_single(None):
             location = self._get_locations_from_index()
-            return self._load_and_sync_datasets(participant_id, location, radar=True)
+            return self._load_and_sync_datasets(participant_id=participant_id, location=location, radar=True, state="raw")
 
-        if self.is_single(["participant"]):
-            return self._load_and_sync_datasets(participant_id, "all", radar=True)
+        return self._load_and_sync_datasets(participant_id=participant_id, location="all", radar=True, state="raw")
 
     @property
-    def dataset_synced(self) -> pd.DataFrame:
+    def raw_dataset_synced(self) -> pd.DataFrame:
         if not self.is_single(["participant"]):
             raise ValueError("Data can only be accessed for one single participant at once")
 
@@ -146,10 +126,9 @@ class RadarCardiaPreStudy1Dataset(Dataset):
 
         if self.is_single(None):
             location = self._get_locations_from_index()
-            return self._load_and_sync_datasets(participant_id, location, biopac=True, radar=True)
+            return self._load_and_sync_datasets(participant_id=participant_id, location=location, biopac=True, radar=True, state="raw")
 
-        if self.is_single(["participant"]):
-            return self._load_and_sync_datasets(participant_id, "all", biopac=True, radar=True)
+        return self._load_and_sync_datasets(participant_id=participant_id, location="all", biopac=True, radar=True, state="raw")
 
     @property
     def timelog(self) -> pd.DataFrame:
@@ -157,7 +136,7 @@ class RadarCardiaPreStudy1Dataset(Dataset):
             raise ValueError("Timelog can only be accessed for one single participant at once")
         locations = self._get_locations_from_index()
         participant_id = self.index["participant"][0]
-        tl = self._get_timelog(participant_id, exclude_fail=True)
+        tl = self._get_timelog(participant_id)
         return tl[locations]
 
     @property
@@ -165,19 +144,16 @@ class RadarCardiaPreStudy1Dataset(Dataset):
         if not self.is_single(["participant"]):
             raise ValueError("Timelog can only be accessed for one single participant at once")
         participant_id = self.index["participant"][0]
-        return self._get_timelog(participant_id, exclude_fail=False)
+        return self._get_timelog(participant_id)
 
     def _get_locations_from_index(self):
-        locations = self.index[["position", "location", "breathing"]].values.tolist()
+        locations = self.index.drop(columns="participant").values.tolist()
         locations = ["_".join(i) for i in locations]
         return locations
 
-    def _get_timelog_from_location(self, loc):
-        return self.timelog[loc]
-
-    def _load_and_sync_datasets(self, participant_id: str, location: str, biopac=False, radar=False) -> pd.DataFrame:
-        biopac_data = self._get_biopac_data(participant_id=participant_id, location=location)
-        radar_data = self._get_radar_data(participant_id=participant_id, location=location)
+    def _load_and_sync_datasets(self, participant_id: str, location: str, state: str, biopac: bool=False, radar:bool=False) -> pd.DataFrame:
+        biopac_data = self._get_biopac_data(participant_id=participant_id, location=location, state=state)
+        radar_data = self._get_radar_data(participant_id=participant_id, location=location, state=state)
 
         synced_dataset = SyncedDataset(sync_type="m-sequence")
         synced_dataset.add_dataset("biopac", data=biopac_data, sync_channel_name="sync",
@@ -198,43 +174,41 @@ class RadarCardiaPreStudy1Dataset(Dataset):
         else:
             return
 
-    def _get_biopac_data(self, participant_id: str, location: str):
+    def _get_biopac_data(self, participant_id: str, location: str, state: str):
+
         if self.use_cache:
             raise NotImplementedError("Using cached properties is not implemented yet")
-            # biopac, _ = _cached_get_biopac_data(
-            #     self.base_path,
-            #     participant_id=participant_id,
-            #     channel_mapping=self.BIOPAC_CHANNEL_MAPPING
-            # )
         else:
             biopac, _ = _load_biopac_data(
                 self.base_path,
                 participant_id=participant_id,
-                channel_mapping=self.BIOPAC_CHANNEL_MAPPING
+                channel_mapping=self.BIOPAC_CHANNEL_MAPPING,
+                state=state
             )
 
         if location == "all":
             return biopac
         else:
-            tl = self._get_timelog_from_location(location)
+            tl = self.timelog
             start = tl[location[0]]["start"][0]
             end = tl[location[0]]["end"][0]
             return biopac.loc[start:end]
 
-    def _get_radar_data(self, participant_id: str, location: str):
+    def _get_radar_data(self, participant_id: str, location: str, state: str):
         radar, _ = _load_radar_data(
             self.base_path,
             participant_id=participant_id,
-            fs=self._sampling_rates["radar_original"]
+            fs=self._sampling_rates["radar_original"],
+            state=state
         )
 
         if location == "all":
             return radar
         else:
-            tl = self._get_timelog_from_location(location)
+            tl = self.timelog
             start = tl[location[0]]["start"][0]
             end = tl[location[0]]["end"][0]
             return radar[start:end]
 
-    def _get_timelog(self, participant_id: str, exclude_fail: bool) -> pd.DataFrame:
-        return _load_timelog(self.base_path, participant_id, exclude_fail)
+    def _get_timelog(self, participant_id: str) -> pd.DataFrame:
+        return _load_timelog(self.base_path, participant_id)
