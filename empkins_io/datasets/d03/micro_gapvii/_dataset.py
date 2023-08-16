@@ -1,5 +1,8 @@
 from functools import cached_property, lru_cache
+import glob
 from itertools import product
+import os
+from pathlib import Path
 from typing import Dict, Optional, Sequence, Tuple
 
 import pandas as pd
@@ -32,9 +35,7 @@ class MicroBaseDataset(Dataset):
 
     CONDITIONS = ["tsst", "ftsst"]
 
-    MISSING_DATA: Sequence[str] = ["VP_21", "VP_24", "VP_29", "VP_41", "VP_45"]  # Missing data (add participant IDs here)
-
-    MISSING_RADAR_SYNC_IN_PEAKS : Sequence[str] = ["VP_02", "VP_03"]
+    MISSING_DATA: Sequence[str] = ["VP_02", "VP_03", "VP_21", "VP_24", "VP_29", "VP_41", "VP_45"]  # Missing data (add participant IDs here)
 
     def __init__(
             self,
@@ -201,6 +202,20 @@ class MicroBaseDataset(Dataset):
 
         # Check if only a single entry is left inside the index
         self.assert_is_single(["subject", "condition"], "emrad_biopac_synced_and_sr_aligned")
+
+        #assert self.is_single(None), "Cannot sync biopac and radar for a specific phase since the sync peak appears before the experiment starts."
+
+        # make a check if processed already for a whole particiüant and condition and in that case use the existing file
+        # go to processed folder and check existence of a file "Biopac_aligned__resampled.pkl" and "rad[1-4]_aligned__resampled.pkl"
+        current_vp = list(set(self.create_group_labels(label_cols=["subject", "condition"])))[0][0]
+        current_condition = list(set(self.create_group_labels(label_cols=["subject", "condition"])))[0][1]
+        existing_processed_files = glob.glob(str(self.base_path) + r"\data_per_subject" + "\\" + current_vp + "\\" + current_condition + r"\emrad\processed\*.pkl")
+
+        if (existing_processed_files):
+            res = {}
+            for file in existing_processed_files:
+                res[Path(file).stem] = pd.read_pickle(file)
+            return res
 
         synced_data = SyncedDataset()
 
