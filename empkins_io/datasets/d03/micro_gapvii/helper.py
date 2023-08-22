@@ -13,7 +13,6 @@ from empkins_io.utils.exceptions import SamplingRateMismatchException, TimelogNo
 
 
 def _build_data_path(base_path: path_t, participant_id: str, condition: str) -> Path:
-    participant_id = participant_id.lower()
     data_path = base_path.joinpath(f"data_per_subject/{participant_id}/{condition}")
     assert data_path.exists()
     return data_path
@@ -24,6 +23,8 @@ def _load_biopac_data(base_path: path_t, participant_id: str, condition: str) ->
         "biopac/raw"
     )
 
+    participant_id = participant_id.lower()
+    
     biopac_file_path = biopac_dir_path.joinpath(f"biopac_data_{participant_id}_{condition}.acq")
 
     dataset_biopac = BiopacDataset.from_acq_file(biopac_file_path)
