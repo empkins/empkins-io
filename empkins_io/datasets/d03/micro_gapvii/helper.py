@@ -43,6 +43,8 @@ def _load_biopac_data(base_path: path_t, participant_id: str, condition: str) ->
 def _load_radar_data(base_path: path_t, participant_id: str, condition: str) -> tuple[DataFrame, float]:
     radar_dir = _build_data_path(base_path, participant_id=participant_id, condition=condition).joinpath("emrad/raw")
 
+    participant_id = participant_id.lower()
+
     radar_file = radar_dir.joinpath(f"emrad_data_{participant_id}_{condition}.h5")
 
     radar_dataset = EmradDataset.from_hd5_file(radar_file)
