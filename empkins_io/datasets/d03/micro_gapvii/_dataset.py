@@ -29,7 +29,7 @@ class MicroBaseDataset(Dataset):
     sync_on_load: bool
     use_cache: bool
     phase_fine: bool
-    _sampling_rates: Dict[str, float] = {"biopac": 1000}
+    _sampling_rates: Dict[str, float] = {"biopac": 1000, "emrad": 1953.125}
     _sample_times_saliva: Tuple[int] = (-40, -1, 16, 25, 35, 45, 60, 75)
     _sample_times_bloodspot: Tuple[int] = (-40, 60)
 
@@ -243,6 +243,10 @@ class MicroBaseDataset(Dataset):
         path = _build_data_path(self.base_path, participant_id, condition)
         path = path.joinpath(f"video/body/processed/video_body_{participant_id.lower()}_{condition}.mp4")
         return path
+
+    @property
+    def nilspod(self) -> pd.DataFrame:  # TODO: implement
+        raise NotImplementedError("NilsPod data is not yet implemented!")
 
     def _get_biopac_data(self, participant_id: str, condition: str, phase: str) -> Tuple[pd.DataFrame, int]:
         if self.use_cache:
