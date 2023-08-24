@@ -15,7 +15,8 @@ from biopsykit.utils.file_handling import get_subject_dirs
 from empkins_io.datasets.radarcardia.base.helper import (
     _load_biopac_data,
     _load_radar_data,
-    _load_timelog
+    _load_timelog,
+    _save_preprocessed_data
 )
 
 from empkins_io.sync import SyncedDataset
@@ -118,7 +119,7 @@ class BaseDataset(Dataset):
         return self._load_and_sync_datasets(participant_id=participant_id, location="all", radar=True, state="raw")
 
     @property
-    def raw_dataset_synced(self) -> pd.DataFrame:
+    def dataset_raw_synced(self) -> pd.DataFrame:
         if not self.is_single(["participant"]):
             raise ValueError("Data can only be accessed for one single participant at once")
 
@@ -129,6 +130,36 @@ class BaseDataset(Dataset):
             return self._load_and_sync_datasets(participant_id=participant_id, location=location, biopac=True, radar=True, state="raw")
 
         return self._load_and_sync_datasets(participant_id=participant_id, location="all", biopac=True, radar=True, state="raw")
+
+    @property
+    def biopac_data(self) -> pd.DataFrame:
+        if not self.is_single(["participant"]):
+            raise ValueError("BIOPAC data can only be accessed for one single participant at once")
+
+        participant_id = self.index["participant"][0]
+
+        if self.is_single(None):
+            location = self._get_locations_from_index()
+            return self._get_biopac_data(participant_id=participant_id, location=location, state="pre_processed")
+
+        print(f"Complete BIOPAC Dataset for {participant_id}:")
+
+        return self._get_biopac_data(participant_id=participant_id, location="all", state="pre_processed")
+
+    @property
+    def radar_data(self) -> pd.DataFrame:
+        if not self.is_single(["participant"]):
+            raise ValueError("Radar data can only be accessed for one single participant at once")
+
+        participant_id = self.index["participant"][0]
+
+        if self.is_single(None):
+            location = self._get_locations_from_index()
+            return self._get_radar_data(participant_id=participant_id, location=location, state="pre_processed")
+
+        print(f"Complete Radar Dataset for {participant_id}:")
+
+        return self._get_radar_data(participant_id=participant_id, location="all", state="pre_processed")
 
     @property
     def timelog(self) -> pd.DataFrame:
@@ -145,6 +176,12 @@ class BaseDataset(Dataset):
             raise ValueError("Timelog can only be accessed for one single participant at once")
         participant_id = self.index["participant"][0]
         return self._get_timelog(participant_id)
+
+    def save_preprocessed_data(self, biopac_data, radar_data):
+        if not self.is_single(["participant"]):
+            raise ValueError("BIOPAC and Radar data can only be saved for a single participant at once")
+        participant_id = self.index["participant"][0]
+        _save_preprocessed_data(base_path=self.base_path, participant_id=participant_id, biopac=biopac_data, radar=radar_data)
 
     def _get_locations_from_index(self):
         locations = self.index.drop(columns="participant").values.tolist()

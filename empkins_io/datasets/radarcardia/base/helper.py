@@ -25,6 +25,9 @@ def _load_biopac_data(base_path: path_t, participant_id: str, channel_mapping: d
     if state == "raw":
         return _load_biopac_raw_data(base_path=base_path, participant_id=participant_id, channel_mapping=channel_mapping)
 
+    if state == "pre_processed":
+        return _load_biopac_pp_data(base_path=base_path, participant_id=participant_id)
+
 
 def _load_biopac_raw_data(base_path: path_t, participant_id: str, channel_mapping: dict) -> Tuple[pd.DataFrame, int]:
     biopac_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
@@ -33,9 +36,8 @@ def _load_biopac_raw_data(base_path: path_t, participant_id: str, channel_mappin
     biopac_file_path = biopac_dir_path.joinpath(f"biopac_data_{participant_id}.acq")
 
     dataset_biopac = BiopacDataset.from_acq_file(biopac_file_path, channel_mapping=channel_mapping)
-
-    # biopac_df = dataset_biopac.data_as_df(index="local_datetime")
-    biopac_df = dataset_biopac.data_as_df(index="time")
+    biopac_df = dataset_biopac.data_as_df(index="local_datetime")
+    # biopac_df = dataset_biopac.data_as_df(index="time")
     fs = dataset_biopac._sampling_rate
 
     # check if biopac sampling rate is the same for each channel
@@ -49,9 +51,20 @@ def _load_biopac_raw_data(base_path: path_t, participant_id: str, channel_mappin
     return biopac_df, fs
 
 
+def _load_biopac_pp_data(base_path: path_t, participant_id: str) -> DataFrame:
+    data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
+    data_path = data_path.joinpath(f"biopac/processed/biopac_data_pp_{participant_id}.h5")
+
+    biopac_data = pd.read_hdf(data_path, key="biopac_data")
+    return biopac_data, None
+
+
 def _load_radar_data(base_path: path_t, participant_id: str, fs: float, state: str) -> tuple[DataFrame, float]:
     if state == "raw":
         return _load_radar_raw_data(base_path=base_path, participant_id=participant_id, fs=fs)
+
+    if state == "pre_processed":
+        return _load_radar_pp_data(base_path=base_path, participant_id=participant_id)
 
 
 def _load_radar_raw_data(base_path: path_t, participant_id: str, fs: float) -> tuple[DataFrame, float]:
@@ -62,8 +75,17 @@ def _load_radar_raw_data(base_path: path_t, participant_id: str, fs: float) -> t
 
     dataset_radar = EmradDataset.from_hd5_file(radar_file_path, sampling_rate_hz=fs)
     radar_df = dataset_radar.data_as_df(index="local_datetime", add_sync_out=True)["rad1"]
+    # radar_df = dataset_radar.data_as_df(index="time", add_sync_out=True)["rad1"]
     fs = dataset_radar.sampling_rate_hz
     return radar_df, fs
+
+
+def _load_radar_pp_data(base_path: path_t, participant_id: str) -> DataFrame:
+    data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
+    data_path = data_path.joinpath(f"emrad/processed/emrad_data_pp_{participant_id}.h5")
+
+    radar_data = pd.read_hdf(data_path, key="emrad_data")
+    return radar_data, None
 
 
 def _load_timelog(base_path: path_t, participant_id: str) -> pd.DataFrame:
@@ -72,14 +94,14 @@ def _load_timelog(base_path: path_t, participant_id: str) -> pd.DataFrame:
     )
     timelog_file_path = timelog_dir_path.joinpath(f"timelog_{participant_id}.csv")
     if timelog_file_path.exists():
-        timelog = load_atimelogger_file(timelog_file_path, timezone="Europe/Berlin")
+        timelog = _load_atimelogger_file(timelog_file_path, timezone="Europe/Berlin")
         return timelog
     raise TimelogNotFoundException(
         f"No timelog file was found for {participant_id}!"
     )
 
 
-def load_atimelogger_file(file_path: path_t, timezone: Optional[Union[datetime.tzinfo, str]] = None) -> pd.DataFrame:
+def _load_atimelogger_file(file_path: path_t, timezone: Optional[Union[datetime.tzinfo, str]] = None) -> pd.DataFrame:
     """Load time log file exported from the aTimeLogger app.
 
     The resulting dataframe will have one row and start and end times of the single phases as columns.
@@ -134,4 +156,18 @@ def load_atimelogger_file(file_path: path_t, timezone: Optional[Union[datetime.t
     timelog = timelog.T
 
     return timelog
+
+
+def _save_preprocessed_data(base_path: path_t, participant_id: str, biopac: pd.DataFrame, radar: pd.DataFrame):
+    data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
+    biopac_path = data_path.joinpath(f"biopac/processed/biopac_data_pp_{participant_id}.h5")
+    radar_path = data_path.joinpath(f"emrad/processed/emrad_data_pp_{participant_id}.h5")
+
+    biopac_path.parent.mkdir(exist_ok=True)
+    radar_path.parent.mkdir(exist_ok=True)
+
+    biopac.to_hdf(biopac_path, mode="w", key="biopac_data", index=True)
+    radar.to_hdf(radar_path, mode="w", key="emrad_data", index=True)
+
+
 
