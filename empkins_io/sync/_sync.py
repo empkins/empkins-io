@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, Literal, Optional, Sequence, Tuple, get_args, Union
+from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Union, get_args
 
 import numpy as np
 import pandas as pd
@@ -8,7 +8,7 @@ from biopsykit.utils._datatype_validation_helper import _assert_is_dtype
 from matplotlib import pyplot as plt
 from scipy import signal
 from scipy.interpolate import interp1d
-from scipy.signal import periodogram, find_peaks
+from scipy.signal import find_peaks, periodogram
 
 from empkins_io.utils.exceptions import SynchronizationError, ValidationError
 

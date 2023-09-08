@@ -62,7 +62,7 @@ PSG_CHANNELS_SOMNO = Literal[
     "Pos.",
     "Light",
     "Activity",
-    "Sync."
+    "Sync.",
 ]
 
 PSG_CHANNELS_MESA = Literal[
@@ -147,13 +147,42 @@ PSG_GROUP_MAPPING_SOMNO: Dict[PSG_GROUP, Sequence[PSG_CHANNELS_SOMNO]] = {
 
 PSG_GROUP_MAPPING_MESA: Dict[PSG_GROUP, Sequence[PSG_CHANNELS_MESA]] = {
     "FullPSG": [get_args(PSG_CHANNELS_MESA)],
-    "EEG": ["EEG1", "EEG2", "EEG3", "EEG1_Off", "EEG2_Off", "EEG3_Off",],  # Fz, Cz  # Cz, Oz  # C4, M1
-    "ECG": ["EKG" "EKG_Off", "HR", "DHR",],
-    "EOG": ["EOG-L", "EOG-R", "EOG-L_Off", "EOG-R_Off",],
-    "SpO2": ["SpO2", "OxStatus",],
+    "EEG": [
+        "EEG1",
+        "EEG2",
+        "EEG3",
+        "EEG1_Off",
+        "EEG2_Off",
+        "EEG3_Off",
+    ],  # Fz, Cz  # Cz, Oz  # C4, M1
+    "ECG": [
+        "EKG" "EKG_Off",
+        "HR",
+        "DHR",
+    ],
+    "EOG": [
+        "EOG-L",
+        "EOG-R",
+        "EOG-L_Off",
+        "EOG-R_Off",
+    ],
+    "SpO2": [
+        "SpO2",
+        "OxStatus",
+    ],
     "System": ["Therm", "Pos"],
-    "Resp": ["Flow", "Snore", "Thor", "Abdo", "Pleth",],
-    "EMG": ["EMG", "Leg", "EMG_Off",],  # Left & Right Leg EMG
+    "Resp": [
+        "Flow",
+        "Snore",
+        "Thor",
+        "Abdo",
+        "Pleth",
+    ],
+    "EMG": [
+        "EMG",
+        "Leg",
+        "EMG_Off",
+    ],  # Left & Right Leg EMG
 }
 
 
@@ -169,7 +198,10 @@ def get_full_PSG(system: PSG_SYSTEM) -> Sequence[str]:
         return get_args(PSG_CHANNELS_SOMNO)
 
 
-def get_psg_channels_by_group(system: str, psg_channel_group: str,) -> Sequence[str]:
+def get_psg_channels_by_group(
+    system: str,
+    psg_channel_group: str,
+) -> Sequence[str]:
     """Return all psg channels belonging to the same psg channel group.
 
     Parameters

@@ -1,5 +1,5 @@
-from datetime import time
 import datetime
+from datetime import time
 from typing import Optional
 
 import pandas as pd
@@ -7,9 +7,7 @@ import pandas as pd
 from empkins_io.utils._types import path_t
 
 
-def _load_ecg_data(
-    base_path: path_t, subject: str, to_local_time: Optional[bool] = True
-) -> pd.DataFrame:
+def _load_ecg_data(base_path: path_t, subject: str, to_local_time: Optional[bool] = True) -> pd.DataFrame:
     df = pd.read_csv(
         base_path.joinpath("data_per_subject", subject, f"{subject}.txt"),
         sep="\t",
@@ -42,9 +40,7 @@ def _load_raw_log(base_path: path_t, subject: str) -> pd.DataFrame:
 
     df.index = df.index.str.rsplit(":", n=1).str.get(0)
 
-    df.index = pd.to_timedelta(df.index) + pd.to_datetime(
-        start_time(base_path, subject).date()
-    )
+    df.index = pd.to_timedelta(df.index) + pd.to_datetime(start_time(base_path, subject).date())
 
     # convert utc to local time
     df.index = df.index.tz_localize("UTC").tz_convert("Europe/Berlin")

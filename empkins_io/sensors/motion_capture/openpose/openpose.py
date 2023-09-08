@@ -34,6 +34,8 @@ keypoint_mapping = {
     24: "RightHeel",
     25: "Background",
 }
+
+
 def get_df_from_json_dir(dir_jsons: path_t) -> pd.DataFrame:
     """Returns a DataFrame in openpose format (*) from the given directory of openpose json files.
 

@@ -6,12 +6,12 @@ from typing import Optional, Sequence
 
 import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
-from empkins_io.datasets.d03._utils.dataset_utils import get_cleaned_openpose_data
 
+from empkins_io.datasets.d03._utils.dataset_utils import get_cleaned_openpose_data
 from empkins_io.datasets.d03.macro_ap01._base_dataset import MacroBaseDataset
 from empkins_io.datasets.d03.macro_ap01.helper import _get_times_for_mocap, _load_tsst_mocap_data
 from empkins_io.utils._types import path_t
-from empkins_io.utils.exceptions import TimestampDataNotFoundException, SyncDataNotFoundException
+from empkins_io.utils.exceptions import SyncDataNotFoundException, TimestampDataNotFoundException
 
 _cached_load_mocap_data = lru_cache(maxsize=4)(_load_tsst_mocap_data)
 

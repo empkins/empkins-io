@@ -2,9 +2,9 @@ import pandas as pd
 from numpy.linalg import norm
 
 
-def find_peak_around_timestamp(time_stamp: pd.Timestamp, series: pd.Series, roi_minutes: float=1.):
-    start_roi = time_stamp - pd.Timedelta(roi_minutes, 'min')
-    end_roi = time_stamp + pd.Timedelta(roi_minutes, 'min')
+def find_peak_around_timestamp(time_stamp: pd.Timestamp, series: pd.Series, roi_minutes: float = 1.0):
+    start_roi = time_stamp - pd.Timedelta(roi_minutes, "min")
+    end_roi = time_stamp + pd.Timedelta(roi_minutes, "min")
 
     series_roi = series.loc[start_roi:end_roi]
     peak = series_roi.idxmax()
@@ -12,7 +12,7 @@ def find_peak_around_timestamp(time_stamp: pd.Timestamp, series: pd.Series, roi_
 
 
 def get_claps_from_board_and_timelog(board_data: pd.DataFrame, timelog: pd.DataFrame):
-    """ Returns the timestamps of the norm maximum in the timespan 1min before and after the (f)TSST beginning and end, each.
+    """Returns the timestamps of the norm maximum in the timespan 1min before and after the (f)TSST beginning and end, each.
 
     Parameters
     ---------
@@ -31,7 +31,7 @@ def get_claps_from_board_and_timelog(board_data: pd.DataFrame, timelog: pd.DataF
     board_data["norm"] = norm(board_data, axis=1)
     first_timestamp = timelog.prep.end.iloc[0]
     second_timestamp = timelog.math.end.iloc[0]
-    if second_timestamp - first_timestamp > pd.Timedelta(15, 'min'):
+    if second_timestamp - first_timestamp > pd.Timedelta(15, "min"):
         # TODO does this need more advanced error handling?
         raise Warning("Preparation end and math end timestamps are more than 15min apart. This is unusual.")
 
@@ -44,11 +44,10 @@ def get_xsens_start_and_end(xsens_sync_data: pd.DataFrame, timelog: pd.DataFrame
     sync_signal = xsens_sync_data["analog_1"]
     first_timestamp = timelog.prep.start.iloc[0]
     second_timestamp = timelog.math.end.iloc[0]
-    if second_timestamp - first_timestamp > pd.Timedelta(25, 'min'):
+    if second_timestamp - first_timestamp > pd.Timedelta(25, "min"):
         # TODO does this need more advanced error handling?
         raise Warning("Preparation start and math end timestamps are more than 25min apart. This is unusual.")
 
     xsens_start = find_peak_around_timestamp(first_timestamp, sync_signal)
     xsens_end = find_peak_around_timestamp(second_timestamp, sync_signal)
     return xsens_start, xsens_end
-

@@ -4,6 +4,7 @@ from typing import Optional, Sequence
 
 import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
+
 from empkins_io.datasets.d03._utils.dataset_utils import get_cleaned_openpose_data
 from empkins_io.datasets.d03.macro_ap01 import MacroStudyTsstDataset
 from empkins_io.datasets.d03.macro_ap01.helper import _load_tsst_mocap_data

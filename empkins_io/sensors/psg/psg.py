@@ -69,7 +69,8 @@ def load_data(
 
 
 def load_data_raw(
-    path: path_t, timezone: Optional[Union[datetime.tzinfo, str]] = None,
+    path: path_t,
+    timezone: Optional[Union[datetime.tzinfo, str]] = None,
 ):
     # ensure pathlib
     path = Path(path)
@@ -105,7 +106,9 @@ def _generate_epochs(datetime_index):
     return epochs
 
 
-def _load_ground_truth(path: path_t,):
+def _load_ground_truth(
+    path: path_t,
+):
     file_path = path.joinpath("labels/PSG_analyse.xlsx")
     try:
         sleep_phases = pd.read_excel(file_path, sheet_name="Schlafprofil", header=7, index_col=0)

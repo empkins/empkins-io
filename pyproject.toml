@@ -18,9 +18,10 @@ h5py = "^3.5.0"
 tpcp = "^0.13"
 resampy = "^0.4.2"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pytest = "^5.2"
 poethepoet = "^0.10.0"
+ipykernel = "^6.25.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

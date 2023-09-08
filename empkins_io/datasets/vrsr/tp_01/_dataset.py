@@ -6,8 +6,8 @@ import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
 from tpcp import Dataset
 
-from empkins_io.utils._types import path_t
 from empkins_io.datasets.vrsr.tp_01.helper import _load_ecg_data, _load_raw_log
+from empkins_io.utils._types import path_t
 
 _cached_load_ecg_data = lru_cache(maxsize=4)(_load_ecg_data)
 
@@ -36,10 +36,7 @@ class VRSR_Dataset(Dataset):
 
     def create_index(self):
         subject_ids = [
-            subject_dir.name
-            for subject_dir in get_subject_dirs(
-                self.base_path.joinpath("data_per_subject"), "\d{3}"
-            )
+            subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "\d{3}")
         ]
 
         if self.exclude_missing_data:
