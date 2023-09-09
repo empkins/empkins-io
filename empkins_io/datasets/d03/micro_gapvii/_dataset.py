@@ -243,10 +243,11 @@ class MicroBaseDataset(Dataset):
         
         resampled_data.resample_datasets(fs_out=1000, method='static')
 
-        # make them represent equal time spans
+        # make them represent equal time spans, start at pause 1 when radar is measured first and end at the end of the last pause of the experiment before uncabling
+        start_time = self.timelog["Pause_1"]["start"][0]
         end_time = self.timelog["Pause_5"]["end"][0]
         for name in resampled_data.datasets:
-            setattr(resampled_data, f"{name}_resampled_", resampled_data.datasets_resampled[f"{name}_resampled_"][:end_time])
+            setattr(resampled_data, f"{name}_resampled_", resampled_data.datasets_resampled[f"{name}_resampled_"][start_time:end_time])
 
         return resampled_data.datasets_resampled
 
