@@ -96,17 +96,17 @@ class SyncedDataset:
             dataset["data_resampled"] = data_resample
             setattr(self, f"{name}_resampled_", data_resample)
 
-    def cut_to_sync_start(self, sync_params: Optional[Dict[str, Any]] = None):
+    def cut_to_sync_region(self, sync_params: Optional[Dict[str, Any]] = None):
         """Cut all datasets to the region where all datasets are synced."""
         if sync_params is None:
             sync_params = {}
         for name in self.datasets:
             dataset = self.datasets[name]
             params = sync_params.get(name, {})
-            data_cut = self._cut_dataset_to_sync_start(dataset, sync_params=params)
+            data_cut = self._cut_dataset_to_sync_region(dataset, sync_params=params)
             setattr(self, f"{name}_cut_", data_cut)
 
-    def _cut_dataset_to_sync_start(self, dataset: Dict[str, Any], sync_params: Dict[str, Any]) -> pd.DataFrame:
+    def _cut_dataset_to_sync_region(self, dataset: Dict[str, Any], sync_params: Dict[str, Any]) -> pd.DataFrame:
 
         if self.sync_type == "m-sequence":
             raise NotImplementedError(
@@ -278,7 +278,7 @@ class SyncedDataset:
 
         """
         if getattr(self, f"{primary}_cut_", None) is None:
-            raise SynchronizationError(f"Datasets were not cut to sync start yet. Call 'cut_to_sync_start' first!")
+            raise SynchronizationError(f"Datasets were not cut to sync region yet. Call 'cut_to_sync_region' first!")
         data_primary_cut = getattr(self, f"{primary}_cut_")
         start_time_primary = data_primary_cut.index[0]
 
@@ -310,17 +310,17 @@ class SyncedDataset:
 
     @property
     def datasets_resampled(self):
-        # get all datasets that were cut to sync start
+        # get all datasets that were resampled
         return {attr: getattr(self, attr) for attr in dir(self) if attr.endswith("resampled_")}
 
     @property
     def datasets_cut(self):
-        # get all datasets that were cut to sync start
+        # get all datasets that were cut to sync region
         return {attr: getattr(self, attr) for attr in dir(self) if attr.endswith("cut_")}
 
     @property
     def datasets_aligned(self):
-        # get all datasets that were cut to sync start
+        # get all datasets that were aligned
         return {attr: getattr(self, attr) for attr in dir(self) if attr.endswith("aligned_")}
 
     @staticmethod
