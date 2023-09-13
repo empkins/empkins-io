@@ -1,4 +1,5 @@
 import re
+import warnings
 from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Union, get_args
 
 import numpy as np
@@ -11,8 +12,9 @@ from scipy.signal import find_peaks, periodogram
 
 from empkins_io.utils.exceptions import SynchronizationError, ValidationError
 
-SYNC_TYPE = Literal["falling-trigger", "rising-trigger", "falling-edge", "rising-edge", "falling-clock", "rising-clock", "m-sequence"]
-
+SYNC_TYPE = Literal["peak", "rect", "square-wave", "falling-trigger", "rising-trigger", "falling-edge", "rising-edge", "falling-clock", "rising-clock", "m-sequence"]
+SYNC_TYPE_DEPRECATED = ["peak", "rect", "square-wave"]
+SYNC_TYPE_ESB = ["falling-trigger", "rising-trigger", "falling-edge", "rising-edge", "falling-clock", "rising-clock", "m-sequence"]
 
 class SyncedDataset:
 
@@ -25,7 +27,9 @@ class SyncedDataset:
     def __init__(self, sync_type: SYNC_TYPE = "rising-trigger"):
         # TODO fix this
         if sync_type not in get_args(SYNC_TYPE):
-            raise ValueError(f"Sync type {sync_type} not valid. Mus be one of {get_args(SYNC_TYPE)}.")
+            raise ValueError(f"Sync type {sync_type} not valid. Must be one of {get_args(SYNC_TYPE)}.")
+        if sync_type in SYNC_TYPE_DEPRECATED:
+            warnings.warn(f"Sync type {sync_type} is deprecated. Please use one of {get_args(SYNC_TYPE)}.", DeprecationWarning)
         self.sync_type = sync_type
         self.datasets = {}
 
@@ -114,6 +118,20 @@ class SyncedDataset:
 
         data = dataset["data"]
         sync_channel = dataset["sync_channel"]
+        # deprecated sync types
+        if "peak" in self.sync_type:
+            warnings.warn("Sync type 'trigger' was renamed to 'rising-trigger'. Please update your code.",
+                          DeprecationWarning)
+            self.sync_type = "rising-trigger"
+        elif "rect" in self.sync_type:
+            warnings.warn("Sync type 'rect' was renamed to 'rising-edge'. Please update your code.",
+                          DeprecationWarning)
+            self.sync_type = "rising-edge"
+        elif "square-wave" in self.sync_type:
+            warnings.warn("Sync type 'square-wave' was renamed to 'rising-clock'. Please update your code.",
+                          DeprecationWarning)
+            self.sync_type = "rising-clock"
+        # extract sync channel according to sync type
         if "trigger" in self.sync_type:
             # sync_type is "trigger"
             sync_data = data[sync_channel]
