@@ -181,6 +181,9 @@ class SyncedDataset:
         else:
             raise AttributeError("This should never happen.")
 
+        if "falling" in self.sync_type:
+            # invert sync channel to achieve rising sync signal
+            sync_data = -1 * data[sync_channel]
         peaks = SyncedDataset._find_sync_peaks(sync_data, sync_params)
         # cut data to region between first and last peak
         if len(peaks) == 1:
