@@ -59,7 +59,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         groupby_cols: Optional[Sequence[str]] = None,
         subset_index: Optional[Sequence[str]] = None,
         exclude_without_mocap: bool = True,
-        exclude_without_openpose: bool = True,
+        exclude_without_openpose: bool = False,
         exclude_missing_data: bool = False,
         use_cache: bool = True,
     ):
@@ -92,7 +92,8 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         index = list(product(subject_ids, self.conditions))
         if self.exclude_without_openpose:
             for subject_id, condition in self.SUBSETS_WITHOUT_OPENPOSE_DATA:
-                index.remove((subject_id, condition))
+                if (subject_id, condition) in index:
+                    index.remove((subject_id, condition))
 
         index = pd.DataFrame(
             index,
