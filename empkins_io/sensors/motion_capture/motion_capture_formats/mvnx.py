@@ -186,7 +186,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
 
         data.columns = multi_index
         data.index = self._index
-        data.index.name = "time"
+        data.index.name = "t"
 
         return data
 
