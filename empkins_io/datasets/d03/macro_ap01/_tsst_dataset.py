@@ -9,9 +9,15 @@ from biopsykit.utils.file_handling import get_subject_dirs
 
 from empkins_io.datasets.d03._utils.dataset_utils import get_cleaned_openpose_data
 from empkins_io.datasets.d03.macro_ap01._base_dataset import MacroBaseDataset
-from empkins_io.datasets.d03.macro_ap01.helper import _get_times_for_mocap, _load_tsst_mocap_data
+from empkins_io.datasets.d03.macro_ap01.helper import (
+    _get_times_for_mocap,
+    _load_tsst_mocap_data,
+)
 from empkins_io.utils._types import path_t
-from empkins_io.utils.exceptions import SyncDataNotFoundException, TimestampDataNotFoundException
+from empkins_io.utils.exceptions import (
+    SyncDataNotFoundException,
+    TimestampDataNotFoundException,
+)
 
 _cached_load_mocap_data = lru_cache(maxsize=4)(_load_tsst_mocap_data)
 
@@ -75,7 +81,10 @@ class MacroStudyTsstDataset(MacroBaseDataset):
 
     def create_index(self):
         subject_ids = [
-            subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_*")
+            subject_dir.name
+            for subject_dir in get_subject_dirs(
+                self.base_path.joinpath("data_per_subject"), "VP_*"
+            )
         ]
 
         if self.exclude_missing_data:
@@ -124,9 +133,13 @@ class MacroStudyTsstDataset(MacroBaseDataset):
             data_total = self._get_mocap_data_per_phase(subject_id, condition, phase)
 
             return data_total
-        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+        raise ValueError(
+            "Data can only be accessed for a single recording of a single participant in the subset"
+        )
 
-    def _get_mocap_data_per_phase(self, subject_id: str, condition: str, phase: str = "total"):
+    def _get_mocap_data_per_phase(
+        self, subject_id: str, condition: str, phase: str = "total"
+    ):
         data, start = self._get_mocap_data(subject_id, condition)
         timelog = self.timelog_test
         times = _get_times_for_mocap(timelog, start, phase)
@@ -149,7 +162,9 @@ class MacroStudyTsstDataset(MacroBaseDataset):
     @property
     def sync_path(self) -> Path:
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
-            raise ValueError("Path can only be accessed for a single condition of a single participant!")
+            raise ValueError(
+                "Path can only be accessed for a single condition of a single participant!"
+            )
         data_path = self.base_path.joinpath("data_per_subject").joinpath(
             f"{self.group.subject}/{self.group.condition}/sync.json"
         )
@@ -163,13 +178,17 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         column (and the `cfr_time_seconds` column) in the timestamps.csv file/video_timestamps property.
         """
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
-            raise ValueError("Path can only be accessed for a single condition of a single participant!")
+            raise ValueError(
+                "Path can only be accessed for a single condition of a single participant!"
+            )
 
         class JSONDecoder(json.JSONDecoder):
             """Class to properly convert ISO timestamps in json file to pd.Timestamps."""
 
             def __init__(self, *args, **kwargs):
-                json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
+                json.JSONDecoder.__init__(
+                    self, object_hook=self.object_hook, *args, **kwargs
+                )
 
             def object_hook(self, obj):
                 if type(obj) is dict:
@@ -188,7 +207,9 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         if not self.sync_path.exists():
             subject_id = self.group.subject
             condition = self.group.condition
-            raise SyncDataNotFoundException(f"Sync data not found for subject {subject_id} and condition {condition}.")
+            raise SyncDataNotFoundException(
+                f"Sync data not found for subject {subject_id} and condition {condition}."
+            )
 
         with open(self.sync_path) as f:
             sync_data = json.load(f, cls=JSONDecoder)
@@ -197,7 +218,9 @@ class MacroStudyTsstDataset(MacroBaseDataset):
     @property
     def body_video_path(self):
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
-            raise ValueError("Path can only be accessed for a single condition of a single participant!")
+            raise ValueError(
+                "Path can only be accessed for a single condition of a single participant!"
+            )
         data_path = self.base_path.joinpath("data_per_subject").joinpath(
             f"{self.group.subject}/{self.group.condition}/video/body"
         )
@@ -206,7 +229,9 @@ class MacroStudyTsstDataset(MacroBaseDataset):
     @property
     def _openpose_cleaned_path(self) -> Path:
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
-            raise ValueError("OpenPose data can only be accessed for a single condition of a single participant!")
+            raise ValueError(
+                "OpenPose data can only be accessed for a single condition of a single participant!"
+            )
 
         file_path = self.body_video_path.joinpath("cleaned/openpose.csv")
         return file_path
@@ -217,7 +242,9 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         The data is cut to the claps specified in sync_data. Additionally, the index was set to a constant frame rate
         and the data was interpolated linearly and lowpass filtered."""
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
-            raise ValueError("OpenPose data can only be accessed for a single condition of a single participant!")
+            raise ValueError(
+                "OpenPose data can only be accessed for a single condition of a single participant!"
+            )
         file_path = self._openpose_cleaned_path
         return get_cleaned_openpose_data(file_path)
 

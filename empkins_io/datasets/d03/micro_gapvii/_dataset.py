@@ -35,9 +35,13 @@ _cached_load_nilspod_data = lru_cache(maxsize=4)(_load_nilspod_session)
 _cached_load_opendbm_facial_data = lru_cache(maxsize=4)(load_opendbm_facial_data)
 _cached_load_opendbm_acoustic_data = lru_cache(maxsize=4)(load_opendbm_acoustic_data)
 _cached_load_opendbm_movement_data = lru_cache(maxsize=4)(load_opendbm_movement_data)
-_cached_load_opendbm_acoustic_seg_data = lru_cache(maxsize=4)(load_opendbm_acoustic_seg_data)
+_cached_load_opendbm_acoustic_seg_data = lru_cache(maxsize=4)(
+    load_opendbm_acoustic_seg_data
+)
 _cached_load_opendbm_audio_seg_data = lru_cache(maxsize=4)(load_opendbm_audio_seg_data)
-_cached_load_opendbm_facial_tremor_data = lru_cache(maxsize=4)(load_opendbm_facial_tremor_data)
+_cached_load_opendbm_facial_tremor_data = lru_cache(maxsize=4)(
+    load_opendbm_facial_tremor_data
+)
 _cached_load_speaker_diarization = lru_cache(maxsize=4)(load_speaker_diarization)
 
 
@@ -57,9 +61,29 @@ class MicroBaseDataset(Dataset):
         "board": "b012",  # sync with video (clapper board)
     }
 
-    PHASE_COARSE = ["Prep", "Pause_1", "Talk", "Pause_2", "Pause_3", "Math", "Pause_4", "Pause_5"]
+    PHASE_COARSE = [
+        "Prep",
+        "Pause_1",
+        "Talk",
+        "Pause_2",
+        "Pause_3",
+        "Math",
+        "Pause_4",
+        "Pause_5",
+    ]
 
-    PHASE_FINE = ["Prep", "Pause_1", "Talk_1", "Talk_2", "Pause_2", "Pause_3", "Math_1", "Math_2", "Pause_4", "Pause_5"]
+    PHASE_FINE = [
+        "Prep",
+        "Pause_1",
+        "Talk_1",
+        "Talk_2",
+        "Pause_2",
+        "Pause_3",
+        "Math_1",
+        "Math_2",
+        "Pause_4",
+        "Pause_5",
+    ]
 
     CONDITIONS = ["tsst", "ftsst"]
 
@@ -96,7 +120,9 @@ class MicroBaseDataset(Dataset):
 
         participant_ids = [
             participant_dir.name
-            for participant_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_[0-9]{2}")
+            for participant_dir in get_subject_dirs(
+                self.base_path.joinpath("data_per_subject"), "VP_[0-9]{2}"
+            )
         ]
 
         # excludes participants where parts of data are missing
@@ -115,27 +141,61 @@ class MicroBaseDataset(Dataset):
             return index
 
     @property
+    def subset_micro1_0(self):
+        # return the subset from the first part of the study VP < 45
+        return self.groupby(["subject"])[:45].groupby(None)
+
+    @property
+    def subset_micro1_1(self):
+        # return the subset from the second part of the study VP >= 50
+        return self.groupby(["subject"])[45:].groupby(None)
+
+    @property
     def sampling_rates(self) -> Dict[str, float]:
         return self._sampling_rates
 
     @property
+    def subject(self) -> str:
+        if self.is_single("subject"):
+            return self.index["subject"][0]
+
+    @property
+    def condition(self) -> str:
+        if self.is_single("condition"):
+            return self.index["condition"][0]
+
+    @property
+    def phase(self) -> str:
+        if self.is_single("phase"):
+            return self.index["phase"][0]
+
+    @property
     def cortisol(self) -> pd.DataFrame:
-        cortisol_path = self.base_path.joinpath("saliva/cortisol/cleaned/cortisol_cleaned.csv")
+        cortisol_path = self.base_path.joinpath(
+            "saliva/cortisol/cleaned/cortisol_cleaned.csv"
+        )
         return load_long_format_csv(cortisol_path)
 
     @property
     def gender(self) -> pd.DataFrame:
-        return load_long_format_csv(self.base_path.joinpath("extras/processed/gender.csv"), index_cols=["subject"])
+        return load_long_format_csv(
+            self.base_path.joinpath("extras/processed/gender.csv"),
+            index_cols=["subject"],
+        )
 
     @property
     def condition_order(self) -> pd.DataFrame:
         return load_long_format_csv(
-            self.base_path.joinpath("extras/processed/condition_order.csv"), index_cols=["subject"]
+            self.base_path.joinpath("extras/processed/condition_order.csv"),
+            index_cols=["subject"],
         )
 
     @property
     def sit_stand(self) -> pd.DataFrame:
-        return load_long_format_csv(self.base_path.joinpath("extras/processed/sit_stand.csv"), index_cols=["subject"])
+        return load_long_format_csv(
+            self.base_path.joinpath("extras/processed/sit_stand.csv"),
+            index_cols=["subject"],
+        )
 
     @property
     def condition_day_mapping(self) -> pd.DataFrame:
@@ -156,7 +216,9 @@ class MicroBaseDataset(Dataset):
 
         if self.is_single(["subject", "condition"]):
             if not self._all_phases_selected():
-                raise ValueError("Biopac data can only be accessed for all phases or one specific phase!")
+                raise ValueError(
+                    "Biopac data can only be accessed for all phases or one specific phase!"
+                )
 
             participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
@@ -164,7 +226,9 @@ class MicroBaseDataset(Dataset):
             data, fs = self._get_biopac_data(participant_id, condition, "all")
             return data
 
-        raise ValueError("Biopac data can only be accessed for one single participant and condition at once!")
+        raise ValueError(
+            "Biopac data can only be accessed for one single participant and condition at once!"
+        )
 
     @property
     def timelog(self) -> pd.DataFrame:
@@ -176,14 +240,18 @@ class MicroBaseDataset(Dataset):
 
         if self.is_single(["subject", "condition"]):
             if not self._all_phases_selected():
-                raise ValueError("Timelog can only be accessed for all phases or one specific phase!")
+                raise ValueError(
+                    "Timelog can only be accessed for all phases or one specific phase!"
+                )
 
             participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
             return self._get_timelog(participant_id, condition, "all")
 
         # TODO allow for multiple participants and conditions in the future (return as concatenated dataframe)
-        raise ValueError("Timelog can only be accessed for a single participant and a single condition at once!")
+        raise ValueError(
+            "Timelog can only be accessed for a single participant and a single condition at once!"
+        )
 
     @property
     def emrad(self) -> pd.DataFrame:
@@ -197,7 +265,9 @@ class MicroBaseDataset(Dataset):
 
         if self.is_single(["subject", "condition"]):
             if not self._all_phases_selected():
-                raise ValueError("Radar data can only be accessed for all phases or one specific phase!")
+                raise ValueError(
+                    "Radar data can only be accessed for all phases or one specific phase!"
+                )
 
             participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
@@ -205,7 +275,9 @@ class MicroBaseDataset(Dataset):
             data, fs = self._get_radar_data(participant_id, condition, "all")
             return data
 
-        raise ValueError("Radar data can only be accessed for a single participant and a single condition at once!")
+        raise ValueError(
+            "Radar data can only be accessed for a single participant and a single condition at once!"
+        )
 
     @cached_property
     def nilspod(self) -> pd.DataFrame:
@@ -218,7 +290,9 @@ class MicroBaseDataset(Dataset):
             return None
         if self.is_single(["subject", "condition"]):
             if not self._all_phases_selected():
-                raise ValueError("NilsPod data can only be accessed for all phases or one specific phase!")
+                raise ValueError(
+                    "NilsPod data can only be accessed for all phases or one specific phase!"
+                )
 
             participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
@@ -227,7 +301,9 @@ class MicroBaseDataset(Dataset):
             data = self._get_nilspod_data(participant_id, condition)
             return data
 
-        raise ValueError("NilsPod data can only be accessed for a single participant in a single condition!")
+        raise ValueError(
+            "NilsPod data can only be accessed for a single participant in a single condition!"
+        )
 
     @property
     def ecg(self) -> pd.DataFrame:
@@ -240,36 +316,48 @@ class MicroBaseDataset(Dataset):
     @property
     def face_video_path(self) -> Path:
         if not self.is_single(["subject", "condition"]):
-            raise ValueError("Video can only be accessed for a single participant in a single condition!")
+            raise ValueError(
+                "Video can only be accessed for a single participant in a single condition!"
+            )
         if self.is_single("phase"):
             raise ValueError("Video can only be accessed for all phases!")
 
         participant_id = self.index["subject"][0]
         condition = self.index["condition"][0]
         path = _build_data_path(self.base_path, participant_id, condition)
-        path = path.joinpath(f"video/face/processed/video_face_{participant_id.lower()}_{condition}.mp4")
+        path = path.joinpath(
+            f"video/face/processed/video_face_{participant_id.lower()}_{condition}.mp4"
+        )
         return path
 
     @property
     def body_video_path(self) -> Path:
         if not self.is_single(["subject", "condition"]):
-            raise ValueError("Video can only be accessed for a single participant in a single condition!")
+            raise ValueError(
+                "Video can only be accessed for a single participant in a single condition!"
+            )
         if self.is_single("phase"):
             raise ValueError("Video can only be accessed for all phases!")
 
         participant_id = self.index["subject"][0]
         condition = self.index["condition"][0]
         path = _build_data_path(self.base_path, participant_id, condition)
-        path = path.joinpath(f"video/body/processed/video_body_{participant_id.lower()}_{condition}.mp4")
+        path = path.joinpath(
+            f"video/body/processed/video_body_{participant_id.lower()}_{condition}.mp4"
+        )
         return path
 
     @property
     def nilspod(self) -> pd.DataFrame:  # TODO: implement
         raise NotImplementedError("NilsPod data is not yet implemented!")
 
-    def _get_biopac_data(self, participant_id: str, condition: str, phase: str) -> Tuple[pd.DataFrame, int]:
+    def _get_biopac_data(
+        self, participant_id: str, condition: str, phase: str
+    ) -> Tuple[pd.DataFrame, int]:
         if self.use_cache:
-            data, fs = _cached_get_biopac_data(self.base_path, participant_id, condition)
+            data, fs = _cached_get_biopac_data(
+                self.base_path, participant_id, condition
+            )
         else:
             data, fs = _load_biopac_data(self.base_path, participant_id, condition)
 
@@ -290,7 +378,9 @@ class MicroBaseDataset(Dataset):
             data, fs = _load_nilspod_session(self.base_path, subject_id, condition)
         return data
 
-    def _get_radar_data(self, participant_id: str, condition: str, phase: str) -> tuple[DataFrame, float]:
+    def _get_radar_data(
+        self, participant_id: str, condition: str, phase: str
+    ) -> tuple[DataFrame, float]:
         if self.use_cache:
             data, fs = _cached_get_radar_data(self.base_path, participant_id, condition)
         else:
@@ -310,13 +400,21 @@ class MicroBaseDataset(Dataset):
             data = data.loc[phase_start:phase_end]
             return data, fs
 
-    def _get_timelog(self, participant_id: str, condition: str, phase: str) -> pd.DataFrame:
-        return _load_timelog(self.base_path, participant_id, condition, phase, self.phase_fine)
+    def _get_timelog(
+        self, participant_id: str, condition: str, phase: str
+    ) -> pd.DataFrame:
+        return _load_timelog(
+            self.base_path, participant_id, condition, phase, self.phase_fine
+        )
 
     def _all_phases_selected(self) -> bool:
         # check if all phases are selected
-        all_phases_fine = self.phase_fine and (len(self.index["phase"]) == len(self.PHASE_FINE))
-        all_phases_coarse = not self.phase_fine and (len(self.index["phase"]) == len(self.PHASE_COARSE))
+        all_phases_fine = self.phase_fine and (
+            len(self.index["phase"]) == len(self.PHASE_FINE)
+        )
+        all_phases_coarse = not self.phase_fine and (
+            len(self.index["phase"]) == len(self.PHASE_COARSE)
+        )
         return all_phases_fine or all_phases_coarse
 
     # def _get_opendbm_facial_data(self, subject_id: str, condition: str) -> pd.DataFrame:
@@ -405,10 +503,14 @@ class MicroBaseDataset(Dataset):
             subject_id = self.index["subject"][0]
             condition = self.index["condition"][0]
 
-            data = get_opendbm_derived_features(self.base_path, subject_id, condition, self.opendbm_suffix)
+            data = get_opendbm_derived_features(
+                self.base_path, subject_id, condition, self.opendbm_suffix
+            )
             return data
 
-        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+        raise ValueError(
+            "Data can only be accessed for a single recording of a single participant in the subset"
+        )
 
     # @cached_property
     # def opendbm_acoustic_data(self) -> pd.DataFrame:
