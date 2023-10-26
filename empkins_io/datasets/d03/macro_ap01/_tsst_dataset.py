@@ -28,7 +28,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
 
     SUBJECTS_WITHOUT_MOCAP = (
         "VP_03",
-        "VP_31",
+        "VP_31"
     )
 
     SUBSETS_WITHOUT_OPENPOSE_DATA = (
@@ -150,7 +150,8 @@ class MacroStudyTsstDataset(MacroBaseDataset):
                 data_total[idx] = data.loc[phase["start"] : phase["end"]]
             data_total = pd.concat(data_total).droplevel(0)
         else:
-            data_total = data.loc[times["start"] : times["end"]]
+            for idx, phase in times.iterrows():
+                data_total = data.loc[phase["start"] : phase["end"]]
 
         return data_total
 
