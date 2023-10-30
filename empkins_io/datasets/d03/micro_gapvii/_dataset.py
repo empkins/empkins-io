@@ -50,6 +50,7 @@ class MicroBaseDataset(Dataset):
     sync_on_load: bool
     use_cache: bool
     phase_fine: bool
+    opendbm_suffix: Optional[str]
     _sampling_rates: Dict[str, float] = {"biopac": 1000, "emrad": 1953.125}
     _sample_times_saliva: Tuple[int] = (-40, -1, 16, 25, 35, 45, 60, 75)
     _sample_times_bloodspot: Tuple[int] = (-40, 60)
