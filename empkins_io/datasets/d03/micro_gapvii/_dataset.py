@@ -89,10 +89,10 @@ class MicroBaseDataset(Dataset):
     CONDITIONS = ["tsst", "ftsst"]
 
     MISSING_DATA: Sequence[str] = [
-        "VP_21",
-        "VP_24",
-        "VP_29",
-        "VP_41",
+        # "VP_21",
+        # "VP_24",
+        # "VP_29",
+        # "VP_41",
         "VP_45",
     ]  # Missing data (add participant IDs here)
 
@@ -143,13 +143,17 @@ class MicroBaseDataset(Dataset):
 
     @property
     def subset_micro1_0(self):
-        # return the subset from the first part of the study VP < 45
-        return self.groupby(["subject"])[:45].groupby(None)
+        # return the subset with subject identifiers > VP_45
+        self.subset_index = self.index.query(
+            "subject >= 'VP_01' and subject <= 'VP_45'"
+        )
+        return self
 
     @property
     def subset_micro1_1(self):
         # return the subset from the second part of the study VP >= 50
-        return self.groupby(["subject"])[45:].groupby(None)
+        self.subset_index = self.index.query("subject >= 'VP_50'")
+        return self
 
     @property
     def sampling_rates(self) -> Dict[str, float]:
