@@ -47,6 +47,7 @@ _cached_load_speaker_diarization = lru_cache(maxsize=4)(load_speaker_diarization
 
 class MicroBaseDataset(Dataset):
     base_path: path_t
+    data_tabular_path: path_t
     sync_on_load: bool
     use_cache: bool
     phase_fine: bool
@@ -110,6 +111,7 @@ class MicroBaseDataset(Dataset):
     ):
         # ensure pathlib
         self.base_path = base_path
+        self.data_tabular_path = self.base_path.joinpath("data_tabular")
         self.exclude_missing_data = exclude_missing_data
         self.use_cache = use_cache
         self.phase_fine = phase_fine
@@ -182,6 +184,22 @@ class MicroBaseDataset(Dataset):
         return load_long_format_csv(cortisol_path)
 
     @property
+    def amylase(self) -> pd.DataFrame:
+        amylase_path = self.data_tabular_path.joinpath(
+            "saliva/amylase/cleaned/amylase.csv"
+        )
+        return load_long_format_csv(amylase_path)
+
+    @property
+    def amylase_features(self) -> pd.DataFrame:
+        amylase_features_path = self.data_tabular_path.joinpath(
+            "saliva/amylase/processed/amylase_features.csv"
+        )
+        return load_long_format_csv(
+            amylase_features_path, index_cols=["subject", "condition"]
+        )
+
+    @property
     def gender(self) -> pd.DataFrame:
         return load_long_format_csv(
             self.base_path.joinpath("extras/processed/gender.csv"),
@@ -205,7 +223,9 @@ class MicroBaseDataset(Dataset):
     @property
     def condition_day_mapping(self) -> pd.DataFrame:
         return load_long_format_csv(
-            self.base_path.joinpath("extras/processed/day_condition_mapping.csv"),
+            self.data_tabular_path.joinpath(
+                "extras/processed/day_condition_mapping.csv"
+            ),
             index_cols=["subject", "day"],
         )
 
@@ -317,6 +337,13 @@ class MicroBaseDataset(Dataset):
             senor_id = self.NILSPOD_MAPPING["chest"]
             data = self.nilspod.xs(senor_id, level=0, axis=1)
             return data[["ecg"]]
+
+    @property
+    def pep(self) -> pd.DataFrame:
+        return load_long_format_csv(
+            self.base_path.joinpath("data_tabular/pep/pep_conditions.csv"),
+            index_cols=["subject", "condition"],
+        )
 
     @property
     def face_video_path(self) -> Path:
