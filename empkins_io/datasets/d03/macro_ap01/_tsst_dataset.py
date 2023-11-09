@@ -32,12 +32,12 @@ class MacroStudyTsstDataset(MacroBaseDataset):
     )
 
     SUBJECTS_WITHOUT_PREP = (
-        "VP_09",
-        "VP_10",
-        "VP_11",
-        "VP_26",
-        "VP_39",
-        "VP_41"
+        "VP_09",  # # sign error in ftsst mocap data (arms)
+        "VP_10",  # sign error in ftsst mocap data (arms)
+        "VP_11",  # sign error in ftsst mocap data (arms)
+        "VP_26",  # prep phase is missing entirely in mocap data
+        "VP_39",  # prep phase is missing entirely in mocap data
+        "VP_41"   # VP isn't seated during prep phase
     )
 
     SUBSETS_WITHOUT_OPENPOSE_DATA = (
