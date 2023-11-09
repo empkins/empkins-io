@@ -25,6 +25,15 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         "VP_31"
     )
 
+    SUBJECTS_WITHOUT_PREP = (
+        "VP_09",
+        "VP_10",
+        "VP_11",
+        "VP_26",
+        "VP_39",
+        "VP_41"
+    )
+
     SUBSETS_WITHOUT_OPENPOSE_DATA = (
         ("VP_01", "ftsst"),
         ("VP_01", "tsst"),
@@ -60,11 +69,13 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         subset_index: Optional[Sequence[str]] = None,
         exclude_without_mocap: bool = True,
         exclude_without_openpose: bool = False,
+        exclude_without_prep: bool = False,
         exclude_missing_data: bool = False,
         use_cache: bool = True,
     ):
         self.exclude_without_mocap = exclude_without_mocap
         self.exclude_without_openpose = exclude_without_openpose
+        self.exclude_without_prep = exclude_without_prep
         super().__init__(
             base_path=base_path,
             groupby_cols=groupby_cols,
@@ -86,6 +97,11 @@ class MacroStudyTsstDataset(MacroBaseDataset):
 
         if self.exclude_without_mocap:
             for subject_id in self.SUBJECTS_WITHOUT_MOCAP:
+                if subject_id in subject_ids:
+                    subject_ids.remove(subject_id)
+
+        if self.exclude_without_prep:
+            for subject_id in self.SUBJECTS_WITHOUT_PREP:
                 if subject_id in subject_ids:
                     subject_ids.remove(subject_id)
 
