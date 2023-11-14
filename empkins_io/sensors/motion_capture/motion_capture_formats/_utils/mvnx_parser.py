@@ -2,7 +2,7 @@ from xml.etree import ElementTree
 
 import h5py
 import numpy as np
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 __all__ = ["_MvnxParser"]
 
@@ -183,7 +183,7 @@ class _MvnxParser:
 
         holding_list = []
         frames = self.root[2][6]
-        for frame in tqdm(frames[3:]):
+        for frame in frames[3:]:
             for child in frame[self.mapping[modality] : self.mapping[modality] + 1]:
                 holding_list.append(child.text.split(" "))
         holding_list = np.array(holding_list)
@@ -191,50 +191,50 @@ class _MvnxParser:
 
     def parse_time(self):
         frames = self.root[2][6][3:]
-        for frame in tqdm(frames):
+        for frame in frames:
             self.time.append(frame.attrib["time"])
         return self.time
 
     def parse_index(self):
         frames = self.root[2][6][3:]
-        for frame in tqdm(frames):
+        for frame in frames:
             self.index.append(frame.attrib["index"])
         return self.index
 
     def parse_timecode(self):
         frames = self.root[2][6][3:]
-        for frame in tqdm(frames):
+        for frame in frames:
             self.timecode.append(frame.attrib["tc"])
         return self.timecode
 
     def parse_ms(self):
         frames = self.root[2][6][3:]
-        for frame in tqdm(frames):
+        for frame in frames:
             self.ms.append(frame.attrib["ms"])
         return self.ms
 
     def parse_modalities(self, *args):
-        for arg in tqdm(args):
+        for arg in args:
             print(self.parse_modality(arg))
             return self.parse_modality(arg)
 
     def parse_sensors(self):
-        for sensor in tqdm(self.root[2][2]):
+        for sensor in tqdm(self.root[2][2], desc="Sensors"):
             self.sensors.append(sensor.attrib["label"])
         return self.sensors
 
     def parse_segments(self):
-        for segment in tqdm(self.root[2][1]):
+        for segment in tqdm(self.root[2][1], desc="Segments"):
             self.segments[segment.attrib["id"]] = segment.attrib["label"]
         return self.segments
 
     def parse_joints(self):
-        for joint in tqdm(self.root[2][3]):
+        for joint in tqdm(self.root[2][3], desc="Joints"):
             self.joints[joint.attrib["label"]] = [joint[0].text, joint[1].text]
         return self.joints
 
     def parse_all(self):
-        for key in tqdm(self.mapping.keys()):
+        for key in tqdm(self.mapping.keys(), desc="Channel"):
             setattr(self, key, self.parse_modality(key))
         self.parse_time()
         self.parse_joints()
