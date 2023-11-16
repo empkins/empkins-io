@@ -15,18 +15,31 @@ from empkins_io.utils.exceptions import (
     TimelogNotFoundException,
 )
 
+import bioread
+
+
 def _build_data_path(base_path: path_t, participant_id: str) -> Path:
     data_path = base_path.joinpath(f"data_per_subject/{participant_id}")
     assert data_path.exists()
     return data_path
 
 
-def _load_biopac_data(base_path: path_t, participant_id: str, channel_mapping: dict, state: str) -> Tuple[pd.DataFrame, int]:
-    if state == "raw":
-        return _load_biopac_raw_data(base_path=base_path, participant_id=participant_id, channel_mapping=channel_mapping)
+def _build_timelog_path(base_path: path_t, participant_id: str) -> Path:
+    timelog_dir_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+        "timelog/processed"
+    )
+    timelog_file_path = timelog_dir_path.joinpath(f"timelog_{participant_id}.csv")
+    return timelog_file_path
 
-    if state == "pre_processed":
-        return _load_biopac_pp_data(base_path=base_path, participant_id=participant_id)
+
+def _load_biopac_data(base_path: path_t, participant_id: str, channel_mapping: dict, state: str) -> Tuple[
+    pd.DataFrame, int]:
+    if state == "raw":
+        return _load_biopac_raw_data(base_path=base_path, participant_id=participant_id,
+                                     channel_mapping=channel_mapping)
+
+    if state == "aligned":
+        return _load_biopac_aligned_data(base_path=base_path, participant_id=participant_id)
 
 
 def _load_biopac_raw_data(base_path: path_t, participant_id: str, channel_mapping: dict) -> Tuple[pd.DataFrame, int]:
@@ -51,7 +64,7 @@ def _load_biopac_raw_data(base_path: path_t, participant_id: str, channel_mappin
     return biopac_df, fs
 
 
-def _load_biopac_pp_data(base_path: path_t, participant_id: str) -> DataFrame:
+def _load_biopac_aligned_data(base_path: path_t, participant_id: str) -> DataFrame:
     data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
     data_path = data_path.joinpath(f"biopac/processed/biopac_data_pp_{participant_id}.h5")
 
@@ -63,8 +76,8 @@ def _load_radar_data(base_path: path_t, participant_id: str, fs: float, state: s
     if state == "raw":
         return _load_radar_raw_data(base_path=base_path, participant_id=participant_id, fs=fs)
 
-    if state == "pre_processed":
-        return _load_radar_pp_data(base_path=base_path, participant_id=participant_id)
+    if state == "aligned":
+        return _load_radar_aligned_data(base_path=base_path, participant_id=participant_id)
 
 
 def _load_radar_raw_data(base_path: path_t, participant_id: str, fs: float) -> tuple[DataFrame, float]:
@@ -80,7 +93,7 @@ def _load_radar_raw_data(base_path: path_t, participant_id: str, fs: float) -> t
     return radar_df, fs
 
 
-def _load_radar_pp_data(base_path: path_t, participant_id: str) -> DataFrame:
+def _load_radar_aligned_data(base_path: path_t, participant_id: str) -> DataFrame:
     data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
     data_path = data_path.joinpath(f"emrad/processed/emrad_data_pp_{participant_id}.h5")
 
@@ -89,10 +102,7 @@ def _load_radar_pp_data(base_path: path_t, participant_id: str) -> DataFrame:
 
 
 def _load_timelog(base_path: path_t, participant_id: str) -> pd.DataFrame:
-    timelog_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
-        "timelog/clean"
-    )
-    timelog_file_path = timelog_dir_path.joinpath(f"timelog_{participant_id}.csv")
+    timelog_file_path = _build_timelog_path(base_path=base_path, participant_id=participant_id)
     if timelog_file_path.exists():
         timelog = _load_atimelogger_file(timelog_file_path, timezone="Europe/Berlin")
         return timelog
@@ -158,7 +168,7 @@ def _load_atimelogger_file(file_path: path_t, timezone: Optional[Union[datetime.
     return timelog
 
 
-def _save_preprocessed_data(base_path: path_t, participant_id: str, biopac: pd.DataFrame, radar: pd.DataFrame):
+def _save_aligned_data(base_path: path_t, participant_id: str, biopac: pd.DataFrame, radar: pd.DataFrame):
     data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
     biopac_path = data_path.joinpath(f"biopac/processed/biopac_data_pp_{participant_id}.h5")
     radar_path = data_path.joinpath(f"emrad/processed/emrad_data_pp_{participant_id}.h5")
@@ -170,4 +180,82 @@ def _save_preprocessed_data(base_path: path_t, participant_id: str, biopac: pd.D
     radar.to_hdf(radar_path, mode="w", key="emrad_data", index=True)
 
 
+def _save_data_to_location_h5(
+        base_path: path_t,
+        participant_id: str,
+        data: pd.DataFrame,
+        biopac: bool,
+        radar: bool,
+        location: str,
+        file_name: str,
+):
+    data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
+    if biopac and radar:
+        raise NotImplementedError("Dataframe can not be saved to radar and biopac directory")
+    elif biopac:
+        data_path = data_path.joinpath(f"biopac/")
+    elif radar:
+        data_path = data_path.joinpath(f"emrad/")
+    else:
+        raise ValueError("Specify in which directory the dataframe should be saved")
+
+    data_path = data_path.joinpath(f"processed/data_per_location/{location}/{file_name}_{participant_id}.h5")
+    data_path.parent.mkdir(parents=True, exist_ok=True)
+    data.to_hdf(data_path, mode="w", key="data", index=True)
+
+
+def _load_data_from_location_h5(
+        base_path: path_t,
+        participant_id: str,
+        biopac: bool,
+        radar: bool,
+        location: str,
+        file_name: str,
+):
+    data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
+    if biopac and radar:
+        raise NotImplementedError("Dataframe can not be loaded from radar and biopac directory")
+    elif biopac:
+        data_path = data_path.joinpath(f"biopac/")
+    elif radar:
+        data_path = data_path.joinpath(f"emrad/")
+    else:
+        raise ValueError("Specify from which directory the dataframe should be loaded")
+
+    data_path = data_path.joinpath(f"processed/data_per_location/{location}/{file_name}_{participant_id}.h5")
+    data = pd.read_hdf(data_path, key="data")
+
+    return data
+
+
+def _calc_biopac_timelog_shift(base_path: path_t, participant_id: str):
+
+    # Biopac Sync Event Marker
+    biopac_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
+        "biopac/raw"
+    )
+    biopac_file_path = biopac_dir_path.joinpath(f"biopac_data_{participant_id}.acq")
+
+    biopac_data: bioread.reader.Datafile = bioread.read(str(biopac_file_path))
+    event_marker = biopac_data.event_markers
+    sync_events = []
+    for event in event_marker:
+        if event.type == "User Type 1":
+            sync_events.append(event)
+    if len(sync_events) == 1:
+        sync_event = sync_events[0]
+    elif len(sync_events) == 0:
+        raise Exception("Sync Event Marker in Biopac Data File is missing")
+    else:
+        raise NotImplementedError(
+            "Two or more Biopac Event Markers have been detected. Handling is not implemented.")
+
+    sync_event_time = sync_event.date_created_utc
+
+    # Timelog Sync Entry
+    timelog = _load_timelog(base_path=base_path, participant_id=participant_id)
+    timelog_sync_start_time = timelog["sync"]["start"].time
+
+    shift = sync_event_time - timelog_sync_start_time
+    return shift
 
