@@ -29,6 +29,8 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
         exclude_without_prep: bool = False,
         exclude_missing_data: bool = False,
         use_cache: bool = True,
+        *,
+        verbose: bool = True,
     ):
         super().__init__(
             base_path=base_path,
@@ -38,7 +40,8 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
             exclude_missing_data=exclude_missing_data,
             exclude_without_mocap=exclude_without_mocap,
             exclude_without_openpose=exclude_without_openpose,
-            exclude_without_prep=exclude_without_prep
+            exclude_without_prep=exclude_without_prep,
+            verbose=verbose,
         )
 
     def create_index(self):
