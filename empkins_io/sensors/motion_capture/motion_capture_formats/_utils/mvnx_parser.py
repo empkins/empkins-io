@@ -55,6 +55,8 @@ class _MvnxParser:
         index=None,
         timecode=None,
         ms=None,
+        *,
+        verbose=True,
     ):
         if orientation is None:
             self.orientation = []
@@ -137,6 +139,7 @@ class _MvnxParser:
         self.userScenario = userScenario
         self.securityCode = securityCode
         self.modality = modality
+        self.verbose = verbose
         if path is None:
             print("Please supply a path")
         self.path = path
@@ -219,22 +222,22 @@ class _MvnxParser:
             return self.parse_modality(arg)
 
     def parse_sensors(self):
-        for sensor in tqdm(self.root[2][2], desc="Sensors"):
+        for sensor in self.root[2][2]:
             self.sensors.append(sensor.attrib["label"])
         return self.sensors
 
     def parse_segments(self):
-        for segment in tqdm(self.root[2][1], desc="Segments"):
+        for segment in self.root[2][1]:
             self.segments[segment.attrib["id"]] = segment.attrib["label"]
         return self.segments
 
     def parse_joints(self):
-        for joint in tqdm(self.root[2][3], desc="Joints"):
+        for joint in self.root[2][3]:
             self.joints[joint.attrib["label"]] = [joint[0].text, joint[1].text]
         return self.joints
 
     def parse_all(self):
-        for key in tqdm(self.mapping.keys(), desc="Channel"):
+        for key in tqdm(self.mapping.keys(), desc="Parse Channels", disable=not self.verbose):
             setattr(self, key, self.parse_modality(key))
         self.parse_time()
         self.parse_joints()
