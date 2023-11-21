@@ -32,6 +32,14 @@ def _build_timelog_path(base_path: path_t, participant_id: str) -> Path:
     return timelog_file_path
 
 
+def _build_protocol_path(base_path: path_t, participant_id: str) -> Path:
+    protocol_dir_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+        "protocol/processed"
+    )
+    protocol_file_path = protocol_dir_path.joinpath(f"protocol_{participant_id}.csv")
+    return protocol_file_path
+
+
 def _load_biopac_data(base_path: path_t, participant_id: str, channel_mapping: dict, state: str) -> Tuple[
     pd.DataFrame, int]:
     if state == "raw":
@@ -66,7 +74,7 @@ def _load_biopac_raw_data(base_path: path_t, participant_id: str, channel_mappin
 
 def _load_biopac_aligned_data(base_path: path_t, participant_id: str) -> DataFrame:
     data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
-    data_path = data_path.joinpath(f"biopac/processed/biopac_data_pp_{participant_id}.h5")
+    data_path = data_path.joinpath(f"biopac/processed/biopac_data_{participant_id}.h5")
 
     biopac_data = pd.read_hdf(data_path, key="biopac_data")
     return biopac_data, None
@@ -95,7 +103,7 @@ def _load_radar_raw_data(base_path: path_t, participant_id: str, fs: float) -> t
 
 def _load_radar_aligned_data(base_path: path_t, participant_id: str) -> DataFrame:
     data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
-    data_path = data_path.joinpath(f"emrad/processed/emrad_data_pp_{participant_id}.h5")
+    data_path = data_path.joinpath(f"emrad/processed/emrad_data_{participant_id}.h5")
 
     radar_data = pd.read_hdf(data_path, key="emrad_data")
     return radar_data, None
@@ -170,8 +178,8 @@ def _load_atimelogger_file(file_path: path_t, timezone: Optional[Union[datetime.
 
 def _save_aligned_data(base_path: path_t, participant_id: str, biopac: pd.DataFrame, radar: pd.DataFrame):
     data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
-    biopac_path = data_path.joinpath(f"biopac/processed/biopac_data_pp_{participant_id}.h5")
-    radar_path = data_path.joinpath(f"emrad/processed/emrad_data_pp_{participant_id}.h5")
+    biopac_path = data_path.joinpath(f"biopac/processed/biopac_data_{participant_id}.h5")
+    radar_path = data_path.joinpath(f"emrad/processed/emrad_data_{participant_id}.h5")
 
     biopac_path.parent.mkdir(exist_ok=True)
     radar_path.parent.mkdir(exist_ok=True)
@@ -230,7 +238,7 @@ def _load_data_from_location_h5(
 
 def _calc_biopac_timelog_shift(base_path: path_t, participant_id: str):
 
-    # Biopac Sync Event Marker
+    # biopac sync event marker
     biopac_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
         "biopac/raw"
     )
@@ -240,6 +248,7 @@ def _calc_biopac_timelog_shift(base_path: path_t, participant_id: str):
     event_marker = biopac_data.event_markers
     sync_events = []
     for event in event_marker:
+        print(event.type)
         if event.type == "User Type 1":
             sync_events.append(event)
     if len(sync_events) == 1:
@@ -252,10 +261,19 @@ def _calc_biopac_timelog_shift(base_path: path_t, participant_id: str):
 
     sync_event_time = sync_event.date_created_utc
 
-    # Timelog Sync Entry
+    # timelog sync entry
     timelog = _load_timelog(base_path=base_path, participant_id=participant_id)
     timelog_sync_start_time = timelog["sync"]["start"].time
 
+    # calculate time shift between biopac and timelog
     shift = sync_event_time - timelog_sync_start_time
     return shift
+
+
+def _load_protocol(base_path: path_t, participant_id: str) -> pd.DataFrame:
+    protocol_file_path = _build_protocol_path(base_path=base_path, participant_id=participant_id)
+    if protocol_file_path.exists():
+        protocol = pd.read_csv(protocol_file_path, index_col=0)
+        return protocol
+    raise FileNotFoundError("Processed Protocol file was not found.")
 

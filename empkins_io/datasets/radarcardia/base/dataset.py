@@ -16,7 +16,9 @@ from empkins_io.datasets.radarcardia.base.helper import (
     _save_data_to_location_h5,
     _load_data_from_location_h5,
     _build_timelog_path,
-    _calc_biopac_timelog_shift
+    _build_protocol_path,
+    _calc_biopac_timelog_shift,
+    _load_protocol
 )
 
 from empkins_io.sync import SyncedDataset
@@ -84,7 +86,6 @@ class BaseDataset(Dataset):
             self.bp_tl_shift = self._get_biopac_timelog_shift(participant_id=participant_id)
 
         return self.bp_tl_shift
-
 
     @property
     def biopac_raw_unsynced(self) -> pd.DataFrame:
@@ -210,10 +211,23 @@ class BaseDataset(Dataset):
         return self._get_timelog(participant_id)
 
     @property
+    def protocol(self) -> pd.DataFrame:
+        if not self.is_single(["subject"]):
+            raise ValueError("Protocol Information can only be accessed for one single participant at once")
+        participant_id = self.index["subject"][0]
+        return self._get_protocol(participant_id)
+
+    @property
     def timelog_path(self):
         participant_id = self.index["subject"][0]
         timelog_path = _build_timelog_path(base_path=self.base_path, participant_id=participant_id)
         return timelog_path
+
+    @property
+    def protocol_path(self):
+        participant_id = self.index["subject"][0]
+        protocol_path = _build_protocol_path(base_path=self.base_path, participant_id=participant_id)
+        return protocol_path
 
     def save_aligned_data(self, biopac_data, radar_data):
         if not self.is_single(["subject"]):
@@ -302,10 +316,6 @@ class BaseDataset(Dataset):
             return biopac
         else:
             tl = self.timelog
-            # start = tl[location[0]]["start"][0]
-            # end = tl[location[0]]["end"][0]
-
-            # test
             start = tl[location[0]]["start"][0] + self.biopac_timelog_shift
             end = tl[location[0]]["end"][0] + self.biopac_timelog_shift
             return biopac.loc[start:end]
@@ -331,3 +341,6 @@ class BaseDataset(Dataset):
 
     def _get_biopac_timelog_shift(self, participant_id: str):
         return _calc_biopac_timelog_shift(base_path=self.base_path, participant_id=participant_id)
+
+    def _get_protocol(self, participant_id: str) -> pd.DataFrame:
+        return _load_protocol(self.base_path, participant_id)
