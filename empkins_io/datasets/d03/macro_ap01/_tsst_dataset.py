@@ -26,10 +26,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
     """Class to conveniently access the data of the macro study dataset for subject and condition.
     If access is required per-phase, use :class:`MacroStudyTsstDatasetPerPhase` instead."""
 
-    SUBJECTS_WITHOUT_MOCAP = (
-        "VP_03",
-        "VP_31"
-    )
+    SUBJECTS_WITHOUT_MOCAP = ("VP_03", "VP_31")
 
     SUBJECTS_WITHOUT_PREP = (
         "VP_09",  # # sign error in ftsst mocap data (arms)
@@ -37,7 +34,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         "VP_11",  # sign error in ftsst mocap data (arms)
         "VP_26",  # prep phase is missing entirely in mocap data
         "VP_39",  # prep phase is missing entirely in mocap data
-        "VP_41"   # VP isn't seated during prep phase
+        "VP_41",  # VP isn't seated during prep phase
     )
 
     SUBSETS_WITHOUT_OPENPOSE_DATA = (
@@ -78,10 +75,13 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         exclude_without_prep: bool = False,
         exclude_missing_data: bool = False,
         use_cache: bool = True,
+        *,
+        verbose: bool = True,
     ):
         self.exclude_without_mocap = exclude_without_mocap
         self.exclude_without_openpose = exclude_without_openpose
         self.exclude_without_prep = exclude_without_prep
+        self.verbose = verbose
         super().__init__(
             base_path=base_path,
             groupby_cols=groupby_cols,
@@ -92,10 +92,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
 
     def create_index(self):
         subject_ids = [
-            subject_dir.name
-            for subject_dir in get_subject_dirs(
-                self.base_path.joinpath("data_per_subject"), "VP_*"
-            )
+            subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_*")
         ]
 
         if self.exclude_missing_data:
@@ -146,17 +143,13 @@ class MacroStudyTsstDataset(MacroBaseDataset):
             subject_id = self.index["subject"][0]
             condition = self.index["condition"][0]
             phase = "total"
-            data_total = self._get_mocap_data_per_phase(subject_id, condition, phase)
+            data_total = self._get_mocap_data_per_phase(subject_id, condition, phase, verbose=self.verbose)
 
             return data_total
-        raise ValueError(
-            "Data can only be accessed for a single recording of a single participant in the subset"
-        )
+        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
-    def _get_mocap_data_per_phase(
-        self, subject_id: str, condition: str, phase: str = "total"
-    ):
-        data, start = self._get_mocap_data(subject_id, condition)
+    def _get_mocap_data_per_phase(self, subject_id: str, condition: str, phase: str = "total", *, verbose: bool = True):
+        data, start = self._get_mocap_data(subject_id, condition, verbose=verbose)
         timelog = self.timelog_test
         times = _get_times_for_mocap(timelog, start, phase)
         data_total = {}
@@ -171,17 +164,15 @@ class MacroStudyTsstDataset(MacroBaseDataset):
 
         return data_total
 
-    def _get_mocap_data(self, subject_id: str, condition: str) -> pd.DataFrame:
+    def _get_mocap_data(self, subject_id: str, condition: str, *, verbose: bool = True) -> pd.DataFrame:
         if self.use_cache:
-            return _cached_load_mocap_data(self.base_path, subject_id, condition)
-        return _load_tsst_mocap_data(self.base_path, subject_id, condition)
+            return _cached_load_mocap_data(self.base_path, subject_id, condition, verbose=verbose)
+        return _load_tsst_mocap_data(self.base_path, subject_id, condition, verbose=verbose)
 
     @property
     def sync_path(self) -> Path:
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
-            raise ValueError(
-                "Path can only be accessed for a single condition of a single participant!"
-            )
+            raise ValueError("Path can only be accessed for a single condition of a single participant!")
         data_path = self.base_path.joinpath("data_per_subject").joinpath(
             f"{self.group.subject}/{self.group.condition}/sync.json"
         )
@@ -195,17 +186,13 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         column (and the `cfr_time_seconds` column) in the timestamps.csv file/video_timestamps property.
         """
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
-            raise ValueError(
-                "Path can only be accessed for a single condition of a single participant!"
-            )
+            raise ValueError("Path can only be accessed for a single condition of a single participant!")
 
         class JSONDecoder(json.JSONDecoder):
             """Class to properly convert ISO timestamps in json file to pd.Timestamps."""
 
             def __init__(self, *args, **kwargs):
-                json.JSONDecoder.__init__(
-                    self, object_hook=self.object_hook, *args, **kwargs
-                )
+                json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
 
             def object_hook(self, obj):
                 if type(obj) is dict:
@@ -224,9 +211,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         if not self.sync_path.exists():
             subject_id = self.group.subject
             condition = self.group.condition
-            raise SyncDataNotFoundException(
-                f"Sync data not found for subject {subject_id} and condition {condition}."
-            )
+            raise SyncDataNotFoundException(f"Sync data not found for subject {subject_id} and condition {condition}.")
 
         with open(self.sync_path) as f:
             sync_data = json.load(f, cls=JSONDecoder)
@@ -235,9 +220,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
     @property
     def body_video_path(self):
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
-            raise ValueError(
-                "Path can only be accessed for a single condition of a single participant!"
-            )
+            raise ValueError("Path can only be accessed for a single condition of a single participant!")
         data_path = self.base_path.joinpath("data_per_subject").joinpath(
             f"{self.group.subject}/{self.group.condition}/video/body"
         )
@@ -246,9 +229,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
     @property
     def _openpose_cleaned_path(self) -> Path:
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
-            raise ValueError(
-                "OpenPose data can only be accessed for a single condition of a single participant!"
-            )
+            raise ValueError("OpenPose data can only be accessed for a single condition of a single participant!")
 
         file_path = self.body_video_path.joinpath("cleaned/openpose.csv")
         return file_path
@@ -259,9 +240,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         The data is cut to the claps specified in sync_data. Additionally, the index was set to a constant frame rate
         and the data was interpolated linearly and lowpass filtered."""
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
-            raise ValueError(
-                "OpenPose data can only be accessed for a single condition of a single participant!"
-            )
+            raise ValueError("OpenPose data can only be accessed for a single condition of a single participant!")
         file_path = self._openpose_cleaned_path
         return get_cleaned_openpose_data(file_path)
 
