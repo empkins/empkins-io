@@ -25,9 +25,12 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
         groupby_cols: Optional[Sequence[str]] = None,
         subset_index: Optional[Sequence[str]] = None,
         exclude_without_mocap: bool = True,
-        exclude_without_openpose: bool = True,
+        exclude_without_openpose: bool = False,
+        exclude_without_prep: bool = False,
         exclude_missing_data: bool = False,
         use_cache: bool = True,
+        *,
+        verbose: bool = True,
     ):
         super().__init__(
             base_path=base_path,
@@ -37,6 +40,8 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
             exclude_missing_data=exclude_missing_data,
             exclude_without_mocap=exclude_without_mocap,
             exclude_without_openpose=exclude_without_openpose,
+            exclude_without_prep=exclude_without_prep,
+            verbose=verbose,
         )
 
     def create_index(self):
@@ -52,6 +57,11 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
 
         if self.exclude_without_mocap:
             for subject_id in self.SUBJECTS_WITHOUT_MOCAP:
+                if subject_id in subject_ids:
+                    subject_ids.remove(subject_id)
+
+        if self.exclude_without_prep:
+            for subject_id in self.SUBJECTS_WITHOUT_PREP:
                 if subject_id in subject_ids:
                     subject_ids.remove(subject_id)
 

@@ -40,7 +40,9 @@ def _load_nilspod_session(base_path: path_t, subject_id: str, condition: str) ->
     return df, fs
 
 
-def _load_tsst_mocap_data(base_path: path_t, subject_id: str, condition: str) -> (pd.DataFrame, datetime):
+def _load_tsst_mocap_data(
+    base_path: path_t, subject_id: str, condition: str, *, verbose: bool = True
+) -> (pd.DataFrame, datetime):
     data_path = _build_data_path(
         base_path.joinpath("data_per_subject"),
         subject_id=subject_id,
@@ -53,7 +55,7 @@ def _load_tsst_mocap_data(base_path: path_t, subject_id: str, condition: str) ->
     if not mocap_file.is_file():
         raise FileNotFoundError
 
-    mvnx_data = mvnx.MvnxData(mocap_file)
+    mvnx_data = mvnx.MvnxData(mocap_file, verbose=verbose)
 
     return mvnx_data.data, mvnx_data.start
 

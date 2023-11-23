@@ -40,17 +40,19 @@ class MvnxData(_BaseMotionCaptureDataFormat):
     _footContacts: Tuple[str] = ("heel", "toe")
     _tz: str = None
 
-    def __init__(self, file_path: path_t, load_sensor_data: bool = False, tz: str = "Europe/Berlin"):
+    def __init__(
+        self, file_path: path_t, load_sensor_data: bool = False, tz: str = "Europe/Berlin", *, verbose: bool = True
+    ):
         file_path = Path(file_path)
         _assert_file_extension(file_path, [".mvnx", ".gz"])
         check_file_exists(file_path)
 
         if file_path.suffix == ".gz":
             with gzip.open(file_path, "rb") as f:
-                _raw_data = _MvnxParser(f)
+                _raw_data = _MvnxParser(f, verbose=verbose)
         else:
             with open(file_path, "r") as f:
-                _raw_data = _MvnxParser(f)
+                _raw_data = _MvnxParser(f, verbose=verbose)
 
         sampling_rate = _raw_data.frameRate
         self.num_frames = len(_raw_data.acceleration)
