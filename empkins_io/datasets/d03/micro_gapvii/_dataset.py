@@ -78,12 +78,12 @@ class MicroBaseDataset(Dataset):
         "Prep",
         "Pause_1",
         "Talk_1",
-        "Talk_2",
         "Pause_2",
+        "Talk_2",
         "Pause_3",
         "Math_1",
-        "Math_2",
         "Pause_4",
+        "Math_2",
         "Pause_5",
     ]
 
@@ -178,7 +178,7 @@ class MicroBaseDataset(Dataset):
 
     @property
     def cortisol(self) -> pd.DataFrame:
-        cortisol_path = self.base_path.joinpath(
+        cortisol_path = self.data_tabular_path.joinpath(
             "saliva/cortisol/cleaned/cortisol_cleaned.csv"
         )
         return load_long_format_csv(cortisol_path)
@@ -197,6 +197,16 @@ class MicroBaseDataset(Dataset):
         )
         return load_long_format_csv(
             amylase_features_path, index_cols=["subject", "condition"]
+        )
+
+    @property
+    def pep_phase(self) -> pd.DataFrame:
+        if self.phase_fine:
+            pep_phase_path = self.data_tabular_path.joinpath("pep/pep_phase_fine.csv")
+        else:
+            pep_phase_path = self.data_tabular_path.joinpath("pep/pep_phase.csv")
+        return load_long_format_csv(
+            pep_phase_path, index_cols=["subject", "condition", "phase"]
         )
 
     @property
