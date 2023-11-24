@@ -177,7 +177,7 @@ class MacroBaseDataset(Dataset):
     def questionnaire(self) -> pd.DataFrame:
         if self.is_single(["condition"]):
             raise ValueError(f"Questionnaire data can not be accessed for a single condition!")
-        data = load_questionnaire_data(self.base_path.joinpath("questionnaires/merged/questionnaire_data.xlsx"))
+        data = load_questionnaire_data(self.base_path.joinpath("questionnaires/merged_total/questionnaire_data.xlsx"))
         subject_ids = self.index["subject"].unique()
         return data.loc[subject_ids]
 
@@ -191,7 +191,7 @@ class MacroBaseDataset(Dataset):
         if not data_path.exists():
             raise ValueError(
                 "Processed questionnaire data not available! "
-                "Please run the 'data_processing/Questionnaire_Processing.ipynb' notebook first!"
+                "Please run the 'questionnaires/Questionnaire_Processing.ipynb' notebook first!"
             )
         data = load_long_format_csv(data_path)
         subject_ids = self.index["subject"].unique()
@@ -282,7 +282,7 @@ class MacroBaseDataset(Dataset):
         if not data_path.exists():
             raise ValueError(
                 "Processed saliva data not available! "
-                "Please run the 'data_processing/Saliva_Processing.ipynb' notebook first!"
+                "Please run the 'biomarker/Saliva_Processing.ipynb' notebook first!"
             )
         data = pd.read_csv(data_path)
         data = data.set_index("subject")
@@ -304,7 +304,7 @@ class MacroBaseDataset(Dataset):
         if not data_path.exists():
             raise ValueError(
                 "Processed saliva data not available! "
-                "Please run the 'data_processing/Saliva_Processing.ipynb' notebook first!"
+                "Please run the 'biomarker/Saliva_Processing.ipynb' notebook first!"
             )
         data = load_long_format_csv(data_path)
 
