@@ -262,6 +262,19 @@ class MacroBaseDataset(Dataset):
         return self._load_estradiol_progesterone()[["estradiol"]]
 
     @property
+    def blood_spots(self) -> pd.DataFrame:
+        data_path = self.base_path.joinpath(f"bloodspots/processed/crp_samples.csv")
+        if not data_path.exists():
+            raise ValueError(
+                "Processed bloodspot data not available! "
+                "Please run the 'biomarker/Bloodspot_Processing.ipynb' notebook first!"
+            )
+        data = load_long_format_csv(data_path)
+        subject_ids = self.index["subject"].unique()
+        conditions = self.index["condition"].unique()
+        return data.reindex(subject_ids, level="subject").reindex(conditions, level="condition")
+
+    @property
     def ecg_output_path(self) -> Path:
         if not self.is_single(None):
             raise ValueError("Path can only be accessed for a single condition of a single participant!")
