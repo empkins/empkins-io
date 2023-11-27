@@ -17,6 +17,7 @@ biopsykit = {git="https://github.com/mad-lab-fau/BioPsyKit.git", branch="main", 
 h5py = "^3.5.0"
 tpcp = "^0.13"
 resampy = "^0.4.2"
+opencv-python = "^4.8.1.78"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^5.2"
