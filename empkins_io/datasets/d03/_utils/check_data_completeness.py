@@ -5,6 +5,16 @@ import cv2
 import numpy as np
 import pandas as pd
 
+""" This is a script to check if all expected files are present for each participant of a dataset.
+
+The script can also be used via the command line.
+Example usage:
+`python check_data_completeness.py path/to/data_per_subject -o path/to/output/data_completeness_check_result.csv`
+
+For more information, run:
+`python check_data_completeness.py -h`
+"""
+
 
 def _check_filetype_present(
     subj_dir: Path,
@@ -97,13 +107,6 @@ def check_data_completeness(data_per_subject_folder: Path, expected_files_list: 
 
 
 if __name__ == "__main__":
-    """This script can also be used via the command line.
-    Example usage:
-    `python check_data_completeness.py ../data_per_subject -o ../output/data_completeness.csv`
-
-    For more information, run:
-    `python check_data_completeness.py -h`
-    """
     parser = ArgumentParser(description="Checks if all expected files are present for each subject.")
 
     parser.add_argument(
