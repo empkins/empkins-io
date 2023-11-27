@@ -105,6 +105,12 @@ class SyncedDataset:
             data_resample = resampy.resample(
                 dataset["data"].values, sr_orig=fs_in, sr_new=fs_out, axis=0, parallel=True
             )
+
+            # # resample data with scikit-signal
+            # data_resample = signal.resample(
+            #     dataset["data"].values, num=int(len(dataset["data"]) * fs_out / fs_in), axis=0
+            # )
+
             index_resample = pd.date_range(
                 start=dataset["data"].index[0],
                 periods=len(data_resample),
