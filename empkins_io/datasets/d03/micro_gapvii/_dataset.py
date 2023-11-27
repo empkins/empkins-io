@@ -177,6 +177,11 @@ class MicroBaseDataset(Dataset):
             return self.index["phase"][0]
 
     @property
+    def subset_demographics(self):
+        # TODO
+        return NotImplementedError
+
+    @property
     def cortisol(self) -> pd.DataFrame:
         cortisol_path = self.data_tabular_path.joinpath(
             "saliva/cortisol/cleaned/cortisol_cleaned.csv"
