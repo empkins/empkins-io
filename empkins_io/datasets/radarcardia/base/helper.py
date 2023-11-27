@@ -7,7 +7,7 @@ import numpy as np
 from biopsykit.io.biopac import BiopacDataset
 from biopsykit.utils.time import tz
 from pandas import DataFrame
-
+from empkins_io.sync import SyncedDataset
 from empkins_io.sensors.emrad import EmradDataset
 from empkins_io.utils._types import path_t
 from empkins_io.utils.exceptions import (
@@ -16,6 +16,8 @@ from empkins_io.utils.exceptions import (
 )
 
 import bioread
+import json
+import os
 
 
 def _build_data_path(base_path: path_t, participant_id: str) -> Path:
@@ -40,74 +42,307 @@ def _build_protocol_path(base_path: path_t, participant_id: str) -> Path:
     return protocol_file_path
 
 
-def _load_biopac_data(base_path: path_t, participant_id: str, channel_mapping: dict, state: str) -> Tuple[
-    pd.DataFrame, int]:
-    if state == "raw":
-        return _load_biopac_raw_data(base_path=base_path, participant_id=participant_id,
-                                     channel_mapping=channel_mapping)
+def _load_biopac_data(
+        base_path: path_t,
+        participant_id: str,
+        fs: dict,
+        channel_mapping: dict,
+        state: str,
+        trigger_extraction: bool,
+        location: str
+) -> pd.DataFrame:
 
-    if state == "aligned":
-        return _load_biopac_aligned_data(base_path=base_path, participant_id=participant_id)
+    if state == "raw_unsynced":
+        biopac = _load_biopac_raw_unsynced_data(
+            base_path=base_path,
+            participant_id=participant_id,
+            channel_mapping=channel_mapping,
+            trigger_extraction=trigger_extraction
+        )
+        return biopac
+
+    if state == "raw_synced":
+        biopac = _load_biopac_raw_synced_data(
+            base_path=base_path,
+            participant_id=participant_id,
+            fs=fs,
+            channel_mapping=channel_mapping,
+            trigger_extraction=trigger_extraction
+        )
+        return biopac
+
+    if state == "location_synced":
+        biopac = _load_biopac_location_synced_data(
+            base_path=base_path,
+            participant_id=participant_id,
+            fs=fs,
+            channel_mapping=channel_mapping,
+            trigger_extraction=trigger_extraction,
+            location=location
+        )
+        return biopac
+    else:
+        raise ValueError("Invalid Biopac data processing state")
 
 
-def _load_biopac_raw_data(base_path: path_t, participant_id: str, channel_mapping: dict) -> Tuple[pd.DataFrame, int]:
-    biopac_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
-        "biopac/raw"
+def _load_biopac_raw_unsynced_data(
+        base_path: path_t, participant_id: str, channel_mapping: dict, trigger_extraction: bool
+) -> pd.DataFrame:
+    biopac_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+        f"biopac/cleaned/biopac_data_{participant_id}.h5"
     )
-    biopac_file_path = biopac_dir_path.joinpath(f"biopac_data_{participant_id}.acq")
 
-    dataset_biopac = BiopacDataset.from_acq_file(biopac_file_path, channel_mapping=channel_mapping)
-    biopac_df = dataset_biopac.data_as_df(index="local_datetime")
-    # biopac_df = dataset_biopac.data_as_df(index="time")
-    fs = dataset_biopac._sampling_rate
+    if biopac_path.exists() and not trigger_extraction:
+        biopac_df = pd.read_hdf(biopac_path, key="biopac_data")
+    else:
+        biopac_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
+            "biopac/raw"
+        )
+        biopac_file_path = biopac_dir_path.joinpath(f"biopac_data_{participant_id}.acq")
+        dataset_biopac = BiopacDataset.from_acq_file(biopac_file_path, channel_mapping=channel_mapping)
+        biopac_df = dataset_biopac.data_as_df(index="local_datetime")
+        # biopac_df = dataset_biopac.data_as_df(index="time")
+        fs = dataset_biopac._sampling_rate
 
-    # check if biopac sampling rate is the same for each channel
-    sampling_rates = set(fs.values())
-    if len(sampling_rates) > 1:
-        raise SamplingRateMismatchException(
-            f"Biopac sampling rates are not the same for every channel! Found sampling rates: {sampling_rates}"
+        # check if biopac sampling rate is the same for each channel
+        sampling_rates = set(fs.values())
+        if len(sampling_rates) > 1:
+            raise SamplingRateMismatchException(
+                f"Biopac sampling rates are not the same for every channel! Found sampling rates: {sampling_rates}"
+            )
+
+        biopac_df.to_hdf(biopac_path, mode="w", key="biopac_data", index=True)
+
+    return biopac_df
+
+
+def _load_biopac_raw_synced_data(
+        base_path: path_t, participant_id: str, fs: dict, channel_mapping: dict, trigger_extraction: bool
+) -> DataFrame:
+    biopac_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+        f"biopac/processed/biopac_data_{participant_id}.h5"
+    )
+    if not biopac_path.exists() or trigger_extraction:
+        synced_dataset = _sync_datasets(
+            base_path=base_path,
+            participant_id=participant_id,
+            channel_mapping=channel_mapping,
+            fs=fs,
+            trigger_extraction=trigger_extraction
+        )
+        _save_raw_synced_data(base_path=base_path, participant_id=participant_id, synced_dataset=synced_dataset)
+
+    biopac_data = pd.read_hdf(biopac_path, key="biopac_data")
+    return biopac_data
+
+
+def _load_biopac_location_synced_data(
+        base_path: path_t,
+        participant_id: str,
+        fs: dict,
+        channel_mapping: dict,
+        trigger_extraction: bool,
+        location: str
+) -> DataFrame:
+    biopac_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+        f"biopac/processed/data_per_location/{location}/biopac_data_{participant_id}.h5"
+    )
+    if not biopac_path.exists() or trigger_extraction:
+        synced_dataset = _sync_datasets(
+            base_path=base_path,
+            participant_id=participant_id,
+            channel_mapping=channel_mapping,
+            fs=fs,
+            trigger_extraction=trigger_extraction,
+            location=location
+        )
+        _save_location_synced_data(
+            base_path=base_path, participant_id=participant_id, synced_dataset=synced_dataset, location=location
         )
 
-    fs = list(sampling_rates)[0]
-    return biopac_df, fs
+    biopac_data = pd.read_hdf(biopac_path, key="biopac_data")
+    return biopac_data
 
 
-def _load_biopac_aligned_data(base_path: path_t, participant_id: str) -> DataFrame:
-    data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
-    data_path = data_path.joinpath(f"biopac/processed/biopac_data_{participant_id}.h5")
+def _load_radar_data(
+        base_path: path_t,
+        participant_id: str,
+        fs: dict,
+        channel_mapping: dict,
+        state: str,
+        trigger_extraction: bool,
+        location: str
+) -> DataFrame:
 
-    biopac_data = pd.read_hdf(data_path, key="biopac_data")
-    return biopac_data, None
+    if state == "raw_unsynced":
+        radar = _load_radar_raw_unsynced_data(
+            base_path=base_path,
+            participant_id=participant_id,
+            fs=fs["radar_original"],
+            trigger_extraction=trigger_extraction
+        )
+        return radar
+
+    if state == "raw_synced":
+        radar = _load_radar_raw_synced_data(
+            base_path=base_path,
+            participant_id=participant_id,
+            fs=fs,
+            channel_mapping=channel_mapping,
+            trigger_extraction=trigger_extraction
+        )
+        return radar
+
+    if state == "location_synced":
+        radar = _load_radar_location_synced_data(
+            base_path=base_path,
+            participant_id=participant_id,
+            fs=fs,
+            channel_mapping=channel_mapping,
+            trigger_extraction=trigger_extraction,
+            location=location
+        )
+        return radar
+    else:
+        raise ValueError("Invalid Biopac data processing state")
 
 
-def _load_radar_data(base_path: path_t, participant_id: str, fs: float, state: str) -> tuple[DataFrame, float]:
-    if state == "raw":
-        return _load_radar_raw_data(base_path=base_path, participant_id=participant_id, fs=fs)
-
-    if state == "aligned":
-        return _load_radar_aligned_data(base_path=base_path, participant_id=participant_id)
-
-
-def _load_radar_raw_data(base_path: path_t, participant_id: str, fs: float) -> tuple[DataFrame, float]:
-    radar_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
-        "emrad/raw"
+def _load_radar_raw_unsynced_data(
+        base_path: path_t, participant_id: str, fs: float, trigger_extraction: bool
+) -> DataFrame:
+    radar_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+        f"emrad/cleaned/emrad_data_{participant_id}.h5"
     )
-    radar_file_path = radar_dir_path.joinpath(f"emrad_data_{participant_id}.h5")
 
-    dataset_radar = EmradDataset.from_hd5_file(radar_file_path, sampling_rate_hz=fs)
-    radar_df = dataset_radar.data_as_df(index="local_datetime", add_sync_out=True)["rad1"]
-    # radar_df = dataset_radar.data_as_df(index="time", add_sync_out=True)["rad1"]
-    fs = dataset_radar.sampling_rate_hz
-    return radar_df, fs
+    if radar_path.exists() and not trigger_extraction:
+        radar_df = pd.read_hdf(radar_path, key="emrad_data")
+    else:
+        radar_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
+            "emrad/raw"
+        )
+        radar_file_path = radar_dir_path.joinpath(f"emrad_data_{participant_id}.h5")
+
+        dataset_radar = EmradDataset.from_hd5_file(radar_file_path, sampling_rate_hz=fs)
+        radar_df = dataset_radar.data_as_df(index="local_datetime", add_sync_out=True)["rad1"]
+
+        radar_df.to_hdf(radar_path, mode="w", key="emrad_data", index=True)
+
+    return radar_df
 
 
-def _load_radar_aligned_data(base_path: path_t, participant_id: str) -> DataFrame:
+def _load_radar_raw_synced_data(
+        base_path: path_t, participant_id: str, fs: dict, channel_mapping: dict, trigger_extraction: bool
+) -> DataFrame:
+    radar_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+        f"emrad/processed/emrad_data_{participant_id}.h5"
+    )
+
+    if not radar_path.exists() or trigger_extraction:
+        synced_dataset = _sync_datasets(
+            base_path=base_path,
+            participant_id=participant_id,
+            channel_mapping=channel_mapping,
+            fs=fs,
+            trigger_extraction=trigger_extraction
+        )
+        _save_raw_synced_data(base_path=base_path, participant_id=participant_id, synced_dataset=synced_dataset)
+
+    radar_data = pd.read_hdf(radar_path, key="emrad_data")
+    return radar_data
+
+
+def _load_radar_location_synced_data(
+        base_path: path_t,
+        participant_id: str,
+        fs: dict,
+        channel_mapping: dict,
+        trigger_extraction: bool,
+        location: str
+) -> DataFrame:
+    radar_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+        f"emrad/processed/data_per_location/{location}/emrad_data_{participant_id}.h5"
+    )
+    if not radar_path.exists() or trigger_extraction:
+        synced_dataset = _sync_datasets(
+            base_path=base_path,
+            participant_id=participant_id,
+            channel_mapping=channel_mapping,
+            fs=fs,
+            trigger_extraction=trigger_extraction,
+            location=location
+        )
+        _save_location_synced_data(
+            base_path=base_path, participant_id=participant_id, synced_dataset=synced_dataset, location=location
+        )
+
+    radar_data = pd.read_hdf(radar_path, key="emrad_data")
+    return radar_data
+
+
+def _sync_datasets(
+        base_path: path_t,
+        participant_id: str,
+        channel_mapping: dict,
+        fs: dict,
+        trigger_extraction: bool,
+        location: Optional[str] = None
+):
+    biopac_data = _load_biopac_raw_unsynced_data(
+        base_path=base_path,
+        participant_id=participant_id,
+        channel_mapping=channel_mapping,
+        trigger_extraction=trigger_extraction
+    )
+    radar_data = _load_radar_raw_unsynced_data(
+        base_path=base_path,
+        participant_id=participant_id,
+        fs=fs["radar_original"],
+        trigger_extraction=trigger_extraction
+    )
+
+    if location is not None:
+        timelog = _load_timelog(base_path=base_path, participant_id=participant_id)
+        shift = _get_biopac_timelog_shift(
+            base_path=base_path, participant_id=participant_id, trigger_extraction=trigger_extraction
+        )
+        start = timelog[location]["start"][0] + shift - pd.Timedelta(seconds=15)
+        end = timelog[location]["end"][0] + shift + pd.Timedelta(seconds=15)
+
+        biopac_data = biopac_data.loc[start:end]
+        radar_data = radar_data.loc[start:end]
+
+    synced_dataset = SyncedDataset(sync_type="m-sequence")
+    synced_dataset.add_dataset("biopac", data=biopac_data, sync_channel_name="sync",
+                               sampling_rate=fs["biopac_original"])
+    synced_dataset.add_dataset("radar", data=radar_data, sync_channel_name="Sync_Out",
+                               sampling_rate=fs["radar_original"])
+    synced_dataset.resample_datasets(fs_out=fs["resampled"], method="dynamic", wave_frequency=10)
+    synced_dataset.align_and_cut_m_sequence(
+        primary="radar", reset_time_axis=True, cut_to_shortest=True
+    )
+    return synced_dataset
+
+
+def _save_raw_synced_data(base_path: path_t, participant_id: str, synced_dataset: SyncedDataset):
     data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
-    data_path = data_path.joinpath(f"emrad/processed/emrad_data_{participant_id}.h5")
+    biopac_path = data_path.joinpath(f"biopac/processed/biopac_data_{participant_id}.h5")
+    radar_path = data_path.joinpath(f"emrad/processed/emrad_data_{participant_id}.h5")
 
-    radar_data = pd.read_hdf(data_path, key="emrad_data")
-    return radar_data, None
+    synced_dataset.datasets_aligned["biopac_aligned_"].to_hdf(biopac_path, mode="w", key="biopac_data", index=True)
+    synced_dataset.datasets_aligned["radar_aligned_"].to_hdf(radar_path, mode="w", key="emrad_data", index=True)
 
+
+def _save_location_synced_data(base_path: path_t, participant_id: str, synced_dataset: SyncedDataset, location: str):
+    data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
+    biopac_path = data_path.joinpath(f"biopac/processed/data_per_location/{location}/biopac_data_{participant_id}.h5")
+    radar_path = data_path.joinpath(f"emrad/processed/data_per_location/{location}/emrad_data_{participant_id}.h5")
+
+    biopac_path.parent.mkdir(parents=True, exist_ok=True)
+    radar_path.parent.mkdir(parents=True, exist_ok=True)
+
+    synced_dataset.datasets_aligned["biopac_aligned_"].to_hdf(biopac_path, mode="w", key="biopac_data", index=True)
+    synced_dataset.datasets_aligned["radar_aligned_"].to_hdf(radar_path, mode="w", key="emrad_data", index=True)
+    #synced_dataset.
 
 def _load_timelog(base_path: path_t, participant_id: str) -> pd.DataFrame:
     timelog_file_path = _build_timelog_path(base_path=base_path, participant_id=participant_id)
@@ -176,18 +411,6 @@ def _load_atimelogger_file(file_path: path_t, timezone: Optional[Union[datetime.
     return timelog
 
 
-def _save_aligned_data(base_path: path_t, participant_id: str, biopac: pd.DataFrame, radar: pd.DataFrame):
-    data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
-    biopac_path = data_path.joinpath(f"biopac/processed/biopac_data_{participant_id}.h5")
-    radar_path = data_path.joinpath(f"emrad/processed/emrad_data_{participant_id}.h5")
-
-    biopac_path.parent.mkdir(exist_ok=True)
-    radar_path.parent.mkdir(exist_ok=True)
-
-    biopac.to_hdf(biopac_path, mode="w", key="biopac_data", index=True)
-    radar.to_hdf(radar_path, mode="w", key="emrad_data", index=True)
-
-
 def _save_data_to_location_h5(
         base_path: path_t,
         participant_id: str,
@@ -236,6 +459,19 @@ def _load_data_from_location_h5(
     return data
 
 
+def _get_biopac_timelog_shift(base_path: path_t, participant_id: str, trigger_extraction: bool) -> pd.Timedelta:
+    shift_path = _build_data_path(base_path, participant_id).joinpath(
+        f"timelog/processed/timelog_shift_{participant_id}.json"
+    )
+    if shift_path.exists() and not trigger_extraction:
+        shift_dict = json.load(shift_path.open(encoding="utf-8"))
+        shift = pd.Timedelta(seconds=shift_dict["biopac_timelog_shift"])
+    else:
+        shift = _calc_biopac_timelog_shift(base_path, participant_id)
+
+    return shift
+
+
 def _calc_biopac_timelog_shift(base_path: path_t, participant_id: str):
 
     # biopac sync event marker
@@ -248,7 +484,6 @@ def _calc_biopac_timelog_shift(base_path: path_t, participant_id: str):
     event_marker = biopac_data.event_markers
     sync_events = []
     for event in event_marker:
-        print(event.type)
         if event.type == "User Type 1":
             sync_events.append(event)
     if len(sync_events) == 1:
@@ -267,6 +502,21 @@ def _calc_biopac_timelog_shift(base_path: path_t, participant_id: str):
 
     # calculate time shift between biopac and timelog
     shift = sync_event_time - timelog_sync_start_time
+    shift = np.floor(shift.total_seconds())
+
+    # save shift parameters to json file
+    shift_dict = {
+        "sync_event_time_biopac": sync_event_time.strftime("%Y-%m-%d %H:%M:%S %z"),
+        "sync_entry_time_timelog": timelog_sync_start_time.strftime("%Y-%m-%d %H:%M:%S %z"),
+        "biopac_timelog_shift": shift
+    }
+    shift_path = _build_data_path(base_path, participant_id).joinpath(
+        f"timelog/processed/timelog_shift_{participant_id}.json"
+    )
+    with open(shift_path, "w", encoding="utf-8") as f:
+        json.dump(shift_dict, f, indent=4)
+
+    shift = pd.Timedelta(seconds=shift)
     return shift
 
 

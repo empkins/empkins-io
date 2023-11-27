@@ -18,7 +18,7 @@ class RadarCardiaStudyDataset(BaseDataset):
 
     BIOPAC_CHANNEL_MAPPING: Dict[str, str] = {
         "ecg": "ecg",
-        "icg": "icg",
+        "icg": "icg_der",
         "ppg": "ppg",
         "pcg": "pcg",
         "sync": "sync"
@@ -29,9 +29,19 @@ class RadarCardiaStudyDataset(BaseDataset):
             base_path: path_t,
             groupby_cols: Optional[Sequence[str]] = None,
             subset_index: Optional[Sequence[str]] = None,
-            use_cache: bool = True,
+            use_cache: Optional[bool] = False,
+            calc_biopac_timelog_shift: Optional[bool] = True,
+            trigger_data_extraction: Optional[bool] = False
+
     ):
-        super().__init__(base_path=base_path, groupby_cols=groupby_cols, subset_index=subset_index, use_cache=use_cache)
+        super().__init__(
+            base_path=base_path,
+            groupby_cols=groupby_cols,
+            subset_index=subset_index,
+            use_cache=use_cache,
+            calc_biopac_timelog_shift=calc_biopac_timelog_shift,
+            trigger_data_extraction=trigger_data_extraction
+        )
 
     def create_index(self):
         subject_ids = [
