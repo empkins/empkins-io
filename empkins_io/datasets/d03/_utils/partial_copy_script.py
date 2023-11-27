@@ -181,6 +181,9 @@ def build_blocklist(
         blocklist.append("biopac")
     if not include_timelogs:
         blocklist.append("timelog")
+
+    blocklist.append(".DS_Store")
+    blocklist.append("._.DS_Store")
     return blocklist
 
 
