@@ -116,7 +116,7 @@ if __name__ == "__main__":
         "--output_file",
         type=Path,
         default=None,
-        help="Path to the output csv file, default is empkins-io/output/data_completeness_check_results.csv.",
+        help="Path to the output csv file, default is data_per_subject_folder/../data_completeness_check_results.csv.",
     )
     parser.add_argument(
         "-e",
@@ -124,28 +124,26 @@ if __name__ == "__main__":
         type=Path,
         default=None,
         help="Path to the csv file containing the list of expected files, default is"
-        "data_per_subject/expected_files_per_subject.csv.",
+        "data_per_subject_folder/../expected_files_per_subject.csv.",
     )
 
     args = parser.parse_args()
-
-    # set default output file
-    if not args.output_file:
-        output_folder_path = Path(__file__).parent.parent.parent.parent.resolve() / "outputs"
-        output_folder_path.mkdir(parents=True, exist_ok=True)
-        output_file_path = output_folder_path / "data_completeness_check_results.csv"
-
-    else:
-        output_file_path = args.output_file
 
     # check data per subject folder exists
     dps_folder = args.data_per_subject_folder
     if not dps_folder.exists():
         raise FileNotFoundError(f"Data per subject folder {dps_folder} does not exist.")
 
+    # set default output file
+    if not args.output_file:
+        output_file_path = dps_folder.parent / "data_completeness_check_results.csv"
+
+    else:
+        output_file_path = args.output_file
+
     # read expected files list
     if not args.expected_files:
-        expected_files_path = dps_folder / "expected_files_per_subject.csv"
+        expected_files_path = dps_folder.parent / "expected_files_per_subject.csv"
     else:
         expected_files_path = args.expected_files
 
