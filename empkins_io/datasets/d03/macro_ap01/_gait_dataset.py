@@ -14,50 +14,51 @@ _cached_load_mocap_data = lru_cache(maxsize=4)(_load_gait_mocap_data)
 
 
 class MacroStudyGaitDataset(MacroBaseDataset):
-    SUBJECTS_WITHOUT_MOCAP = (
-        "VP_01",
-        "VP_02",
-    )
-
     def __init__(
         self,
         base_path: path_t,
         groupby_cols: Optional[Sequence[str]] = None,
         subset_index: Optional[Sequence[str]] = None,
-        exclude_without_mocap: Optional[bool] = True,
+        *,
+        exclude_without_gait_tests: Optional[bool] = True,
         use_cache: Optional[bool] = True,
     ):
-        super().__init__(base_path=base_path, groupby_cols=groupby_cols, subset_index=subset_index)
         # ensure pathlib
         self.base_path = base_path
-        self.exclude_without_mocap = exclude_without_mocap
         self.use_cache = use_cache
+
+        super().__init__(
+            base_path=base_path,
+            groupby_cols=groupby_cols,
+            subset_index=subset_index,
+            exclude_without_gait_tests=exclude_without_gait_tests,
+            use_cache=use_cache,
+        )
 
     def create_index(self):
         subject_ids = [
             subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_*")
         ]
-        conditions = ["ftsst", "tsst"]
         trial = np.arange(0, 4)
         speed_gait = ["pref", "metro"]
 
-        if self.exclude_without_mocap:
-            for subject_id in self.SUBJECTS_WITHOUT_MOCAP:
-                if subject_id in subject_ids:
-                    subject_ids.remove(subject_id)
-
         # add tug index
-        index = list(product(conditions, ["TUG"], trial, ["pref"]))
+        index = list(product(self.CONDITIONS, ["TUG"], trial, ["pref"]))
 
         # add gait index
-        index.extend(list(product(conditions, ["GAIT"], trial, speed_gait)))
+        index.extend(list(product(self.CONDITIONS, ["GAIT"], trial, speed_gait)))
 
+        index_cols = ["subject", "condition", "test", "trial", "speed"]
         index = [(subject, *i) for subject, i in product(subject_ids, index)]
-        index = pd.DataFrame(index, columns=["subject", "condition", "test", "trial", "speed"])
+        index = pd.DataFrame(index, columns=index_cols)
 
         # only pref for trial 0
         index = index.drop(index[(index.trial == 0) & (index.speed == "metro")].index)
-        index.reset_index(inplace=True, drop=True)
+
+        index = index.reset_index(drop=True)
+
+        index = index.set_index(index_cols)
+        index = index.drop(index=self.data_to_exclude).reset_index()
 
         return index
 

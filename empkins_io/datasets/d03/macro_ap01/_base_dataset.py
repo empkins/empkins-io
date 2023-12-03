@@ -28,43 +28,123 @@ class MacroBaseDataset(Dataset):
     _sample_times_saliva: Tuple[int] = (-40, -1, 16, 25, 35, 45, 60, 75)
     _sample_times_bloodspot: Tuple[int] = (-40, 60)
 
+    CONDITIONS = ["ftsst", "tsst"]
+
     NILSPOD_MAPPING: Dict[str, str] = {
         "chest": "56bb",  # ecg
         "sync": "9e02",  # sync with mocap
         "board": "e76b",  # sync with video (clapper board)
     }
 
-    MISSING_DATA: Dict[str, Sequence[str]] = {"no_math": ["VP_03"]}
+    SUBSETS_WITHOUT_MOCAP = (
+        ("VP_03", "tsst"),  # no math phase in tsst (aborted)
+        ("VP_31", "ftsst"),  # probably wrong sensor placement or calibration
+    )
+
+    SUBSETS_WITH_ARM_ERRORS = (
+        ("VP_07", "ftsst"),  # sign error in mocap data (arms)
+        ("VP_09", "ftsst"),  # sign error in mocap data (arms)
+        ("VP_10", "ftsst"),  # sign error in mocap data (arms)
+        ("VP_11", "ftsst"),  # sign error in mocap data (arms)
+        ("VP_22", "ftsst"),  # sign error in mocap data (arms)
+    )
+
+    SUBSETS_WITHOUT_PREP = (
+        ("VP_26", "ftsst"),  # prep phase is missing entirely in mocap data (TODO SOPHIE: check)
+        ("VP_39", "ftsst"),  # prep phase is missing entirely in mocap data (TODO SOPHIE: check)
+    )
+
+    SUBSETS_WITHOUT_GAIT_TESTS = (
+        ("VP_01", "tsst"),  # TODO Luca: check if this is correct
+        ("VP_01", "ftsst"),  # TODO Luca: check if this is correct
+        ("VP_02", "tsst"),  # TODO Luca: check if this is correct
+        ("VP_02", "ftsst"),  # TODO Luca: check if this is correct
+    )
+
+    SUBSETS_WITHOUT_OPENPOSE_DATA = (
+        ("VP_01", "ftsst"),
+        ("VP_01", "tsst"),
+        ("VP_03", "tsst"),
+        ("VP_05", "tsst"),
+        ("VP_07", "ftsst"),
+        ("VP_08", "ftsst"),
+        ("VP_17", "ftsst"),
+        ("VP_18", "ftsst"),
+        ("VP_19", "ftsst"),
+        ("VP_21", "ftsst"),
+        ("VP_25", "tsst"),
+        ("VP_33", "ftsst"),
+        ("VP_34", "tsst"),
+        ("VP_35", "ftsst"),
+        ("VP_35", "tsst"),
+        ("VP_36", "ftsst"),
+        ("VP_36", "tsst"),
+        ("VP_37", "ftsst"),
+        ("VP_37", "tsst"),
+        ("VP_38", "ftsst"),
+        ("VP_38", "tsst"),
+        ("VP_41", "ftsst"),
+        ("VP_41", "tsst"),
+    )
 
     def __init__(
         self,
         base_path: path_t,
         groupby_cols: Optional[Sequence[str]] = None,
         subset_index: Optional[Sequence[str]] = None,
-        exclude_missing_data: bool = False,
+        *,
+        exclude_complete_subjects_if_error: bool = True,
+        exclude_without_mocap: bool = True,
+        exclude_without_openpose: bool = False,
+        exclude_with_arm_errors: bool = False,
+        exclude_without_prep: bool = False,
+        exclude_without_gait_tests: bool = False,
         use_cache: bool = True,
     ):
         # ensure pathlib
         self.base_path = base_path
-        self.exclude_missing_data = exclude_missing_data
+        self.exclude_complete_subjects_if_error = exclude_complete_subjects_if_error
+        self.exclude_without_mocap = exclude_without_mocap
+        self.exclude_without_openpose = exclude_without_openpose
+        self.exclude_with_arm_errors = exclude_with_arm_errors
+        self.exclude_without_prep = exclude_without_prep
+        self.exclude_without_gait_tests = exclude_without_gait_tests
+
+        self.data_to_exclude = self._find_data_to_exclude(exclude_complete_subjects_if_error)
         self.use_cache = use_cache
+
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
     def create_index(self):
         subject_ids = [
             subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_*")
         ]
-        if self.exclude_missing_data:
-            for missing_type, sids in self.MISSING_DATA.items():
-                for sid in sids:
-                    if sid in subject_ids:
-                        subject_ids.remove(sid)
+        index_cols = ["subject", "condition"]
+        index = list(product(subject_ids, self.CONDITIONS))
 
-        conditions = ["ftsst", "tsst"]
+        index = pd.DataFrame(index, columns=index_cols)
+        index = index.set_index(index_cols)
+        index = index.drop(index=self.data_to_exclude).reset_index()
 
-        index = list(product(subject_ids, conditions))
-        index = pd.DataFrame(index, columns=["subject", "condition"])
         return index
+
+    def _find_data_to_exclude(self, exclude_complete_subjects_if_error: bool):
+        data_to_exclude = []
+        if self.exclude_without_mocap:
+            data_to_exclude += self.SUBSETS_WITHOUT_MOCAP
+        if self.exclude_without_openpose:
+            data_to_exclude += self.SUBSETS_WITHOUT_OPENPOSE_DATA
+        if self.exclude_with_arm_errors:
+            data_to_exclude += self.SUBSETS_WITH_ARM_ERRORS
+        if self.exclude_without_prep:
+            data_to_exclude += self.SUBSETS_WITHOUT_PREP
+        if self.exclude_without_gait_tests:
+            data_to_exclude += self.SUBSETS_WITHOUT_GAIT_TESTS
+
+        if exclude_complete_subjects_if_error:
+            data_to_exclude = [x[0] for x in data_to_exclude]
+
+        return data_to_exclude
 
     @property
     def subject(self) -> str:

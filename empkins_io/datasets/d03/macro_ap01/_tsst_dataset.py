@@ -26,104 +26,34 @@ class MacroStudyTsstDataset(MacroBaseDataset):
     """Class to conveniently access the data of the macro study dataset for subject and condition.
     If access is required per-phase, use :class:`MacroStudyTsstDatasetPerPhase` instead."""
 
-    SUBJECTS_WITHOUT_MOCAP = ("VP_03", "VP_31")
-
-    SUBJECTS_WITHOUT_PREP = (
-        "VP_07",  # sign error in ftsst mocap data (arms)
-        "VP_09",  # sign error in ftsst mocap data (arms)
-        "VP_10",  # sign error in ftsst mocap data (arms)
-        "VP_11",  # sign error in ftsst mocap data (arms)
-        "VP_22",  # sign error in ftsst mocap data (arms)
-        "VP_26",  # prep phase is missing entirely in mocap data
-        "VP_39"  # prep phase is missing entirely in mocap data
-    )
-
-    SUBSETS_WITHOUT_OPENPOSE_DATA = (
-        ("VP_01", "ftsst"),
-        ("VP_01", "tsst"),
-        ("VP_03", "tsst"),
-        ("VP_05", "tsst"),
-        ("VP_07", "ftsst"),
-        ("VP_08", "ftsst"),
-        ("VP_17", "ftsst"),
-        ("VP_18", "ftsst"),
-        ("VP_19", "ftsst"),
-        ("VP_21", "ftsst"),
-        ("VP_25", "tsst"),
-        ("VP_33", "ftsst"),
-        ("VP_34", "tsst"),
-        ("VP_35", "ftsst"),
-        ("VP_35", "tsst"),
-        ("VP_36", "ftsst"),
-        ("VP_36", "tsst"),
-        ("VP_37", "ftsst"),
-        ("VP_37", "tsst"),
-        ("VP_38", "ftsst"),
-        ("VP_38", "tsst"),
-        ("VP_41", "ftsst"),
-        ("VP_41", "tsst"),
-    )
-
-    conditions = ("ftsst", "tsst")
-
     def __init__(
         self,
         base_path: path_t,
         groupby_cols: Optional[Sequence[str]] = None,
         subset_index: Optional[Sequence[str]] = None,
+        *,
+        exclude_complete_subjects_if_error: bool = True,
         exclude_without_mocap: bool = True,
         exclude_without_openpose: bool = False,
+        exclude_with_arm_errors: bool = False,
         exclude_without_prep: bool = False,
-        exclude_missing_data: bool = False,
         use_cache: bool = True,
-        *,
         verbose: bool = True,
     ):
-        self.exclude_without_mocap = exclude_without_mocap
-        self.exclude_without_openpose = exclude_without_openpose
-        self.exclude_without_prep = exclude_without_prep
+
         self.verbose = verbose
+
         super().__init__(
             base_path=base_path,
             groupby_cols=groupby_cols,
             subset_index=subset_index,
             use_cache=use_cache,
-            exclude_missing_data=exclude_missing_data,
+            exclude_complete_subjects_if_error=exclude_complete_subjects_if_error,
+            exclude_without_mocap=exclude_without_mocap,
+            exclude_without_openpose=exclude_without_openpose,
+            exclude_with_arm_errors=exclude_with_arm_errors,
+            exclude_without_prep=exclude_without_prep,
         )
-
-    def create_index(self):
-        subject_ids = [
-            subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_*")
-        ]
-
-        if self.exclude_missing_data:
-            for missing_type, sids in self.MISSING_DATA.items():
-                for sid in sids:
-                    if sid in subject_ids:
-                        subject_ids.remove(sid)
-
-        if self.exclude_without_mocap:
-            for subject_id in self.SUBJECTS_WITHOUT_MOCAP:
-                if subject_id in subject_ids:
-                    subject_ids.remove(subject_id)
-
-        if self.exclude_without_prep:
-            for subject_id in self.SUBJECTS_WITHOUT_PREP:
-                if subject_id in subject_ids:
-                    subject_ids.remove(subject_id)
-
-        index = list(product(subject_ids, self.conditions))
-        if self.exclude_without_openpose:
-            for subject_id, condition in self.SUBSETS_WITHOUT_OPENPOSE_DATA:
-                if (subject_id, condition) in index:
-                    index.remove((subject_id, condition))
-
-        index = pd.DataFrame(
-            index,
-            columns=["subject", "condition"],
-        )
-
-        return index
 
     @property
     def sampling_rate_openpose(self):

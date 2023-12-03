@@ -17,19 +17,20 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
     """Class to conveniently access the data of the macro study dataset on a phase-level.
     If access is only required per-condition, use :class:`MacroStudyTsstDataset` instead."""
 
-    phases = ("prep", "talk", "math")
+    PHASES = ("prep", "talk", "math")
 
     def __init__(
         self,
         base_path: path_t,
         groupby_cols: Optional[Sequence[str]] = None,
         subset_index: Optional[Sequence[str]] = None,
+        *,
+        exclude_complete_subjects_if_error: bool = True,
         exclude_without_mocap: bool = True,
         exclude_without_openpose: bool = False,
+        exclude_with_arm_errors: bool = False,
         exclude_without_prep: bool = False,
-        exclude_missing_data: bool = False,
         use_cache: bool = True,
-        *,
         verbose: bool = True,
     ):
         super().__init__(
@@ -37,9 +38,10 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
             groupby_cols=groupby_cols,
             subset_index=subset_index,
             use_cache=use_cache,
-            exclude_missing_data=exclude_missing_data,
+            exclude_complete_subjects_if_error=exclude_complete_subjects_if_error,
             exclude_without_mocap=exclude_without_mocap,
             exclude_without_openpose=exclude_without_openpose,
+            exclude_with_arm_errors=exclude_with_arm_errors,
             exclude_without_prep=exclude_without_prep,
             verbose=verbose,
         )
@@ -49,33 +51,12 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
             subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_*")
         ]
 
-        if self.exclude_missing_data:
-            for missing_type, sids in self.MISSING_DATA.items():
-                for sid in sids:
-                    if sid in subject_ids:
-                        subject_ids.remove(sid)
+        index = list(product(subject_ids, self.CONDITIONS, self.PHASES))
 
-        if self.exclude_without_mocap:
-            for subject_id in self.SUBJECTS_WITHOUT_MOCAP:
-                if subject_id in subject_ids:
-                    subject_ids.remove(subject_id)
-
-        if self.exclude_without_prep:
-            for subject_id in self.SUBJECTS_WITHOUT_PREP:
-                if subject_id in subject_ids:
-                    subject_ids.remove(subject_id)
-
-        index = list(product(subject_ids, self.conditions, self.phases))
-        if self.exclude_without_openpose:
-            for subject_id, condition in self.SUBSETS_WITHOUT_OPENPOSE_DATA:
-                for phase in self.phases:
-                    if (subject_id, condition, phase) in index:
-                        index.remove((subject_id, condition, phase))
-
-        index = pd.DataFrame(
-            index,
-            columns=["subject", "condition", "phase"],
-        )
+        index_cols = ["subject", "condition", "phase"]
+        index = pd.DataFrame(index, columns=index_cols)
+        index = index.set_index(index_cols)
+        index = index.drop(index=self.data_to_exclude).reset_index()
 
         return index
 
