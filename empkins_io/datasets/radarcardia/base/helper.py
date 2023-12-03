@@ -218,7 +218,7 @@ def _load_location_synced_data(
         data_type: Literal["biopac", "emrad"]
 ) -> DataFrame:
     data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-        f"{data_type}/processed/data_per_location/{location}/{data_type}_data_{participant_id}.h5"
+        f"data_per_location/{location}/{data_type}_data_{participant_id}.h5"
     )
     if not data_path.exists() or trigger_extraction:
         synced_dataset = _sync_datasets_without_resample(
@@ -325,9 +325,11 @@ def _save_raw_synced_data(base_path: path_t, participant_id: str, synced_dataset
 
 
 def _save_location_synced_data(base_path: path_t, participant_id: str, synced_dataset: SyncedDataset, location: str):
-    data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
-    biopac_path = data_path.joinpath(f"biopac/processed/data_per_location/{location}/biopac_data_{participant_id}.h5")
-    radar_path = data_path.joinpath(f"emrad/processed/data_per_location/{location}/emrad_data_{participant_id}.h5")
+    data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+        f"data_per_location/{location}"
+    )
+    biopac_path = data_path.joinpath(f"biopac_data_{participant_id}.h5")
+    radar_path = data_path.joinpath(f"emrad_data_{participant_id}.h5")
 
     biopac_path.parent.mkdir(parents=True, exist_ok=True)
     radar_path.parent.mkdir(parents=True, exist_ok=True)
@@ -407,22 +409,12 @@ def _save_data_to_location_h5(
         base_path: path_t,
         participant_id: str,
         data: pd.DataFrame,
-        biopac: bool,
-        radar: bool,
         location: str,
         file_name: str,
 ):
-    data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
-    if biopac and radar:
-        raise NotImplementedError("Dataframe can not be saved to radar and biopac directory")
-    elif biopac:
-        data_path = data_path.joinpath(f"biopac/")
-    elif radar:
-        data_path = data_path.joinpath(f"emrad/")
-    else:
-        raise ValueError("Specify in which directory the dataframe should be saved")
-
-    data_path = data_path.joinpath(f"processed/data_per_location/{location}/{file_name}_{participant_id}.h5")
+    data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+        f"data_per_location/{location}/{file_name}_{participant_id}.h5"
+    )
     data_path.parent.mkdir(parents=True, exist_ok=True)
     data.to_hdf(data_path, mode="w", key="data", index=True)
 
@@ -430,22 +422,12 @@ def _save_data_to_location_h5(
 def _load_data_from_location_h5(
         base_path: path_t,
         participant_id: str,
-        biopac: bool,
-        radar: bool,
         location: str,
         file_name: str,
 ):
-    data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
-    if biopac and radar:
-        raise NotImplementedError("Dataframe can not be loaded from radar and biopac directory")
-    elif biopac:
-        data_path = data_path.joinpath(f"biopac/")
-    elif radar:
-        data_path = data_path.joinpath(f"emrad/")
-    else:
-        raise ValueError("Specify from which directory the dataframe should be loaded")
-
-    data_path = data_path.joinpath(f"processed/data_per_location/{location}/{file_name}_{participant_id}.h5")
+    data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+        f"data_per_location/{location}/{file_name}_{participant_id}.h5"
+    )
     data = pd.read_hdf(data_path, key="data")
 
     return data
@@ -519,3 +501,13 @@ def _load_protocol(base_path: path_t, participant_id: str) -> pd.DataFrame:
         return protocol
     raise FileNotFoundError("Processed Protocol file was not found.")
 
+
+def _load_apnea_segmentation(base_path: path_t, participant_id: str) -> Dict:
+    apnea_seg_file_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+        f"biopac/processed/apnea_segmentation_{participant_id}.json"
+    )
+    if apnea_seg_file_path.exists():
+        apnea_seg = json.load(apnea_seg_file_path.open(encoding="utf-8"))
+        return apnea_seg
+    else:
+        raise FileNotFoundError("Apnea Segmentation file was not found.")

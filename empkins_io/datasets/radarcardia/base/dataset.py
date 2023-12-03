@@ -17,7 +17,8 @@ from empkins_io.datasets.radarcardia.base.helper import (
     _get_biopac_timelog_shift,
     _load_protocol,
     _save_data_to_location_h5,
-    _load_data_from_location_h5
+    _load_data_from_location_h5,
+    _load_apnea_segmentation
 )
 
 from empkins_io.utils._types import path_t
@@ -172,6 +173,14 @@ class BaseDataset(Dataset):
         return self._get_protocol(participant_id)
 
     @property
+    def apnea_segmentation(self) -> Dict:
+        if not self.is_single(["subject"]):
+            raise ValueError("Apnea Segmentation can only be accessed for one single participant at once")
+        participant_id = self.index["subject"][0]
+        apnea_seg = self._get_apnea_segmentation(participant_id)
+        return apnea_seg
+
+    @property
     def timelog_path(self):
         participant_id = self.index["subject"][0]
         timelog_path = _build_timelog_path(base_path=self.base_path, participant_id=participant_id)
@@ -183,7 +192,7 @@ class BaseDataset(Dataset):
         protocol_path = _build_protocol_path(base_path=self.base_path, participant_id=participant_id)
         return protocol_path
 
-    def save_data_to_location(self, data: pd.DataFrame, file_name: str, radar: bool=False, biopac: bool=False):
+    def save_data_to_location(self, data: pd.DataFrame, file_name: str):
         locations = self.index.drop(columns="subject").columns.tolist()
         if not self.is_single(locations):
             raise ValueError("Data can only be saved for a single location-breathing combination")
@@ -194,13 +203,11 @@ class BaseDataset(Dataset):
             base_path=self.base_path,
             participant_id=participant_id,
             data=data,
-            biopac=biopac,
-            radar=radar,
             location=location,
             file_name=file_name
         )
 
-    def load_data_from_location(self, file_name: str, radar: bool=False, biopac: bool=False):
+    def load_data_from_location(self, file_name: str):
         locations = self.index.drop(columns="subject").columns.tolist()
         if not self.is_single(locations):
             raise ValueError("Data can only be loaded for a single location-breathing combination")
@@ -210,8 +217,6 @@ class BaseDataset(Dataset):
         data = _load_data_from_location_h5(
             base_path=self.base_path,
             participant_id=participant_id,
-            radar=radar,
-            biopac=biopac,
             location=location,
             file_name=file_name
         )
@@ -276,3 +281,12 @@ class BaseDataset(Dataset):
         return _get_biopac_timelog_shift(
             base_path=self.base_path, participant_id=participant_id, trigger_extraction=self.trigger_data_extraction
         )
+
+    def _get_apnea_segmentation(self, participant_id: str) -> Dict:
+        loc = self._get_locations_from_index()[0]
+
+        if loc in ["aorta_prox_hold", "aorta_med_hold", "aorta_dist_hold"]:
+            apnea_seg = _load_apnea_segmentation(self.base_path, participant_id)
+            return apnea_seg[loc]
+        else:
+            raise ValueError("Apnea Segmentation is only available for hold measurements")
