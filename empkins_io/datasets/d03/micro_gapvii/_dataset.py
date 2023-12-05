@@ -180,6 +180,12 @@ class MicroBaseDataset(Dataset):
             return self.index["phase"][0]
 
     @property
+    def id_mapping(self) -> pd.DataFrame:
+        return load_long_format_csv(
+            self.data_tabular_path.joinpath("extras/processed/id_mapping.csv")
+        )
+
+    @property
     def subset_demographics(self):
         # TODO
         return NotImplementedError
