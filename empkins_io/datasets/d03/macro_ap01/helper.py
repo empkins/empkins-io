@@ -51,9 +51,12 @@ def _load_tsst_mocap_data(
 
     mocap_path = data_path.joinpath("mocap/processed")
     mocap_file = mocap_path.joinpath(f"{subject_id}_{condition}-TEST.mvnx")
+    if not mocap_file.exists():
+        # look for gzip file
+        mocap_file = mocap_path.with_suffix(".mvnx.gz")
 
-    if not mocap_file.is_file():
-        raise FileNotFoundError
+    if not mocap_file.exists():
+        raise FileNotFoundError(f"File '{mocap_file}' not found!")
 
     mvnx_data = mvnx.MvnxData(mocap_file, verbose=verbose)
 
@@ -81,8 +84,11 @@ def _load_gait_mocap_data(
     else:
         mocap_file = mocap_path.joinpath(f"{subject_id}_{condition}-{test}{trial}_{speed}.mvnx")
 
-    if not mocap_file.is_file():
-        raise FileNotFoundError
+    if not mocap_file.exists():
+        mocap_file = mocap_path.with_suffix(".mvnx.gz")
+
+    if not mocap_file.exists():
+        raise FileNotFoundError(f"File '{mocap_file}' not found!")
 
     mvnx_data = mvnx.MvnxData(mocap_file)
 
