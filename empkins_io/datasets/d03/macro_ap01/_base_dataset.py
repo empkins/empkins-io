@@ -160,7 +160,7 @@ class MacroBaseDataset(Dataset):
 
     @property
     def sampling_rate(self) -> float:
-        """Sampling rate of the MoCap system"""
+        """Sampling rate of the MoCap system."""
         return 60
 
     @property
@@ -256,7 +256,7 @@ class MacroBaseDataset(Dataset):
     @property
     def questionnaire(self) -> pd.DataFrame:
         if self.is_single(["condition"]):
-            raise ValueError(f"Questionnaire data can not be accessed for a single condition!")
+            raise ValueError("Questionnaire data can not be accessed for a single condition!")
         data = load_questionnaire_data(self.base_path.joinpath("questionnaires/merged_total/questionnaire_data.xlsx"))
         subject_ids = self.index["subject"].unique()
         return data.loc[subject_ids]
@@ -343,7 +343,7 @@ class MacroBaseDataset(Dataset):
 
     @property
     def blood_spots(self) -> pd.DataFrame:
-        data_path = self.base_path.joinpath(f"bloodspots/processed/crp_samples.csv")
+        data_path = self.base_path.joinpath("bloodspots/processed/crp_samples.csv")
         if not data_path.exists():
             raise ValueError(
                 "Processed bloodspot data not available! "

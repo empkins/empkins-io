@@ -1,9 +1,8 @@
 import pathlib
 import tarfile
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
-import numpy as np
 import pandas as pd
 from biopsykit.io import load_atimelogger_file
 from biopsykit.io.biopac import BiopacDataset
@@ -101,8 +100,8 @@ def _load_nilspod_session(base_path: path_t, participant_id: str, condition: str
         session = CustomSyncedSession.from_folder_path(data_path)
 
         # fix for "classical nilspod bug" where last sample counter is corrupted
-        session.cut(stop=-10, inplace=True)
-        session.align_to_syncregion(inplace=True)
+        session = session.cut(stop=-10)
+        session = session.align_to_syncregion()
     except (ZeroDivisionError, SynchronisationError, SessionValidationError, InvalidInputFileError, KeyError) as e:
         raise NilsPodDataLoadException("Cannot load NilsPod data!") from e
 
@@ -151,54 +150,44 @@ def build_opendbm_raw_data_path(subject_id: str, condition: str, group: str, sub
     if subgroup is None:
         if group == "facial":
             path = f"output/raw_variables/{subject_id}_{condition}/{group}/"
-            data_path = list(
-                (
+            data_path = [
                     f"{path}face_asymmetry/{subject_id}_{condition}_facasym.csv",
                     f"{path}face_au/{subject_id}_{condition}_facau.csv",
                     f"{path}face_expressivity/{subject_id}_{condition}_facemo.csv",
                     f"{path}face_landmark/{subject_id}_{condition}_faclmk.csv",
-                )
-            )
+                ]
         elif group == "acoustic":
             path = f"output/raw_variables/{subject_id}_{condition}/{group}/"
-            data_path = list(
-                (
+            data_path = [
                     f"{path}formant_freq/{subject_id}_{condition}_formant.csv",
                     f"{path}harmonic_noise/{subject_id}_{condition}_hnr.csv",
                     f"{path}intensity/{subject_id}_{condition}_intensity.csv",
                     f"{path}mfcc/{subject_id}_{condition}_mfcc.csv",
                     f"{path}pitch/{subject_id}_{condition}_pitch.csv",
-                )
-            )
+                ]
         elif group == "acoustic_seg":
             path = f"output/raw_variables/{subject_id}_{condition}/acoustic/"
-            data_path = list(
-                (
+            data_path = [
                     f"{path}glottal_noise_recomputed/{subject_id}_{condition}_gne.csv",
                     f"{path}jitter_recomputed/{subject_id}_{condition}_jitter.csv",
                     f"{path}shimmer_recomputed/{subject_id}_{condition}_shimmer.csv",
-                )
-            )
+                ]
         elif group == "audio_seg":
             path = f"output/raw_variables/{subject_id}_{condition}/"
-            data_path = list(
-                (
+            data_path = [
                     f"{path}acoustic/pause_segment_recomputed/{subject_id}_{condition}_pausechar.csv",
                     f"{path}acoustic/voice_frame_score_recomputed/{subject_id}_{condition}_voiceprev.csv",
                     f"{path}movement/voice_tremor_recomputed/{subject_id}_{condition}_vtremor.csv",
-                )
-            )
+                ]
 
         elif group == "movement":
             path = f"output/raw_variables/{subject_id}_{condition}/{group}/"
-            data_path = list(
-                (
+            data_path = [
                     f"{path}gaze/{subject_id}_{condition}_eyegaze.csv",
                     f"{path}head_movement/{subject_id}_{condition}_headmov.csv",
                     f"{path}head_pose/{subject_id}_{condition}_headpose.csv",
                     f"{path}eye_blink_binarized/{subject_id}_{condition}_eyeblinks.csv",
-                )
-            )
+                ]
         elif group == "facial_tremor":
             data_path = [
                 f"output/raw_variables/{subject_id}_{condition}/{subject_id}_{condition}_openface_lmk/"

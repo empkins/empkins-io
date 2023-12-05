@@ -15,7 +15,7 @@ def get_claps_from_board_and_timelog(board_data: pd.DataFrame, timelog: pd.DataF
     """Returns the timestamps of the norm maximum in the timespan 1min before and after the (f)TSST beginning and end, each.
 
     Parameters
-    ---------
+    ----------
     board_data: pd.DataFrame
         contains the gyro data from the "board" NilsPod
     timelog: pd.DataFrame

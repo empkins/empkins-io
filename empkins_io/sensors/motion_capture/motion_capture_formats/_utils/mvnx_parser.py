@@ -154,7 +154,7 @@ class _MvnxParser:
 
     def parse_mvnx(self, path):
         """
-        Take a path to an MVNX file and parse it
+        Take a path to an MVNX file and parse it.
 
         Args:
             path ([string]): [the path to the data file]
@@ -175,15 +175,13 @@ class _MvnxParser:
         return self.root
 
     def parse_modality(self, modality):
-
-        """[With a given XML Tree, parse out the salient modalities within each frame]
+        """[With a given XML Tree, parse out the salient modalities within each frame].
 
         Args:
 
             modality ([string]): [the name of the modality]
 
         """
-
         holding_list = []
         frames = self.root[2][6]
         for frame in frames[3:]:
@@ -220,6 +218,7 @@ class _MvnxParser:
         for arg in args:
             print(self.parse_modality(arg))
             return self.parse_modality(arg)
+        return None
 
     def parse_sensors(self):
         for sensor in self.root[2][2]:

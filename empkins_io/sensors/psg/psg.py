@@ -1,12 +1,11 @@
 import datetime
 import warnings
 from pathlib import Path
-from typing import Optional, Sequence, Union
+from typing import Literal, Optional, Sequence, Union
 
 import mne
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension, _assert_is_dir
-from typing_extensions import Literal
 
 from empkins_io.sensors.psg.psg_channels import PSG_CHANNELS_MESA, PSG_CHANNELS_SOMNO
 from empkins_io.utils._types import path_t
@@ -24,7 +23,7 @@ def load_data_folder(
     _assert_is_dir(folder_path)
 
     # look for all PSG .edf files in the folder
-    dataset_list = list(sorted(folder_path.glob("*.edf")))
+    dataset_list = sorted(folder_path.glob("*.edf"))
     if len(dataset_list) == 0:
         raise ValueError(f"No PSG files found in folder {folder_path}!")
     if len(dataset_list) > 1:

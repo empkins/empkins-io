@@ -86,7 +86,7 @@ def get_df_from_json_dir(dir_jsons: path_t) -> pd.DataFrame:
         # bring data into a useful dataframe format
         df = pd.DataFrame.from_dict(keypoint_dict, orient="columns")
         df.index.names = ["body_part"]
-        df.reset_index(inplace=True)
+        df = df.reset_index()
         df["frame"] = frame_no
         df = df.pivot(index="frame", columns=["body_part"])
         df.columns = df.columns.rename(["axis", "body_part"])
@@ -106,11 +106,11 @@ def get_df_from_json_dir(dir_jsons: path_t) -> pd.DataFrame:
     output_all_frames = pd.concat(output_all_frames_list)
 
     # sort both indices
-    output_all_frames.sort_index(axis=1, level=[0], ascending=[True], inplace=True)
-    output_all_frames.sort_index(inplace=True)
+    output_all_frames = output_all_frames.sort_index(axis=1, level=[0], ascending=[True])
+    output_all_frames = output_all_frames.sort_index()
 
     # map keypoint numbers to body parts
-    output_all_frames.rename(columns=keypoint_mapping, level=0, inplace=True)
+    output_all_frames = output_all_frames.rename(columns=keypoint_mapping, level=0)
 
     # add channel level
     output_all_frames = pd.concat({"pos": output_all_frames}, names=["channel"], axis=1)

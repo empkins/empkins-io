@@ -1,7 +1,6 @@
 from argparse import ArgumentParser
 from pathlib import Path
 
-import cv2
 import numpy as np
 import pandas as pd
 
@@ -24,9 +23,10 @@ def _check_filetype_present(
     expected_filesize: float = np.nan,
 ) -> dict:
     """Checks if the number of files that match the given pattern is as expected and if the (mean) file size is
-    as expected (i.e. at max. 20% below the given expected file size)."""
+    as expected (i.e. at max. 20% below the given expected file size).
+    """
     dir_path = subj_dir / subfolder
-    existing_files = [f for f in dir_path.glob(file_pattern)]
+    existing_files = list(dir_path.glob(file_pattern))
     existing_files_names = [f.name for f in existing_files]
     real_number_of_files = len(existing_files_names)
     num_files_is_expected = real_number_of_files == expected_number_of_files
@@ -35,6 +35,13 @@ def _check_filetype_present(
         # no files found => file size is 0 bytes
         actual_filesize = 0
     elif file_pattern.endswith(".mp4") and len(existing_files) == 1:
+        try:
+            import cv2
+        except ImportError as e:
+            raise ImportError(
+                "OpenCV is required to check video file size. "
+                "Install OpenCV or install empkins-io with the [opencv] extra."
+            ) from e
         video = cv2.VideoCapture(existing_files[0].as_posix())
         # duration = video.get(cv2.CAP_PROP_POS_MSEC)
         frame_count = video.get(cv2.CAP_PROP_FRAME_COUNT)
@@ -64,7 +71,8 @@ def _check_filetype_present(
 
 def _check_files_for_subject(subj_dir: Path, expected_files: pd.DataFrame) -> dict:
     """Iterates over the list of expected files for one subject and checks if each one of them is present.
-    Results are summarized in a dictionary."""
+    Results are summarized in a dictionary.
+    """
     files_present = {}
     for subfolder, cols in expected_files.iterrows():
         files_present[(cols.condition, cols.description)] = _check_filetype_present(
@@ -79,7 +87,8 @@ def _check_files_for_subject(subj_dir: Path, expected_files: pd.DataFrame) -> di
 
 def check_data_completeness_dict(data_per_subject_folder: Path, expected_files_list: pd.DataFrame) -> dict:
     """Iterates over all subject directories in the data_per_subject folder and
-    checks if all expected files are present. Results are summarized in a dictionary."""
+    checks if all expected files are present. Results are summarized in a dictionary.
+    """
     file_overview = {}
     for subject_dir in data_per_subject_folder.glob("VP_*"):
         subject = subject_dir.name
@@ -92,7 +101,8 @@ def check_data_completeness_dict(data_per_subject_folder: Path, expected_files_l
 
 def check_data_completeness(data_per_subject_folder: Path, expected_files_list: pd.DataFrame) -> pd.DataFrame:
     """Iterates over all subject directories in the data_per_subject folder and
-    checks if all expected files are present. Results are summarized in a DataFrame."""
+    checks if all expected files are present. Results are summarized in a DataFrame.
+    """
     file_overview_dict = check_data_completeness_dict(data_per_subject_folder, expected_files_list)
     file_overview_df = (
         pd.DataFrame(file_overview_dict)

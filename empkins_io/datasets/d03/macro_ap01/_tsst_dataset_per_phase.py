@@ -15,7 +15,8 @@ _cached_load_mocap_data = lru_cache(maxsize=4)(_load_tsst_mocap_data)
 
 class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
     """Class to conveniently access the data of the macro study dataset on a phase-level.
-    If access is only required per-condition, use :class:`MacroStudyTsstDataset` instead."""
+    If access is only required per-condition, use :class:`MacroStudyTsstDataset` instead.
+    """
 
     PHASES = ("prep", "talk", "math")
 
@@ -79,7 +80,8 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
     def openpose_data(self) -> pd.DataFrame:
         """Returns the cleaned openpose data for a single subject and position.
         The data is cut to the claps specified in sync_data. Additionally, the index was set to a constant frame rate
-        and the data was interpolated linearly and lowpass filtered."""
+        and the data was interpolated linearly and lowpass filtered.
+        """
         if not self.is_single(["subject", "condition"]):
             raise ValueError("OpenPose data can only be accessed for a single condition of a single participant!")
 

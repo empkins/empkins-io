@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 from empkins_io.datasets.d03.micro_gapvii._dataset import MicroBaseDataset
 
@@ -9,7 +8,6 @@ __all__ = ["MicroBaseDataset"]
 
 def conf_rel_path():
     """Configure relative path imports for the experiments folder."""
-
     import sys
     from pathlib import Path
 

@@ -1,16 +1,18 @@
-from shutil import copy
-import click
 from pathlib import Path
+from shutil import copy
+
+import click
 
 """ This is a script to copy selected parts of the study data.
 
-You can either run it without any arguments and just answer all the prompts, 
+You can either run it without any arguments and just answer all the prompts,
 or you can run it completely non-interactive via the command line by setting all the flags.
 
 For more information run `python selective_copy.py -h` or `python selective_copy.py --help`.
 
 Note: This script has only been tested on the Micro dataset.
 """
+
 
 @click.command()
 @click.option(
@@ -98,7 +100,8 @@ def partial_copy(
     dryrun: bool,
 ):
     """Copy certain data (chosen based on the specified conditions) from the source folder to the
-    destination folder."""
+    destination folder.
+    """
     print("Source:", source)
     print("Destination:", destination)
     print("Subjects:", subjects)
@@ -118,16 +121,12 @@ def partial_copy(
         include_timelogs,
     )
     # exclude all files that are in folders from the blocklist
-    wanted_files = [
-        f for f in files if not any(b in str(f).split("/") for b in blocklist)
-    ]
+    wanted_files = [f for f in files if not any(b in str(f).split("/") for b in blocklist)]
     if subjects != "all":
         subjects = [int(s) for s in subjects.split(" ")]
         allowlist = build_allowlist(subjects)
         # only include files that are in folders from the allowlist (subjects)
-        wanted_files = [
-            f for f in wanted_files if any(a in str(f).split("/") for a in allowlist)
-        ]
+        wanted_files = [f for f in wanted_files if any(a in str(f).split("/") for a in allowlist)]
 
     if dryrun:
         print("These files would be copied:")
@@ -164,7 +163,8 @@ def build_blocklist(
 ):
     """Build the blocklist of files to exclude.
     This should be invoked on the filepath split by /, so essentially the
-    entries in the blocklist are the folders that should be excluded."""
+    entries in the blocklist are the folders that should be excluded.
+    """
     blocklist = []
     if condition == "tsst":
         blocklist.append("ftsst")
@@ -190,9 +190,7 @@ def build_blocklist(
 def copy_files(wanted_files, destination, dryrun):
     """Copy the files to the destination folder."""
     for file in wanted_files:
-        destination_file = (
-            destination / "data_per_subject" / str(file).split("data_per_subject/")[1]
-        )
+        destination_file = destination / "data_per_subject" / str(file).split("data_per_subject/")[1]
         print("Making parent dirs:", destination_file.parent)
         if not dryrun:
             destination_file.parent.mkdir(parents=True, exist_ok=True)

@@ -89,8 +89,8 @@ def _hr_plot_ecg_radar_quality(hr_radar: HeartRateDataFrame, ax: plt.Axes):
     qual_handles = []
     qual_labels = ["Bad", "OK", "Good"]
     for (lims, color) in zip([(0.0, 1.8), (1.8, 2.5), (2.5, 100)], ["wiso", "phil", "nat"]):
-        edgecolor = to_rgb(getattr(colors_all, color)) + tuple([0.3])
-        facecolor = to_rgb(getattr(colors_all, color)) + tuple([0.05])
+        edgecolor = (*to_rgb(getattr(colors_all, color)), 0.3)
+        facecolor = (*to_rgb(getattr(colors_all, color)), 0.05)
         mask = hr_radar["Heartsound_Quality"].between(*lims)
         mask = mask | mask.shift(1)
         h = ax.fill_between(
@@ -115,7 +115,7 @@ def _hr_plot_ecg_radar_add_legend(mean_ecg: float, mean_radar: float, ax: plt.Ax
     if plot_mean:
         handles = [tuple(handles[0:2]), tuple(handles[2:])]
 
-    labels = ["{}; Mean: {:.2f} bpm".format(s, mean) for s, mean in zip(["ECG", "Radar"], [mean_ecg, mean_radar])]
+    labels = [f"{s}; Mean: {mean:.2f} bpm" for s, mean in zip(["ECG", "Radar"], [mean_ecg, mean_radar])]
     legend = ax.legend(
         handles,
         labels,

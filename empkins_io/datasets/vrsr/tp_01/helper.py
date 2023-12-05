@@ -1,5 +1,3 @@
-import datetime
-from datetime import time
 from typing import Optional
 
 import pandas as pd
@@ -18,7 +16,7 @@ def _load_ecg_data(base_path: path_t, subject: str, to_local_time: Optional[bool
         encoding="unicode_escape",
     )
 
-    df.set_index("Zeit", inplace=True)
+    df = df.set_index("Zeit")
     df.index.names = ["sample"]
 
     df = df.loc[:, ["Sensor-B:EKG", "Ereignisse"]]
@@ -36,7 +34,7 @@ def _load_raw_log(base_path: path_t, subject: str) -> pd.DataFrame:
         sep="\t",
     )
 
-    df.set_index("time", inplace=True)
+    df = df.set_index("time")
 
     df.index = df.index.str.rsplit(":", n=1).str.get(0)
 

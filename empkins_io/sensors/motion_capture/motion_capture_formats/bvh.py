@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Module for importing Motion Capture data saved as .bvh file."""
 import gzip
 import re
@@ -43,7 +42,6 @@ class BvhData(_BaseMotionCaptureDataFormat):
             if file in ``file_path`` is not a bvh file
 
         """
-
         # ensure pathlib
         file_path = Path(file_path)
         _assert_file_extension(file_path, [".bvh", ".gz"])
@@ -53,7 +51,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
             with gzip.open(file_path, "rb") as f:
                 _raw_data_str = f.read().decode("utf8")
         else:
-            with open(file_path, "r") as f:
+            with open(file_path) as f:
                 _raw_data_str = f.read()
 
         hierarchy_str, motion_str = _raw_data_str.split("MOTION")
@@ -117,7 +115,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
         motion_str_buf = StringIO(motion_str)
 
         multi_index = [
-            tuple([joint_name] + list(channel))
+            (joint_name, *list(channel))
             for joint_name, joint in self.joints.items()
             for channel in [(i, x) for i in joint.channels for x in joint.channels[i]]
         ]
@@ -210,7 +208,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
         frame.index.name = "body_part"
         frame = pd.DataFrame([frame.unstack()])
         frame = frame.reorder_levels([2, 0, 1], axis=1).sort_index(axis=1)
-        body_part_map = {i: body_part for i, body_part in enumerate(self.body_parts)}
+        body_part_map = dict(enumerate(self.body_parts))
         frame = frame.rename(columns=body_part_map, level="body_part")
         frame.index = [np.around(frame_index / self.sampling_rate, 5)]
         frame.index.name = "time"
@@ -282,7 +280,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
         if encode:
             fp.write(self._hierarchy_str.encode("utf8"))
             # set the empty line after MOTION
-            fp.write("MOTION\n\n".encode("utf8"))
+            fp.write(b"MOTION\n\n")
             fp.write(self._frame_info_str.encode("utf8"))
             fp.write(
                 data_out.to_csv(float_format="%.4f", sep=" ", header=False, index=False, lineterminator=" \n").encode(

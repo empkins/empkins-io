@@ -79,7 +79,7 @@ class CalcData(_BaseMotionCaptureDataFormat):
             with gzip.open(file_path, "rb") as f:
                 _raw_data_str = f.read().decode("utf8")
         else:
-            with open(file_path, "r") as f:
+            with open(file_path) as f:
                 _raw_data_str = f.read()
 
         if "contactL\t" in _raw_data_str:

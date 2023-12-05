@@ -190,10 +190,7 @@ def upsample(
     """
     _assert_is_dtype(data, (pd.DataFrame, pd.Series))
 
-    if isinstance(data, pd.DataFrame):
-        column_name = data.columns
-    else:
-        column_name = [data.name]
+    column_name = data.columns if isinstance(data, pd.DataFrame) else [data.name]
 
     if isinstance(data.index, pd.DatetimeIndex):
         x_old = np.array((data.index - data.index[0]).total_seconds())

@@ -13,7 +13,8 @@ def get_uncleaned_openpose_data(file_path):
 
 def get_cleaned_openpose_data(file_path, phase_start=None, phase_end=None):
     """Returns the cleaned openpose data at path file_path. If phase_start and phase_end are given,
-    the data is cut to the specified timestamps."""
+    the data is cut to the specified timestamps.
+    """
     if not file_path.exists():
         raise CleanedOpenposeDataNotFoundException(f"Cleaned Openpose data not found in {file_path}.")
     df = pd.read_csv(file_path, header=[0, 1, 2, 3], index_col=0)

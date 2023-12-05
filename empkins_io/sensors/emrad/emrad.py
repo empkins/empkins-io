@@ -184,7 +184,7 @@ class EmradDataset:
 
         data = {
             key: pd.DataFrame(file[key], columns=pd.Index(["I", "Q", "Sync_In", "Sync_Out"], name="channel"))
-            for key in file.keys()
+            for key in file
         }
 
         return cls(data, start_time, tz, sampling_rate_hz)

@@ -18,8 +18,6 @@ from empkins_io.datasets.d03.micro_gapvii.helper import (
     _load_radar_data,
     _load_timelog,
     get_opendbm_derived_features,
-    get_opendbm_eyeblink_data,
-    get_opendbm_pitch_data,
     load_opendbm_acoustic_data,
     load_opendbm_acoustic_seg_data,
     load_opendbm_audio_seg_data,
@@ -156,16 +154,19 @@ class MicroBaseDataset(Dataset):
     def subject(self) -> str:
         if self.is_single("subject"):
             return self.index["subject"][0]
+        return None
 
     @property
     def condition(self) -> str:
         if self.is_single("condition"):
             return self.index["condition"][0]
+        return None
 
     @property
     def phase(self) -> str:
         if self.is_single("phase"):
             return self.index["phase"][0]
+        return None
 
     @property
     def cortisol(self) -> pd.DataFrame:
@@ -268,7 +269,7 @@ class MicroBaseDataset(Dataset):
         if self.is_single(None):
             participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
-            phase = self.index["phase"][0]
+            self.index["phase"][0]
 
             # load nilspod data for phase
             return None

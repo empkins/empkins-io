@@ -138,9 +138,9 @@ class MacroPreStudyDataset(Dataset):
     @property
     def questionnaire(self):
         if self.is_single(["phase"]):
-            raise ValueError(f"questionnaire data can not be accessed for individual phases!")
+            raise ValueError("questionnaire data can not be accessed for individual phases!")
         if self.is_single(["condition"]):
-            raise ValueError(f"questionnaire data can not be accessed for a single condition!")
+            raise ValueError("questionnaire data can not be accessed for a single condition!")
         return self._load_questionnaire_data()
 
     @property
@@ -191,10 +191,7 @@ class MacroPreStudyDataset(Dataset):
             condition = self.index["condition"][0]
             data = self._get_opendbm_facial_data(subject_id, condition)
 
-            if self.is_single(None):
-                phase = self.index["phase"].unique()[0]
-            else:
-                phase = "total"
+            phase = self.index["phase"].unique()[0] if self.is_single(None) else "total"
 
             times = get_times_for_video(self.base_path, subject_id, condition, phase)
             data = data.loc[times[0] : times[1]]
@@ -230,10 +227,7 @@ class MacroPreStudyDataset(Dataset):
             data = self._get_opendbm_acoustic_data(subject_id, condition)
             data = apply_diarization_aco(data, self.speaker_diarization, self.sampling_rate_audio)
 
-            if self.is_single(None):
-                phase = self.index["phase"].unique()[0]
-            else:
-                phase = "total"
+            phase = self.index["phase"].unique()[0] if self.is_single(None) else "total"
 
             times = get_times_for_video(self.base_path, subject_id, condition, phase)
             data = data.loc[times[0] : times[1]]
@@ -254,10 +248,7 @@ class MacroPreStudyDataset(Dataset):
             condition = self.index["condition"][0]
             data = self._get_opendbm_movement_data(subject_id, condition)
 
-            if self.is_single(None):
-                phase = self.index["phase"].unique()[0]
-            else:
-                phase = "total"
+            phase = self.index["phase"].unique()[0] if self.is_single(None) else "total"
 
             times = get_times_for_video(self.base_path, subject_id, condition, phase)
             data = data.loc[times[0] : times[1]]
@@ -278,10 +269,7 @@ class MacroPreStudyDataset(Dataset):
                 data = self._get_opendbm_acoustic_seg_data(subject_id, condition)
                 data = apply_diarization_aco_seg(data, self.speaker_diarization, self.sampling_rate_audio)
 
-                if self.is_single(None):
-                    phase = self.index["phase"].unique()[0]
-                else:
-                    phase = "total"
+                phase = self.index["phase"].unique()[0] if self.is_single(None) else "total"
 
                 times = get_times_for_video(self.base_path, subject_id, condition, phase)
                 data = data.loc[(data["start_time"] >= times[0]) & (data["end_time"] <= times[1])]
@@ -302,10 +290,7 @@ class MacroPreStudyDataset(Dataset):
             try:
                 data = self._get_opendbm_audio_seg_data(subject_id, condition)
 
-                if self.is_single(None):
-                    phase = self.index["phase"].unique()[0]
-                else:
-                    phase = "total"
+                phase = self.index["phase"].unique()[0] if self.is_single(None) else "total"
 
                 times = get_times_for_video(self.base_path, subject_id, condition, phase)
                 data = data.loc[(data["start"] > times[0]) & (data["stop"] < times[1])]
@@ -324,10 +309,7 @@ class MacroPreStudyDataset(Dataset):
             condition = self.index["condition"][0]
             data = self._get_opendbm_facial_tremor_data(subject_id, condition)
 
-            if self.is_single(None):
-                phase = self.index["phase"].unique()[0]
-            else:
-                phase = "total"
+            phase = self.index["phase"].unique()[0] if self.is_single(None) else "total"
 
             times = get_times_for_video(self.base_path, subject_id, condition, phase)
 
@@ -368,10 +350,7 @@ class MacroPreStudyDataset(Dataset):
                 fps = data.at[0, "fps"]
                 data.index = data["mov_blinkframes"] / fps
                 data.index.name = "time [s]"
-                if self.is_single(None):
-                    phase = self.index["phase"].unique()[0]
-                else:
-                    phase = "total"
+                phase = self.index["phase"].unique()[0] if self.is_single(None) else "total"
                 times = get_times_for_video(self.base_path, subject_id, condition, phase)
                 data = data.loc[times[0] : times[1]]
 
@@ -510,10 +489,7 @@ class MacroPreStudyDataset(Dataset):
     ):
         subject_id = self.index["subject"][0]
         condition = self.index["condition"][0]
-        if self.is_single(None):
-            phase = self.index["phase"].unique()[0]
-        else:
-            phase = "total"
+        phase = self.index["phase"].unique()[0] if self.is_single(None) else "total"
         write_file_to_opendbm_tar(
             base_path=self.base_path,
             subject_id=subject_id,

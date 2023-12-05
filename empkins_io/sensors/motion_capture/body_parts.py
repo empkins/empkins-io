@@ -1,6 +1,6 @@
-from typing import Dict, Sequence
+from typing import Dict, Literal, Sequence
 
-from typing_extensions import Literal, get_args
+from typing_extensions import get_args
 
 from empkins_io.sensors.motion_capture.motion_capture_systems import MOTION_CAPTURE_SYSTEM
 

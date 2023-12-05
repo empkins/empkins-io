@@ -72,7 +72,7 @@ def load_ecg_data(
     use_cache: Optional[bool] = True,
 ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
     file_path = build_data_path(base_path, subject_id, condition)
-    file_path = file_path.joinpath(f"ecg/raw")
+    file_path = file_path.joinpath("ecg/raw")
     ecg_files = sorted(file_path.glob("*.bin"))
     ecg_file = ecg_files[STUDY_PARTS.index(study_part)]
     ecg_data = load_dataset_nilspod(ecg_file, datastreams=["ecg"])[0]
@@ -320,17 +320,14 @@ def load_annotation_file(
     file_path = build_data_path(base_path, subject_id, condition)
     file_path = file_path.joinpath("annotations")
     file_path = _find_study_part_file(file_path, study_part, "*.csv")
-    if use_cache:
-        annotations = _cached_load_annotations(file_path, artifact)
-    else:
-        annotations = load_annotations(file_path, artifact)
+    annotations = _cached_load_annotations(file_path, artifact) if use_cache else load_annotations(file_path, artifact)
     return annotations
 
 
 def load_annotations(annotation_file: path_t, artifact: Optional[str_t] = None) -> Union[pd.DataFrame, None]:
     annot_data = pd.read_csv(annotation_file)
     annot_data = annot_data[["start_time", "end_time", "description"]]
-    annot_data.sort_values(by=["start_time"], inplace=True)
+    annot_data = annot_data.sort_values(by=["start_time"])
     if artifact:
         if artifact == "clean":
             last_end = annot_data["end_time"].values[-1]
@@ -358,9 +355,9 @@ def load_annotations(annotation_file: path_t, artifact: Optional[str_t] = None) 
                 for d in descriptor:
                     data_to_append = annot_data[annot_data["description"].str.contains(str(d))]
                     annot_data_filtered = pd.concat((annot_data_filtered, data_to_append))
-                annot_data_filtered.drop_duplicates(inplace=True)
+                annot_data_filtered = annot_data_filtered.drop_duplicates()
             else:
-                raise ValueError(f"Artifact mapping has invalid data type")
+                raise ValueError("Artifact mapping has invalid data type")
             return annot_data_filtered[["start_time", "end_time"]]
     else:
         # if artifact is None, data won't be cut into artifact occurrences
@@ -406,7 +403,7 @@ def load_heart_rate_data(ecg_file: path_t, radar_file: path_t, study_part: str):
 
 
 def preprocess_hr_data(ecg_df: pd.DataFrame, radar_df: pd.DataFrame) -> pd.DataFrame:
-    """Resample to 1Hz, do fine alignment and concatenate to one Dataframe"""
+    """Resample to 1Hz, do fine alignment and concatenate to one Dataframe."""
     hr_ecg = ecg_df["Heart_Rate"]
     hr_radar = radar_df["Heart_Rate"]
 
@@ -419,7 +416,7 @@ def preprocess_hr_data(ecg_df: pd.DataFrame, radar_df: pd.DataFrame) -> pd.DataF
 
     # TODO window-wise shift
     hr_ecg, hr_radar_shift, shift_idx = signal_align(hr_ecg, hr_radar)
-    print("Shift: {:.3f} seconds".format(shift_idx))
+    print(f"Shift: {shift_idx:.3f} seconds")
     if shift_idx < MAX_SHIFT:
         hr_radar = hr_radar_shift
 

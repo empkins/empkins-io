@@ -28,8 +28,8 @@ def _load_nilspod_session(base_path: path_t, subject_id: str, condition: str) ->
 
     session = CustomSyncedSession.from_folder_path(data_path)
     # fix for "classical nilspod bug" where last sample counter is corrupted
-    session.cut(stop=-10, inplace=True)
-    session.align_to_syncregion(inplace=True)
+    session = session.cut(stop=-10)
+    session = session.align_to_syncregion()
 
     _handle_counter_inconsistencies_session(session, handle_counter_inconsistency="ignore")
 

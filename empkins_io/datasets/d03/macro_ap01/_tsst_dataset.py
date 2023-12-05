@@ -1,30 +1,23 @@
 import json
 from functools import cached_property, lru_cache
-from itertools import product
 from pathlib import Path
 from typing import Optional, Sequence
 
 import pandas as pd
-from biopsykit.utils.file_handling import get_subject_dirs
 
 from empkins_io.datasets.d03._utils.dataset_utils import get_cleaned_openpose_data
 from empkins_io.datasets.d03.macro_ap01._base_dataset import MacroBaseDataset
-from empkins_io.datasets.d03.macro_ap01.helper import (
-    _get_times_for_mocap,
-    _load_tsst_mocap_data,
-)
+from empkins_io.datasets.d03.macro_ap01.helper import _get_times_for_mocap, _load_tsst_mocap_data
 from empkins_io.utils._types import path_t
-from empkins_io.utils.exceptions import (
-    SyncDataNotFoundException,
-    TimestampDataNotFoundException,
-)
+from empkins_io.utils.exceptions import SyncDataNotFoundException, TimestampDataNotFoundException
 
 _cached_load_mocap_data = lru_cache(maxsize=4)(_load_tsst_mocap_data)
 
 
 class MacroStudyTsstDataset(MacroBaseDataset):
     """Class to conveniently access the data of the macro study dataset for subject and condition.
-    If access is required per-phase, use :class:`MacroStudyTsstDatasetPerPhase` instead."""
+    If access is required per-phase, use :class:`MacroStudyTsstDatasetPerPhase` instead.
+    """
 
     def __init__(
         self,
@@ -169,7 +162,8 @@ class MacroStudyTsstDataset(MacroBaseDataset):
     def openpose_data(self) -> pd.DataFrame:
         """Returns the cleaned openpose data for a single subject and position.
         The data is cut to the claps specified in sync_data. Additionally, the index was set to a constant frame rate
-        and the data was interpolated linearly and lowpass filtered."""
+        and the data was interpolated linearly and lowpass filtered.
+        """
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
             raise ValueError("OpenPose data can only be accessed for a single condition of a single participant!")
         file_path = self._openpose_cleaned_path

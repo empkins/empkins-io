@@ -1,14 +1,13 @@
 import datetime
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import numpy as np
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 from biopsykit.utils.array_handling import downsample
 from scipy.io import loadmat
-from typing_extensions import Literal
 
 from empkins_io.utils._types import path_t
 

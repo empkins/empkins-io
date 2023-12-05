@@ -222,5 +222,5 @@ def _get_cols_multiindex(data, axis_cols):
     if data.columns.nlevels > 1:
         col_vals = data.columns.droplevel(-1)
         col_list = [list(col_vals.get_level_values(col).unique()) for col in col_vals.names]
-        return pd.MultiIndex.from_product(col_list + [axis_cols], names=list(col_vals.names) + ["axis"])
+        return pd.MultiIndex.from_product([*col_list, axis_cols], names=[*list(col_vals.names), "axis"])
     return pd.Index(axis_cols, name=["axis"])

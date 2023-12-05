@@ -186,10 +186,7 @@ class SyncedDataset:
             sync_data = -1 * data[sync_channel]
         peaks = SyncedDataset._find_sync_peaks(sync_data, sync_params)
         # cut data to region between first and last peak
-        if len(peaks) == 1:
-            data_cut = data.iloc[peaks[0] :]
-        else:
-            data_cut = data.iloc[peaks[0] : peaks[-1]]
+        data_cut = data.iloc[peaks[0]:] if len(peaks) == 1 else data.iloc[peaks[0]:peaks[-1]]
 
         return data_cut
 
@@ -204,11 +201,11 @@ class SyncedDataset:
             sync_params = {}
 
         # assert that sampling rates are equal for all datasets
-        sampling_rates = set(dataset["sampling_rate"] for dataset in self.datasets.values())
+        sampling_rates = {dataset["sampling_rate"] for dataset in self.datasets.values()}
         if len(sampling_rates) != 1:
             # check if there are resampled datasets
             if all("sampling_rate_resampled" in dataset for dataset in self.datasets.values()):
-                sampling_rates = set(dataset["sampling_rate_resampled"] for dataset in self.datasets.values())
+                sampling_rates = {dataset["sampling_rate_resampled"] for dataset in self.datasets.values()}
             else:
                 raise ValueError(
                     "Sampling rates of datasets are not equal. Please resample all datasets to a "
@@ -328,7 +325,7 @@ class SyncedDataset:
 
         """
         if getattr(self, f"{primary}_cut_", None) is None:
-            raise SynchronizationError(f"Datasets were not cut to sync region yet. Call 'cut_to_sync_region' first!")
+            raise SynchronizationError("Datasets were not cut to sync region yet. Call 'cut_to_sync_region' first!")
         data_primary_cut = getattr(self, f"{primary}_cut_")
         start_time_primary = data_primary_cut.index[0]
 
@@ -419,14 +416,14 @@ class SyncedDataset:
         return lag_samples
 
     def _check_valid_index(self, data: pd.DataFrame):
-        index_type = list(set(type(dataset["data"].index) for dataset in self.datasets.values()))[0]
+        index_type = list({type(dataset["data"].index) for dataset in self.datasets.values()})[0]
         new_index_type = type(data.index)
         if index_type != new_index_type:
             raise ValidationError(
                 f"Indices of all added datasets must be of the same type. Got {[index_type, new_index_type]}."
             )
         # check that the index names of the datasets are the same
-        index_name = list(set(dataset["data"].index.name for dataset in self.datasets.values()))[0]
+        index_name = list({dataset["data"].index.name for dataset in self.datasets.values()})[0]
         new_index_name = data.index.name
         if index_name != new_index_name:
             raise ValidationError(

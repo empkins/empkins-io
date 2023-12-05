@@ -1,4 +1,3 @@
-from datetime import time
 from functools import lru_cache
 from typing import Optional, Sequence
 
@@ -36,11 +35,11 @@ class VRSR_Dataset(Dataset):
 
     def create_index(self):
         subject_ids = [
-            subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "\d{3}")
+            subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "\\d{3}")
         ]
 
         if self.exclude_missing_data:
-            for missing_type, sids in self.MISSING_DATA.items():
+            for _missing_type, sids in self.MISSING_DATA.items():
                 for sid in sids:
                     if sid in subject_ids:
                         subject_ids.remove(sid)

@@ -128,10 +128,7 @@ class MicroPreStudyDataset(Dataset):
         self._check_access("ECG data")
         artifact = self._check_artifact("ECG data")
         phases, subphases = self._get_phases_subphases()
-        if self.use_cache:
-            ecg_func = _cached_load_ecg_data
-        else:
-            ecg_func = load_ecg_data
+        ecg_func = _cached_load_ecg_data if self.use_cache else load_ecg_data
 
         return ecg_func(
             self.base_path,
@@ -149,10 +146,7 @@ class MicroPreStudyDataset(Dataset):
         self._check_access("ECG heart rate")
         artifact = self._check_artifact("ECG heart rate")
         phases, subphases = self._get_phases_subphases()
-        if self.use_cache:
-            hr_ecg_func = _cached_load_ecg_hr
-        else:
-            hr_ecg_func = load_ecg_hr
+        hr_ecg_func = _cached_load_ecg_hr if self.use_cache else load_ecg_hr
 
         return hr_ecg_func(
             self.base_path,
@@ -170,13 +164,10 @@ class MicroPreStudyDataset(Dataset):
         self._check_access("MIS heart rate")
         artifact = self._check_artifact("MIS heart rate")
         if self.index["study_part"][0] == STUDY_PARTS[-1]:
-            raise ValueError(f"MIS data was not captured for study part post.")
+            raise ValueError("MIS data was not captured for study part post.")
 
         phases, subphases = self._get_phases_subphases()
-        if self.use_cache:
-            mis_func = _cached_load_mis_data
-        else:
-            mis_func = load_mis_data
+        mis_func = _cached_load_mis_data if self.use_cache else load_mis_data
 
         return mis_func(
             self.base_path,
@@ -194,12 +185,9 @@ class MicroPreStudyDataset(Dataset):
         self._check_access("Synced heart rate")
         artifact = self._check_artifact("Synced heart rate")
         if self.index["study_part"][0] == STUDY_PARTS[-1]:
-            raise ValueError(f"MIS data was not captured for study part post.")
+            raise ValueError("MIS data was not captured for study part post.")
         phases, subphases = self._get_phases_subphases()
-        if self.use_cache:
-            hr_synced_func = _cached_load_hr_synced
-        else:
-            hr_synced_func = load_hr_synced
+        hr_synced_func = _cached_load_hr_synced if self.use_cache else load_hr_synced
         return hr_synced_func(
             self.base_path,
             self.index["subject"][0],
@@ -221,14 +209,11 @@ class MicroPreStudyDataset(Dataset):
 
     def _emotion(self, emotion_type: str):
         if any([self.is_single(None), self.is_single("artifact")]):
-            raise ValueError(f"Emotion data not be accessed for individual artifacts!")
+            raise ValueError("Emotion data not be accessed for individual artifacts!")
         if not self.is_single(["subject", "condition", "study_part"]):
-            raise ValueError(f"Emotion data only be accessed for an individual study part!")
+            raise ValueError("Emotion data only be accessed for an individual study part!")
         if emotion_type == "emotion":
-            if self.use_cache:
-                emotion_func = _cached_load_emotion_data
-            else:
-                emotion_func = load_emotion_data
+            emotion_func = _cached_load_emotion_data if self.use_cache else load_emotion_data
         else:
             if self.use_cache:
                 emotion_func = _cached_load_dominant_emotion_data

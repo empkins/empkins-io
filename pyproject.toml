@@ -17,12 +17,17 @@ biopsykit = {git="https://github.com/mad-lab-fau/BioPsyKit.git", branch="main", 
 h5py = "^3.5.0"
 tpcp = "^0.13"
 resampy = "^0.4.2"
-opencv-python = "^4.8.1.78"
+# opencv is optional, but required for some functions
+opencv-python = {version="^4.8", optional=true}
+
+[tool.poetry.extras]
+opencv = ["opencv-python"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^5.2"
-poethepoet = "^0.10.0"
-ipykernel = "^6.25.2"
+black = { version="^22", extras=["jupyter", "d"] }
+ruff = "^0.0.261"
+poethepoet = "^0.11.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -62,11 +67,14 @@ _isort = "isort **/*.py"
 _isort_check = "isort **/*.py --check-only"
 
 # Reformat all files using black and sort import
-format = { sequence = ["_black", "_isort"], help = "Format all files." }
-format_check = ["_black_check", "_isort_check"]
-lint = {cmd = "prospector", help = "Lint all files with Prospector." }
+_format_black = "black ."
+_format_ruff = "ruff . --fix-only"
+format = { sequence = ["_format_black", "_format_ruff"], help = "Format all files." }
+lint = { cmd = "ruff empkins_io --fix", help = "Lint all files with ruff." }
+_lint_ci = "ruff empkins_io --format=github"
+_check_black = "black . --check"
+ci_check = { sequence = ["_check_black", "_lint_ci"], help = "Check all potential format and linting issues." }
 test = {cmd = "pytest --cov=empkins_io --cov-report=xml", help = "Run Pytest with coverage." }
-docs = {"script" = "_tasks:task_docs"}
 update_version = {"script" = "_tasks:task_update_version"}
 register_ipykernel = { cmd = "python -m ipykernel install --user --name empkins-io --display-name empkins-io", help = "Add a new jupyter kernel for the project."}
 remove_ipykernel = { cmd = "jupyter kernelspec uninstall empkins-io", help = "Remove the project specific jupyter kernel."}

@@ -51,7 +51,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
             with gzip.open(file_path, "rb") as f:
                 _raw_data = _MvnxParser(f, verbose=verbose)
         else:
-            with open(file_path, "r") as f:
+            with open(file_path) as f:
                 _raw_data = _MvnxParser(f, verbose=verbose)
 
         sampling_rate = _raw_data.frameRate
@@ -117,17 +117,17 @@ class MvnxData(_BaseMotionCaptureDataFormat):
             axis=1,
         )
 
-        data.sort_index(axis=1, level=self._types[data_type], inplace=True)
+        data = data.sort_index(axis=1, level=self._types[data_type])
         return data
 
     def _parse_center_mass(self, _raw_data: _MvnxParser) -> pd.DataFrame:
         center_mass_df = self._parse_df_for_value(["pos", "vel", "acc"], _raw_data.centerOfMass, "center_mass")
-        center_mass_df.sort_index(axis=1, level="body_part", inplace=True)
+        center_mass_df = center_mass_df.sort_index(axis=1, level="body_part")
         return pd.concat([center_mass_df], keys=["center_mass"], names=["data_format"], axis=1)
 
     def _parse_foot_contact_df(self, _raw_data: _MvnxParser) -> pd.DataFrame:
         foot_contact_df = self._parse_foot_contacts(_raw_data.footContacts, type="segment")
-        foot_contact_df.sort_index(axis=1, level="body_part", inplace=True)
+        foot_contact_df = foot_contact_df.sort_index(axis=1, level="body_part")
         return pd.concat([foot_contact_df], keys=["foot_contact"], names=["data_format"], axis=1)
 
     def _parse_joint_df(self, _raw_data: _MvnxParser) -> pd.DataFrame:
@@ -137,7 +137,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         joint_angle_xzy_df = self._parse_df_for_value("ang_xzy", _raw_data.jointAngleXZY, data_type)
 
         joint_data = joint_angle_df.join(joint_angle_xzy_df)
-        joint_data.sort_index(axis=1, level=self._types[data_type], inplace=True)
+        joint_data = joint_data.sort_index(axis=1, level=self._types[data_type])
         joint_data = pd.concat([joint_data], keys=["mvnx_joint"], names=["data_format"], axis=1)
 
         return joint_data
@@ -155,7 +155,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
             names=["data_format"],
             axis=1,
         )
-        sensor_data.sort_index(axis=1, level=self._types[data_type], inplace=True)
+        sensor_data = sensor_data.sort_index(axis=1, level=self._types[data_type])
 
         return sensor_data
 
@@ -163,10 +163,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         if format not in self._types.keys():
             raise ValueError(f"Expected on of {self._types.keys()}, got {format} instead.")
 
-        if name == "ori":
-            axis = self._quat
-        else:
-            axis = self._xyz
+        axis = self._quat if name == "ori" else self._xyz
 
         if format == "segment":
             index_type = self.segments

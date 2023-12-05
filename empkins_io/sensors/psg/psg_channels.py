@@ -1,6 +1,6 @@
-from typing import Dict, Sequence
+from typing import Dict, Literal, Sequence
 
-from typing_extensions import Literal, get_args
+from typing_extensions import get_args
 
 from empkins_io.sensors.psg.psg_systems import PSG_SYSTEM
 
@@ -187,9 +187,7 @@ PSG_GROUP_MAPPING_MESA: Dict[PSG_GROUP, Sequence[PSG_CHANNELS_MESA]] = {
 
 
 def get_full_PSG(system: PSG_SYSTEM) -> Sequence[str]:
-    """
-    Return full PSG
-    """
+    """Return full PSG."""
     if system not in get_args(PSG_SYSTEM):
         raise ValueError(f"Invalid 'system'! Expected one of {get_args(PSG_SYSTEM)}, got {system}.")
     if system == "mesa":
