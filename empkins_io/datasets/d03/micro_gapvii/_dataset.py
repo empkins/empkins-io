@@ -337,10 +337,6 @@ class MicroBaseDataset(Dataset):
         return path
 
     @property
-    def nilspod(self) -> pd.DataFrame:  # TODO: implement
-        raise NotImplementedError("NilsPod data is not yet implemented!")
-
-    @property
     def expected_files_list(self) -> pd.DataFrame:
         file_path = self.base_path / "expected_files_per_subject.csv"
         return pd.read_csv(file_path, index_col=2)
