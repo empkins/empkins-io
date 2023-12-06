@@ -93,14 +93,10 @@ class MicroBaseDataset(Dataset):
     CONDITIONS = ["tsst", "ftsst"]
 
     MISSING_DATA: Sequence[str] = [
-        # "VP_21",
-        # "VP_24",
-        # "VP_29",
-        # "VP_41",
-        "VP_45",
+        "VP_045",
     ]  # Missing data (add participant IDs here)
 
-    MISSING_RADAR_SYNC_IN_PEAKS: Sequence[str] = ["VP_02", "VP_03"]
+    MISSING_RADAR_SYNC_IN_PEAKS: Sequence[str] = ["VP_002", "VP_003"]
 
     def __init__(
         self,
@@ -148,16 +144,16 @@ class MicroBaseDataset(Dataset):
 
     @property
     def subset_micro1_0(self):
-        # return the subset with subject identifiers > VP_45
+        # return the subset with subject identifiers > VP_045
         self.subset_index = self.index.query(
-            "subject >= 'VP_01' and subject <= 'VP_45'"
+            "subject >= 'VP_001' and subject <= 'VP_045'"
         )
         return self
 
     @property
     def subset_micro1_1(self):
-        # return the subset from the second part of the study VP >= 50
-        self.subset_index = self.index.query("subject >= 'VP_50'")
+        # return the subset from the second part of the study VP >= 050
+        self.subset_index = self.index.query("subject >= 'VP_050'")
         return self
 
     @property
