@@ -55,7 +55,9 @@ class MicroBaseDataset(Dataset):
         "chest": "b0c2",  # ecg
         "sternum": "157e",  # sternum
         "sync": "9e02",  # sync with mocap (MASTER)
-        "board": "b012",  # sync with video (clapper board)
+        "board_broken": "b012",
+        "board": "3d73"
+        # sync with video (clapper board)
     }
 
     PHASE_COARSE = [
