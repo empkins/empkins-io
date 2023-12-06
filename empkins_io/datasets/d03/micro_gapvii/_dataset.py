@@ -17,6 +17,7 @@ from empkins_io.datasets.d03.micro_gapvii.helper import (
     _load_nilspod_session,
     _load_radar_data,
     _load_timelog,
+    _load_timelog_video,
     get_opendbm_derived_features,
     load_opendbm_acoustic_data,
     load_opendbm_acoustic_seg_data,
@@ -241,6 +242,19 @@ class MicroBaseDataset(Dataset):
 
         # TODO allow for multiple participants and conditions in the future (return as concatenated dataframe)
         raise ValueError("Timelog can only be accessed for a single participant and a single condition at once!")
+    
+    @property
+    def timelog_video(self) -> pd.DataFrame:
+        if self.is_single(["subject", "condition"]):
+            if not self._all_phases_selected():
+                raise ValueError("Timelog can only be accessed for all phases or one specific phase!")
+
+            participant_id = self.index["subject"][0]
+            condition = self.index["condition"][0]
+            return self._get_timelog_video(participant_id, condition)
+
+        # TODO allow for multiple participants and conditions in the future (return as concatenated dataframe)
+        raise ValueError("Timelog can only be accessed for a single participant and a single condition at once!")
 
     @property
     def emrad(self) -> pd.DataFrame:
@@ -386,6 +400,9 @@ class MicroBaseDataset(Dataset):
 
     def _get_timelog(self, participant_id: str, condition: str, phase: str) -> pd.DataFrame:
         return _load_timelog(self.base_path, participant_id, condition, phase, self.phase_fine)
+    
+    def _get_timelog_video(self, participant_id: str, condition: str) -> pd.DataFrame:
+        return _load_timelog_video(self.base_path, participant_id, condition)
 
     def _all_phases_selected(self) -> bool:
         # check if all phases are selected
