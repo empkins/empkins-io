@@ -5,6 +5,7 @@ from typing import Dict, Optional, Tuple
 import pandas as pd
 from biopsykit.io.nilspod import _handle_counter_inconsistencies_session
 
+from empkins_io.datasets.d03._utils.dataset_utils import get_uncleaned_openpose_data
 from empkins_io.datasets.d03.macro_ap01._custom_synced_session import CustomSyncedSession
 from empkins_io.sensors.motion_capture.motion_capture_formats import mvnx
 from empkins_io.utils._types import path_t, str_t
@@ -53,7 +54,7 @@ def _load_tsst_mocap_data(
     mocap_file = mocap_path.joinpath(f"{subject_id}_{condition}-TEST.mvnx")
     if not mocap_file.exists():
         # look for gzip file
-        mocap_file = mocap_path.with_suffix(".mvnx.gz")
+        mocap_file = mocap_file.with_suffix(".mvnx.gz")
 
     if not mocap_file.exists():
         raise FileNotFoundError(f"File '{mocap_file}' not found!")
@@ -85,7 +86,7 @@ def _load_gait_mocap_data(
         mocap_file = mocap_path.joinpath(f"{subject_id}_{condition}-{test}{trial}_{speed}.mvnx")
 
     if not mocap_file.exists():
-        mocap_file = mocap_path.with_suffix(".mvnx.gz")
+        mocap_file = mocap_file.with_suffix(".mvnx.gz")
 
     if not mocap_file.exists():
         raise FileNotFoundError(f"File '{mocap_file}' not found!")
@@ -102,6 +103,8 @@ def _get_times_for_mocap(
 ) -> pd.DataFrame:
     if phase == "total":
         timelog = timelog.drop(columns="prep", level="phase")
+        timelog = timelog.loc[:, [("talk", "start"), ("math", "end")]]
+        timelog = timelog.rename({"talk": "total", "math": "total"}, level="phase", axis=1)
     else:
         if isinstance(phase, str):
             phase = [phase]

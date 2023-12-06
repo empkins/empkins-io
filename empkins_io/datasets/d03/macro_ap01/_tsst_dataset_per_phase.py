@@ -1,14 +1,14 @@
 from functools import cached_property, lru_cache
 from itertools import product
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Dict, Union
 
 import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
 
 from empkins_io.datasets.d03._utils.dataset_utils import get_cleaned_openpose_data
 from empkins_io.datasets.d03.macro_ap01 import MacroStudyTsstDataset
-from empkins_io.datasets.d03.macro_ap01.helper import _load_tsst_mocap_data
-from empkins_io.utils._types import path_t
+from empkins_io.datasets.d03.macro_ap01.helper import _load_tsst_mocap_data, _get_times_for_mocap
+from empkins_io.utils._types import path_t, str_t
 
 _cached_load_mocap_data = lru_cache(maxsize=4)(_load_tsst_mocap_data)
 
@@ -62,19 +62,34 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
         return index
 
     @cached_property
-    def mocap_data(self) -> pd.DataFrame:
+    def mocap_data(self) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
         if self.is_single(["subject", "condition"]):
             subject_id = self.index["subject"][0]
             condition = self.index["condition"][0]
             if self.is_single(None):
-                phase = self.index["phase"].unique()[0]
+                phase = self.index["phase"][0]
             else:
-                # TODO: just because more than one phase is present, does not mean, all of them are! So it actually
-                # cannot just be assumed to be "total"
-                phase = "total"
+                phase = list(self.index["phase"])
+
             data_total = self._get_mocap_data_per_phase(subject_id, condition, phase)
             return data_total
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+
+    def _get_mocap_data_per_phase(
+        self, subject_id: str, condition: str, phase: str_t, *, verbose: bool = True
+    ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+        data, start = self._get_mocap_data(subject_id, condition, verbose=verbose)
+        timelog = self.timelog_test
+        times = _get_times_for_mocap(timelog, start, phase)
+
+        if isinstance(phase, str):
+            return data.loc[times.loc[phase, "start"] : times.loc[phase, "end"]]
+
+        data_total = {}
+        for ph in phase:
+            data_total[ph] = data.loc[times.loc[ph, "start"] : times.loc[ph, "end"]]
+
+        return data_total
 
     @property
     def openpose_data(self) -> pd.DataFrame:
