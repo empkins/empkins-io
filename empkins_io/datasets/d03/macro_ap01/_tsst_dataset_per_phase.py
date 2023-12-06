@@ -63,17 +63,18 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
 
     @cached_property
     def mocap_data(self) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
-        if self.is_single(["subject", "condition"]):
-            subject_id = self.index["subject"][0]
-            condition = self.index["condition"][0]
-            if self.is_single(None):
-                phase = self.index["phase"][0]
-            else:
-                phase = list(self.index["phase"])
+        if not self.is_single(["subject", "condition"]):
+            raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
-            data_total = self._get_mocap_data_per_phase(subject_id, condition, phase)
-            return data_total
-        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+        subject_id = self.index["subject"][0]
+        condition = self.index["condition"][0]
+        if self.is_single(None):
+            phase = self.index["phase"][0]
+        else:
+            phase = list(self.index["phase"])
+
+        data_total = self._get_mocap_data_per_phase(subject_id, condition, phase)
+        return data_total
 
     def _get_mocap_data_per_phase(
         self, subject_id: str, condition: str, phase: str_t, *, verbose: bool = True

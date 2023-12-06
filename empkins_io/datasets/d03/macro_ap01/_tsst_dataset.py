@@ -63,17 +63,18 @@ class MacroStudyTsstDataset(MacroBaseDataset):
 
     @cached_property
     def mocap_data(self) -> pd.DataFrame:
-        if self.is_single(None):
-            subject_id = self.index["subject"][0]
-            condition = self.index["condition"][0]
-            data, start = self._get_mocap_data(subject_id, condition, verbose=self.verbose)
+        if not self.is_single(None):
+            raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
-            times = _get_times_for_mocap(self.timelog_test, start, phase="total")
-            times = times.loc["total"]
-            data_total = data.loc[times["start"]:times["end"]]
+        subject_id = self.index["subject"][0]
+        condition = self.index["condition"][0]
+        data, start = self._get_mocap_data(subject_id, condition, verbose=self.verbose)
 
-            return data_total
-        raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+        times = _get_times_for_mocap(self.timelog_test, start, phase="total")
+        times = times.loc["total"]
+        data_total = data.loc[times["start"] : times["end"]]
+
+        return data_total
 
     def _get_mocap_data(self, subject_id: str, condition: str, *, verbose: bool = True) -> pd.DataFrame:
         if self.use_cache:
