@@ -35,7 +35,7 @@ class BaseDataset(Dataset):
     trigger_data_extraction: bool
     bp_tl_shift: Union[pd.Timedelta, None]
 
-    _sampling_rates: Dict[str, float] = {
+    _SAMPLING_RATES: Dict[str, float] = {
         "radar_original": 8000000 / 4096,
         "biopac_original": 2000,
         "resampled": 1000
@@ -74,7 +74,7 @@ class BaseDataset(Dataset):
 
     @property
     def sampling_rates(self) -> Dict[str, float]:
-        return self._sampling_rates
+        return self._SAMPLING_RATES
 
     @property
     def biopac_timelog_shift(self):
@@ -231,7 +231,7 @@ class BaseDataset(Dataset):
         biopac = _load_biopac_data(
             self.base_path,
             participant_id=participant_id,
-            fs=self._sampling_rates,
+            fs=self._SAMPLING_RATES,
             channel_mapping=self.BIOPAC_CHANNEL_MAPPING,
             state=state,
             trigger_extraction=self.trigger_data_extraction,
@@ -253,7 +253,7 @@ class BaseDataset(Dataset):
         radar = _load_radar_data(
             self.base_path,
             participant_id=participant_id,
-            fs=self._sampling_rates,
+            fs=self._SAMPLING_RATES,
             channel_mapping=self.BIOPAC_CHANNEL_MAPPING,
             state=state,
             trigger_extraction=self.trigger_data_extraction,
