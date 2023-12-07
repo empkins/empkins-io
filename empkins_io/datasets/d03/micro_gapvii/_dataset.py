@@ -123,7 +123,7 @@ class MicroBaseDataset(Dataset):
         participant_ids = [
             participant_dir.name
             for participant_dir in get_subject_dirs(
-                self.base_path.joinpath("data_per_subject"), "VP_[0-9]{2}"
+                self.base_path.joinpath("data_per_subject"), "VP_[0-9]{3}"
             )
         ]
 
