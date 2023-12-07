@@ -27,7 +27,7 @@ class RadarCardiaPreStudyHDataset(BaseDataset):
         "Digital input": "sync"
     }
 
-    _sampling_rates: Dict[str, float] = {
+    _SAMPLING_RATES: Dict[str, float] = {
         "radar_original": 2400,
         "biopac_original": 2000,
         "resampled": 1000

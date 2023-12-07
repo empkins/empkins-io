@@ -15,6 +15,7 @@ from empkins_io.utils._types import path_t
 
 
 class RadarCardiaStudyDataset(BaseDataset):
+    exclude_ecg_seg_failed: bool
 
     BIOPAC_CHANNEL_MAPPING: Dict[str, str] = {
         "ecg": "ecg",
@@ -24,6 +25,8 @@ class RadarCardiaStudyDataset(BaseDataset):
         "sync": "sync"
     }
 
+    SUBJECTS_ECG_SEG_FAILED: Tuple[str] = ("VP_04",)
+
     def __init__(
             self,
             base_path: path_t,
@@ -31,9 +34,11 @@ class RadarCardiaStudyDataset(BaseDataset):
             subset_index: Optional[Sequence[str]] = None,
             use_cache: Optional[bool] = False,
             calc_biopac_timelog_shift: Optional[bool] = True,
-            trigger_data_extraction: Optional[bool] = False
-
+            trigger_data_extraction: Optional[bool] = False,
+            exclude_ecg_seg_failed: Optional[bool] = True
     ):
+        self.exclude_ecg_seg_failed = exclude_ecg_seg_failed
+
         super().__init__(
             base_path=base_path,
             groupby_cols=groupby_cols,
@@ -47,6 +52,11 @@ class RadarCardiaStudyDataset(BaseDataset):
         subject_ids = [
             subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_*")
         ]
+
+        if self.exclude_ecg_seg_failed:
+            for subject_id in self.SUBJECTS_ECG_SEG_FAILED:
+                if subject_id in subject_ids:
+                    subject_ids.remove(subject_id)
 
         breathing = ["normal", "hold"]
         body_parts_1 = ["baseline", "temporalis", "carotis", "brachialis", "radialis_prox", "radialis_med",
