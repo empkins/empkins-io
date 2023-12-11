@@ -75,12 +75,12 @@ class MicroBaseDataset(Dataset):
         "Prep",
         "Pause_1",
         "Talk_1",
-        "Talk_2",
         "Pause_2",
+        "Talk_2",
         "Pause_3",
         "Math_1",
-        "Math_2",
         "Pause_4",
+        "Math_2",
         "Pause_5",
     ]
 
@@ -320,7 +320,7 @@ class MicroBaseDataset(Dataset):
         participant_id = self.index["subject"][0]
         condition = self.index["condition"][0]
         path = _build_data_path(self.base_path, participant_id, condition)
-        path = path.joinpath(f"video/face/processed/video_face_{participant_id.lower()}_{condition}.mp4")
+        path = path.joinpath(f"video/face/raw/video_face_{participant_id.lower()}_{condition}.mp4")
         return path
 
     @property
@@ -397,7 +397,8 @@ class MicroBaseDataset(Dataset):
             return data, fs
 
     def _get_timelog(self, participant_id: str, condition: str, phase: str) -> pd.DataFrame:
-        return _load_timelog(self.base_path, participant_id, condition, phase, self.phase_fine)
+        timelog = _load_timelog(self.base_path, participant_id, condition, phase, self.phase_fine)
+        return self._validate_timelog_timestamps(timelog)
     
     def _get_timelog_video(self, participant_id: str, condition: str) -> pd.DataFrame:
         return _load_timelog_video(self.base_path, participant_id, condition)
@@ -407,6 +408,26 @@ class MicroBaseDataset(Dataset):
         all_phases_fine = self.phase_fine and (len(self.index["phase"]) == len(self.PHASE_FINE))
         all_phases_coarse = not self.phase_fine and (len(self.index["phase"]) == len(self.PHASE_COARSE))
         return all_phases_fine or all_phases_coarse
+    
+    def _validate_timelog_timestamps(self, timelog):
+        timelog = timelog.stack().T.reset_index()
+        # Define the order of the phases
+        phase_order = self.PHASE_FINE
+        # Convert 'phase' to a categorical type with the defined order
+        timelog['phase'] = pd.Categorical(timelog['phase'], categories=phase_order, ordered=True)
+        # Sort the DataFrame by the 'phase' column
+        timelog = timelog.sort_values('phase')
+
+        # Shift the 'start' column to get the 'next_start' value for each phase
+        timelog[('time','next_start')] = timelog[('time','start')].shift(-1)
+
+        # Where the 'end' of the current phase is greater than the 'next_start', adjust the 'end'
+        timelog.loc[timelog[('time','end')] > timelog[('time','next_start')], ('time','end')] = timelog[('time','next_start')] - pd.Timedelta(seconds=3)
+        timelog = timelog.set_index("phase")
+        timelog = timelog[[("time","start"),("time","end")]].stack().T
+        
+        return timelog
+
 
     # def _get_opendbm_facial_data(self, subject_id: str, condition: str) -> pd.DataFrame:
     #     if self.use_cache:
