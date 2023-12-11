@@ -12,7 +12,7 @@ def find_peak_around_timestamp(time_stamp: pd.Timestamp, series: pd.Series, roi_
     return peak
 
 
-def get_claps_from_board_and_timelog(board_data: pd.DataFrame, timelog: pd.DataFrame):
+def get_claps_from_board_and_timelog(board_data: pd.DataFrame, timelog: pd.DataFrame, phase_fine=False):
     """Returns the timestamps of the norm maximum in the timespan 1min before and after the (f)TSST beginning and end, each.
 
     Parameters
@@ -31,7 +31,7 @@ def get_claps_from_board_and_timelog(board_data: pd.DataFrame, timelog: pd.DataF
     board_data = board_data.copy()
     board_data["norm"] = norm(board_data, axis=1)
     first_timestamp = timelog.Prep.end.iloc[0]
-    second_timestamp = timelog.Math.end.iloc[0]
+    second_timestamp = timelog.Math.end.iloc[0] if not phase_fine else timelog.Math_2.end.iloc[0]
     if second_timestamp - first_timestamp > pd.Timedelta(15, "min"):
         # TODO does this need more advanced error handling?
         raise Warning("Preparation end and math end timestamps are more than 15min apart. This is unusual.")
@@ -41,10 +41,10 @@ def get_claps_from_board_and_timelog(board_data: pd.DataFrame, timelog: pd.DataF
     return first_clap, second_clap
 
 
-def get_xsens_start_and_end(xsens_sync_data: pd.DataFrame, timelog: pd.DataFrame):
+def get_xsens_start_and_end(xsens_sync_data: pd.DataFrame, timelog: pd.DataFrame, phase_fine=False):
     sync_signal = xsens_sync_data["analog_1"]
     first_timestamp = timelog.Prep.start.iloc[0]
-    second_timestamp = timelog.Math.end.iloc[0]
+    second_timestamp = timelog.Math.end.iloc[0] if not phase_fine else timelog.Math_2.end.iloc[0]
     if second_timestamp - first_timestamp > pd.Timedelta(25, "min"):
         # TODO does this need more advanced error handling?
         raise Warning("Preparation start and math end timestamps are more than 25min apart. This is unusual.")
@@ -59,9 +59,9 @@ def get_biopac_start(biopac_data:pd.DataFrame, timelog:pd.DataFrame):
     biopac_start = find_peak_around_timestamp(first_timestamp, biopac_signal)
     return biopac_start
 
-def sync_biopac_with_nilspod(biopac_data:pd.DataFrame, xsens_sync_data: pd.DataFrame, timelog:pd.DataFrame):
+def sync_biopac_with_nilspod(biopac_data:pd.DataFrame, xsens_sync_data: pd.DataFrame, timelog:pd.DataFrame, phase_fine=False):
     # get timestamp of nilspod peak
-    xsens_start, _ = get_xsens_start_and_end(xsens_sync_data, timelog)
+    xsens_start, _ = get_xsens_start_and_end(xsens_sync_data, timelog, phase_fine=phase_fine)
     # get timestamp of biopac peak
     biopac_start = get_biopac_start(biopac_data, timelog)
     # get difference between timelogs

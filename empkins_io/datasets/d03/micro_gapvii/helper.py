@@ -95,6 +95,7 @@ def _load_timelog_video(base_path: path_t, participant_id: str, condition: str) 
     timelog_file_path = timelog_dir_path.joinpath(f"{participant_id}_{condition}_cleaned_timelog_video.json")
     if timelog_file_path.exists():
         timelog = json.load(timelog_file_path.open(encoding="utf8"))
+        return timelog
     raise TimelogNotFoundException(
         f"No cleaned timelog file was found for {participant_id}! "
         "Run the 'notebooks/clean_timelog.ipynb' notebook first!"
