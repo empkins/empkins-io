@@ -162,7 +162,7 @@ if __name__ == "__main__":
 
     if not expected_files_path.exists():
         raise FileNotFoundError(f"Expected files list {expected_files_path} does not exist.")
-    expected_files_list = pd.read_csv(expected_files_path, index_col=1)
+    expected_files_list = pd.read_csv(expected_files_path, index_col=2)
 
     # check data completeness
     print(f"Checking for data completeness in {dps_folder}  ...")
