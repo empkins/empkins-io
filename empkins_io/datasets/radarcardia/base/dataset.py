@@ -192,7 +192,7 @@ class BaseDataset(Dataset):
         protocol_path = _build_protocol_path(base_path=self.base_path, participant_id=participant_id)
         return protocol_path
 
-    def save_data_to_location(self, data: pd.DataFrame, file_name: str):
+    def save_data_to_location(self, data: pd.DataFrame, file_name: str, sub_dir: Optional[str] = None):
         locations = self.index.drop(columns="subject").columns.tolist()
         if not self.is_single(locations):
             raise ValueError("Data can only be saved for a single location-breathing combination")
@@ -204,10 +204,11 @@ class BaseDataset(Dataset):
             participant_id=participant_id,
             data=data,
             location=location,
-            file_name=file_name
+            file_name=file_name,
+            sub_dir=sub_dir
         )
 
-    def load_data_from_location(self, file_name: str):
+    def load_data_from_location(self, file_name: str, sub_dir: Optional[str] = None):
         locations = self.index.drop(columns="subject").columns.tolist()
         if not self.is_single(locations):
             raise ValueError("Data can only be loaded for a single location-breathing combination")
@@ -218,7 +219,8 @@ class BaseDataset(Dataset):
             base_path=self.base_path,
             participant_id=participant_id,
             location=location,
-            file_name=file_name
+            file_name=file_name,
+            sub_dir=sub_dir
         )
         return data
 

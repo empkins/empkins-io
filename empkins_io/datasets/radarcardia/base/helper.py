@@ -411,10 +411,17 @@ def _save_data_to_location_h5(
         data: pd.DataFrame,
         location: str,
         file_name: str,
+        sub_dir: str
 ):
-    data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-        f"data_per_location/{location}/{file_name}_{participant_id}.h5"
-    )
+    if sub_dir is None:
+        data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+            f"data_per_location/{location}/{file_name}_{participant_id}.h5"
+        )
+    else:
+        data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+            f"data_per_location/{location}/{sub_dir}/{file_name}_{participant_id}.h5"
+        )
+
     data_path.parent.mkdir(parents=True, exist_ok=True)
     data.to_hdf(data_path, mode="w", key="data", index=True)
 
@@ -424,10 +431,16 @@ def _load_data_from_location_h5(
         participant_id: str,
         location: str,
         file_name: str,
+        sub_dir: str
 ):
-    data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-        f"data_per_location/{location}/{file_name}_{participant_id}.h5"
-    )
+    if sub_dir is None:
+        data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+            f"data_per_location/{location}/{file_name}_{participant_id}.h5"
+        )
+    else:
+        data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+            f"data_per_location/{location}/{sub_dir}/{file_name}_{participant_id}.h5"
+        )
     data = pd.read_hdf(data_path, key="data")
 
     return data
