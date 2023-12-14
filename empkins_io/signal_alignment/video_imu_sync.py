@@ -32,7 +32,7 @@ def get_claps_from_board_and_timelog(board_data: pd.DataFrame, timelog: pd.DataF
     board_data["norm"] = norm(board_data, axis=1)
     first_timestamp = timelog.Prep.end.iloc[0]
     second_timestamp = timelog.Math.end.iloc[0] if not phase_fine else timelog.Math_2.end.iloc[0]
-    if second_timestamp - first_timestamp > pd.Timedelta(15, "min"):
+    if second_timestamp - first_timestamp > pd.Timedelta(20, "min"):
         # TODO does this need more advanced error handling?
         raise Warning("Preparation end and math end timestamps are more than 15min apart. This is unusual.")
 

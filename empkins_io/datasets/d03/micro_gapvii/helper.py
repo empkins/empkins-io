@@ -62,12 +62,16 @@ def _load_radar_data(base_path: path_t, participant_id: str, condition: str) -> 
     fs = dataset_radar.sampling_rate_hz
     return radar_df, fs
 
-
-def _load_timelog(base_path: path_t, participant_id: str, condition: str, phase: str, phase_fine: bool) -> pd.DataFrame:
+def _construct_timelog_path(base_path: path_t, participant_id: str, condition: str):
     timelog_dir_path = _build_data_path(base_path, participant_id=participant_id, condition=condition).joinpath(
         "timelog/cleaned"
     )
     timelog_file_path = timelog_dir_path.joinpath(f"{participant_id}_{condition}_processed_phases_timelog.csv")
+    return timelog_file_path
+
+
+def _load_timelog(base_path: path_t, participant_id: str, condition: str, phase: str, phase_fine: bool) -> pd.DataFrame:
+    timelog_file_path = _construct_timelog_path(base_path, participant_id, condition)
     if timelog_file_path.exists():
         timelog = load_atimelogger_file(timelog_file_path, timezone="Europe/Berlin")
         if (phase == "all") & phase_fine:

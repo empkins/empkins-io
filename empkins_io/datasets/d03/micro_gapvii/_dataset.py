@@ -26,6 +26,7 @@ from empkins_io.datasets.d03.micro_gapvii.helper import (
     load_opendbm_facial_tremor_data,
     load_opendbm_movement_data,
     load_speaker_diarization,
+    _construct_timelog_path
 )
 from empkins_io.utils._types import path_t
 
@@ -337,6 +338,14 @@ class MicroBaseDataset(Dataset):
         return path
 
     @property
+    def timelog_path(self) -> Path:
+        participant_id = self.index["subject"][0]
+        condition = self.index["condition"][0]
+        path = self.base_path.joinpath(f"data_per_subject/{participant_id}/{condition}")
+        path = path.joinpath(f"timelog/cleaned/{participant_id}_{condition}_processed_phases_timelog.csv")
+        return path
+    
+    @property
     def expected_files_list(self) -> pd.DataFrame:
         file_path = self.base_path / "expected_files_per_subject.csv"
         return pd.read_csv(file_path, index_col=2)
@@ -399,6 +408,9 @@ class MicroBaseDataset(Dataset):
     def _get_timelog(self, participant_id: str, condition: str, phase: str) -> pd.DataFrame:
         timelog = _load_timelog(self.base_path, participant_id, condition, phase, self.phase_fine)
         return self._validate_timelog_timestamps(timelog)
+    
+    def _get_timelog_path(self,participant_id: str, condition: str, phase: str):
+        return _construct_timelog_path(self.base_path, participant_id, condition)
     
     def _get_timelog_video(self, participant_id: str, condition: str) -> pd.DataFrame:
         return _load_timelog_video(self.base_path, participant_id, condition)
