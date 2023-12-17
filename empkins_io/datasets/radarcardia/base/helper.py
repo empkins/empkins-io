@@ -523,4 +523,24 @@ def _load_apnea_segmentation(base_path: path_t, participant_id: str) -> Dict:
         apnea_seg = json.load(apnea_seg_file_path.open(encoding="utf-8"))
         return apnea_seg
     else:
-        raise FileNotFoundError("Apnea Segmentation file was not found.")
+        raise FileNotFoundError("Apnea segmentation file was not found.")
+
+
+def _load_visual_segmentation(base_path: path_t, participant_id: str) -> pd.DataFrame:
+    file_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+        f"visual_segmentation/visual_segmentation_{participant_id}.xlsx"
+    )
+    if file_path.exists():
+        seg = pd.read_excel(file_path, index_col=0)
+        return seg
+    else:
+        raise FileNotFoundError("Visual segmentation file was not found.")
+
+
+def _load_flipping(base_path: path_t) -> pd.DataFrame:
+    file_path = base_path.joinpath("flipping_total/flipping_total.xlsx")
+    if file_path.exists():
+        data = pd.read_excel(file_path, index_col=0)
+        return data
+    else:
+        raise FileNotFoundError("Flipping file was not found.")
