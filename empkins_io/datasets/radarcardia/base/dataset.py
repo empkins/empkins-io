@@ -18,7 +18,9 @@ from empkins_io.datasets.radarcardia.base.helper import (
     _load_protocol,
     _save_data_to_location_h5,
     _load_data_from_location_h5,
-    _load_apnea_segmentation
+    _load_apnea_segmentation,
+    _load_visual_segmentation,
+    _load_flipping
 )
 
 from empkins_io.utils._types import path_t
@@ -182,15 +184,38 @@ class BaseDataset(Dataset):
 
     @property
     def timelog_path(self):
+        if not self.is_single(["subject"]):
+            raise ValueError("Timelog path can only be accessed for one single participant at once")
         participant_id = self.index["subject"][0]
         timelog_path = _build_timelog_path(base_path=self.base_path, participant_id=participant_id)
         return timelog_path
 
     @property
     def protocol_path(self):
+        if not self.is_single(["subject"]):
+            raise ValueError("Protocol path can only be accessed for one single participant at once")
         participant_id = self.index["subject"][0]
         protocol_path = _build_protocol_path(base_path=self.base_path, participant_id=participant_id)
         return protocol_path
+
+    @property
+    def visual_segmentation(self):
+        if not self.is_single(["subject"]):
+            raise ValueError("Visual Inspection Segmentation can only be accessed for one single participant at once")
+        participant_id = self.index["subject"][0]
+        data = self._get_visual_segmentation(participant_id)
+        if self.is_single(None):
+            loc = self._get_locations_from_index()[0]
+            return data.loc[loc]
+        return data
+
+    @property
+    def flipping(self):
+        flipping_data = self._get_flipping()
+        if self.is_single(["subject"]):
+            participant_id = self.index["subject"][0]
+            return flipping_data[participant_id]
+        return flipping_data
 
     def save_data_to_location(self, data: pd.DataFrame, file_name: str, sub_dir: Optional[str] = None):
         locations = self.index.drop(columns="subject").columns.tolist()
@@ -292,3 +317,9 @@ class BaseDataset(Dataset):
             return apnea_seg[loc]
         else:
             raise ValueError("Apnea Segmentation is only available for hold measurements")
+
+    def _get_visual_segmentation(self, participant_id: str) -> pd.DataFrame:
+        return _load_visual_segmentation(self.base_path, participant_id)
+
+    def _get_flipping(self) -> pd.DataFrame:
+        return _load_flipping(self.base_path)
