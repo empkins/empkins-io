@@ -537,8 +537,8 @@ def _load_visual_segmentation(base_path: path_t, participant_id: str) -> pd.Data
         raise FileNotFoundError("Visual segmentation file was not found.")
 
 
-def _load_flipping(base_path: path_t) -> pd.DataFrame:
-    file_path = base_path.joinpath("flipping_total/flipping_total.xlsx")
+def _load_flipping(base_path: path_t, modality: str) -> pd.DataFrame:
+    file_path = base_path.joinpath(f"flipping_total/{modality}_flipping_total.xlsx")
     if file_path.exists():
         data = pd.read_excel(file_path, index_col=0)
         return data

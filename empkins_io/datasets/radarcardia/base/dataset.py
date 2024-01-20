@@ -210,8 +210,16 @@ class BaseDataset(Dataset):
         return data
 
     @property
-    def flipping(self):
-        flipping_data = self._get_flipping()
+    def biopac_flipping(self):
+        flipping_data = self._get_flipping("biopac")
+        if self.is_single(["subject"]):
+            participant_id = self.index["subject"][0]
+            return flipping_data[participant_id]
+        return flipping_data
+
+    @property
+    def emrad_flipping(self):
+        flipping_data = self._get_flipping("emrad")
         if self.is_single(["subject"]):
             participant_id = self.index["subject"][0]
             return flipping_data[participant_id]
@@ -321,5 +329,5 @@ class BaseDataset(Dataset):
     def _get_visual_segmentation(self, participant_id: str) -> pd.DataFrame:
         return _load_visual_segmentation(self.base_path, participant_id)
 
-    def _get_flipping(self) -> pd.DataFrame:
-        return _load_flipping(self.base_path)
+    def _get_flipping(self, modality: str) -> pd.DataFrame:
+        return _load_flipping(self.base_path, modality)
