@@ -56,6 +56,19 @@ class BaseDataset(Dataset):
             calc_biopac_timelog_shift: Optional[bool] = True,
             trigger_data_extraction: Optional[bool] = False
     ):
+        """
+        Creates new instance of the BaseDataset class
+        Args:
+            base_path: path_t (path to the base directory of the dataset)
+            groupby_cols: Optional[Sequence[str]]
+            subset_index: Optional[Sequence[str]]
+            use_cache: Optional[bool] (currently not implemented)
+            calc_biopac_timelog_shift: Optional[bool] (flag indicating whether to calculate and use the time shift between the
+                BIOPAC event marker and the start of the sync timelog entry to correct start and end times)
+            trigger_data_extraction: Optional[bool] (flag indicating whether to trigger the data extraction from the
+                BIOPAC and radar data)
+        Returns:
+        """
         self.base_path = base_path
         self.use_cache = use_cache
         self.calc_biopac_timelog_shift = calc_biopac_timelog_shift

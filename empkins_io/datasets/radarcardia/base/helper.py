@@ -220,6 +220,7 @@ def _load_location_synced_data(
     data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
         f"data_per_location/{location}/{data_type}_data_{participant_id}.h5"
     )
+    # for location syncing resampling is not necessary as it was already applied on the whole data recording
     if not data_path.exists() or trigger_extraction:
         synced_dataset = _sync_datasets_without_resample(
             base_path=base_path,
@@ -256,7 +257,7 @@ def _sync_datasets(
         fs=fs["radar_original"],
         trigger_extraction=trigger_extraction
     )
-
+    # sync an resample entire data recording
     synced_dataset = SyncedDataset(sync_type="m-sequence")
     synced_dataset.add_dataset("biopac", data=biopac_data, sync_channel_name="sync",
                                sampling_rate=fs["biopac_original"])
@@ -293,7 +294,7 @@ def _sync_datasets_without_resample(
         trigger_extraction=trigger_extraction,
         data_type="emrad"
     )
-
+    # cut measurement from current location
     timelog = _load_timelog(base_path=base_path, participant_id=participant_id)
     shift = _get_biopac_timelog_shift(
         base_path=base_path, participant_id=participant_id, trigger_extraction=trigger_extraction
@@ -304,6 +305,7 @@ def _sync_datasets_without_resample(
     biopac_data = biopac_data.loc[start:end]
     radar_data = radar_data.loc[start:end]
 
+    # sync radar and biopac without resampling
     synced_dataset = SyncedDataset(sync_type="m-sequence")
     synced_dataset.add_dataset("biopac", data=biopac_data, sync_channel_name="sync",
                                sampling_rate=fs["resampled"])
