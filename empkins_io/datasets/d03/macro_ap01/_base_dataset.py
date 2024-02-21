@@ -266,6 +266,10 @@ class MacroBaseDataset(Dataset):
         return self.questionnaire["Gender"]
 
     @property
+    def handedness(self) -> pd.Series:
+        return self.questionnaire["handedness"]
+
+    @property
     def questionnaire_scores(self) -> pd.DataFrame:
         data_path = self.base_path.joinpath("questionnaires/processed/questionnaire_data_processed.csv")
         if not data_path.exists():
