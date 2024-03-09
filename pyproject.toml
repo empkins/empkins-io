@@ -10,7 +10,8 @@ numpy = ">=1.19,<1.25"
 pandas = "^1.2.0"
 scipy = "^1.7.0"
 matplotlib = "^3"
-seaborn = "^0.11.1"
+# until broken changes are fixed, we cant use seaborn >= 0.13
+seaborn = "<0.13"
 statsmodels = "^0"
 pyquaternion = "^0.9.9"
 biopsykit = {git="https://github.com/mad-lab-fau/BioPsyKit.git", branch="main", extras=["jupyter"]}
