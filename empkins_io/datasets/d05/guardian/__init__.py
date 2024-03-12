@@ -1,4 +1,3 @@
-from empkins_io.datasets.d05.guardian._base_dataset import GuardianBaseDataset
-from empkins_io.datasets.d05.guardian._tfm_dataset import TFMGuardianDataset
+from empkins_io.datasets.d05.guardian._tfm_dataset import GuardianTiltTableDataset
 
-__all__ = ["GuardianBaseDataset", "TFMGuardianDataset"]
+__all__ = ["GuardianTiltTableDataset"]
