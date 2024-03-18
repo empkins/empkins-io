@@ -19,6 +19,8 @@ biopsykit = {git="https://github.com/mad-lab-fau/BioPsyKit.git", branch="main", 
 h5py = "^3.5.0"
 tpcp = "^0.13"
 resampy = "^0.4.2"
+avro = "^1.11.3"
+fastavro = "^1.4.0"
 # opencv is optional, but required for some functions
 opencv-python = {version="^4.8", optional=true}
 
