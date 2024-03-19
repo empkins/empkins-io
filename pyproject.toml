@@ -7,15 +7,14 @@ authors = ["Robert Richer <robert.richer@fau.de>"]
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
 numpy = ">=1.19,<1.25"
-pandas = "^1.2.0"
 scipy = "^1.7.0"
 matplotlib = "^3"
 seaborn = "^0.11.1"
 statsmodels = "^0"
 pyquaternion = "^0.9.9"
-biopsykit = {git="https://github.com/mad-lab-fau/BioPsyKit.git", branch="main", extras=["jupyter"]}
+biopsykit = {path="../biopsykit", extras=["jupyter"], develop=true}
 h5py = "^3.5.0"
-tpcp = "^0.13"
+tpcp = "^0"
 resampy = "^0.4.2"
 avro = "^1.11.3"
 fastavro = "^1.4.0"
