@@ -330,6 +330,23 @@ class MacroBaseDataset(Dataset):
         )
 
     @property
+    def questionnaire_scores_relative(self) -> pd.DataFrame:
+        data_path = self.base_path.joinpath(
+            "questionnaires/processed/questionnaire_data_processed_relative.csv"
+        )
+        if not data_path.exists():
+            raise ValueError(
+                "Processed relative questionnaire data not available! "
+                "Please run the 'questionnaires/Questionnaire_Processing.ipynb' notebook first!"
+            )
+        data = load_long_format_csv(data_path)
+        subject_ids = self.index["subject"].unique()
+        conditions = self.index["condition"].unique()
+        return data.reindex(subject_ids, level="subject").reindex(
+            conditions, level="condition"
+        )
+
+    @property
     def pasa(self) -> pd.DataFrame:
         return self._extract_questionnaire_score("PASA")
 
