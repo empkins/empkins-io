@@ -127,6 +127,7 @@ class TFMTiltTableLoader:
             new_data[key2] = new_data[key2].dropna(axis=0)
 
         start_time_dict = {}
+
         for key1, value1 in cls.ORIGINAL_NAMES.items():
 
             if value1 not in names:
@@ -135,8 +136,7 @@ class TFMTiltTableLoader:
 
             else:
                 index = list(names).index(value1)
-
-                start_time_dict[key1] = pd.Timestamp(measuring_date + " " + times[0], tz="EUROPE/BERLIN")
+                start_time_dict[key1] = pd.Timestamp(measuring_date + " " + times[index], tz="EUROPE/BERLIN")
 
         return cls(data_dict=new_data, tz=tz, sampling_rate_dict={}, start_time_dict=start_time_dict)
 
