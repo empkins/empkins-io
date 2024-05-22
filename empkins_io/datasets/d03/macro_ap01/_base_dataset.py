@@ -42,62 +42,62 @@ class MacroBaseDataset(Dataset):
         "board": "e76b",  # sync with video (clapper board)
     }
 
-    SUBSETS_WITHOUT_MOCAP = (
-        ("VP_03", "tsst"),  # no math phase in tsst (aborted)
-        ("VP_31", "ftsst"),  # probably wrong sensor placement or calibration
-    )
-
-    SUBSETS_WITH_ARM_ERRORS = (
-        ("VP_07", "ftsst"),  # sign error in mocap data (arms)
-        ("VP_09", "ftsst"),  # sign error in mocap data (arms)
-        ("VP_10", "ftsst"),  # sign error in mocap data (arms)
-        ("VP_11", "ftsst"),  # sign error in mocap data (arms)
-        ("VP_22", "ftsst"),  # sign error in mocap data (arms)
-    )
-
-    SUBSETS_WITHOUT_PREP = (
-        (
-            "VP_26",
-            "ftsst",
-        ),  # prep phase is missing entirely in mocap data (TODO SOPHIE: check)
-        (
-            "VP_39",
-            "ftsst",
-        ),  # prep phase is missing entirely in mocap data (TODO SOPHIE: check)
-    )
-
-    SUBSETS_WITHOUT_GAIT_TESTS = (
-        ("VP_01", "tsst"),  # TODO Luca: check if this is correct
-        ("VP_01", "ftsst"),  # TODO Luca: check if this is correct
-        ("VP_02", "tsst"),  # TODO Luca: check if this is correct
-        ("VP_02", "ftsst"),  # TODO Luca: check if this is correct
-    )
-
-    SUBSETS_WITHOUT_OPENPOSE_DATA = (  # TODO should this not be ALL?
-        ("VP_01", "ftsst"),
-        ("VP_01", "tsst"),
-        ("VP_03", "tsst"),
-        ("VP_05", "tsst"),
-        ("VP_07", "ftsst"),
-        ("VP_08", "ftsst"),
-        ("VP_17", "ftsst"),
-        ("VP_18", "ftsst"),
-        ("VP_19", "ftsst"),
-        ("VP_21", "ftsst"),
-        ("VP_25", "tsst"),
-        ("VP_33", "ftsst"),
-        ("VP_34", "tsst"),
-        ("VP_35", "ftsst"),
-        ("VP_35", "tsst"),
-        ("VP_36", "ftsst"),
-        ("VP_36", "tsst"),
-        ("VP_37", "ftsst"),
-        ("VP_37", "tsst"),
-        ("VP_38", "ftsst"),
-        ("VP_38", "tsst"),
-        ("VP_41", "ftsst"),
-        ("VP_41", "tsst"),
-    )
+    # SUBSETS_WITHOUT_MOCAP = (
+    #     ("VP_03", "tsst"),  # no math phase in tsst (aborted)
+    #     ("VP_31", "ftsst"),  # probably wrong sensor placement or calibration
+    # )
+    #
+    # SUBSETS_WITH_ARM_ERRORS = (
+    #     ("VP_07", "ftsst"),  # sign error in mocap data (arms)
+    #     ("VP_09", "ftsst"),  # sign error in mocap data (arms)
+    #     ("VP_10", "ftsst"),  # sign error in mocap data (arms)
+    #     ("VP_11", "ftsst"),  # sign error in mocap data (arms)
+    #     ("VP_22", "ftsst"),  # sign error in mocap data (arms)
+    # )
+    #
+    # SUBSETS_WITHOUT_PREP = (
+    #     (
+    #         "VP_26",
+    #         "ftsst",
+    #     ),  # prep phase is missing entirely in mocap data (TODO SOPHIE: check)
+    #     (
+    #         "VP_39",
+    #         "ftsst",
+    #     ),  # prep phase is missing entirely in mocap data (TODO SOPHIE: check)
+    # )
+    #
+    # SUBSETS_WITHOUT_GAIT_TESTS = (
+    #     ("VP_01", "tsst"),  # TODO Luca: check if this is correct
+    #     ("VP_01", "ftsst"),  # TODO Luca: check if this is correct
+    #     ("VP_02", "tsst"),  # TODO Luca: check if this is correct
+    #     ("VP_02", "ftsst"),  # TODO Luca: check if this is correct
+    # )
+    #
+    # SUBSETS_WITHOUT_OPENPOSE_DATA = (  # TODO should this not be ALL?
+    #     ("VP_01", "ftsst"),
+    #     ("VP_01", "tsst"),
+    #     ("VP_03", "tsst"),
+    #     ("VP_05", "tsst"),
+    #     ("VP_07", "ftsst"),
+    #     ("VP_08", "ftsst"),
+    #     ("VP_17", "ftsst"),
+    #     ("VP_18", "ftsst"),
+    #     ("VP_19", "ftsst"),
+    #     ("VP_21", "ftsst"),
+    #     ("VP_25", "tsst"),
+    #     ("VP_33", "ftsst"),
+    #     ("VP_34", "tsst"),
+    #     ("VP_35", "ftsst"),
+    #     ("VP_35", "tsst"),
+    #     ("VP_36", "ftsst"),
+    #     ("VP_36", "tsst"),
+    #     ("VP_37", "ftsst"),
+    #     ("VP_37", "tsst"),
+    #     ("VP_38", "ftsst"),
+    #     ("VP_38", "tsst"),
+    #     ("VP_41", "ftsst"),
+    #     ("VP_41", "tsst"),
+    # )
 
     def __init__(
         self,
