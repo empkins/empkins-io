@@ -8,7 +8,6 @@ authors = ["Robert Richer <robert.richer@fau.de>"]
 python = ">=3.9,<3.11"
 numpy = ">=1.19,<1.25"
 pandas = "^1.2.0"
-scipy = "^1.7.0"
 matplotlib = "^3"
 # until broken changes are fixed, we cant use seaborn >= 0.13
 seaborn = "<0.13"
@@ -23,6 +22,7 @@ avro = "^1.11.3"
 fastavro = "^1.4.0"
 # opencv is optional, but required for some functions
 opencv-python = {version="^4.8", optional=true}
+scipy = "^1.4.1"
 
 [tool.poetry.extras]
 opencv = ["opencv-python"]
