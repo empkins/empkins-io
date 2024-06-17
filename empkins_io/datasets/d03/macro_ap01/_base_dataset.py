@@ -30,6 +30,7 @@ _cached_load_nilspod_data = lru_cache(maxsize=4)(_load_nilspod_session)
 
 class MacroBaseDataset(Dataset):
     base_path: path_t
+    data_tabular_path: path_t
     use_cache: bool
     _sample_times_saliva: Tuple[int] = (-40, -1, 16, 25, 35, 45, 60, 75)
     _sample_times_bloodspot: Tuple[int] = (-40, 60)
@@ -73,32 +74,6 @@ class MacroBaseDataset(Dataset):
         ("VP_02", "ftsst"),  # TODO Luca: check if this is correct
     )
 
-    SUBSETS_WITHOUT_OPENPOSE_DATA = (  # TODO should this not be ALL?
-        ("VP_01", "ftsst"),
-        ("VP_01", "tsst"),
-        ("VP_03", "tsst"),
-        ("VP_05", "tsst"),
-        ("VP_07", "ftsst"),
-        ("VP_08", "ftsst"),
-        ("VP_17", "ftsst"),
-        ("VP_18", "ftsst"),
-        ("VP_19", "ftsst"),
-        ("VP_21", "ftsst"),
-        ("VP_25", "tsst"),
-        ("VP_33", "ftsst"),
-        ("VP_34", "tsst"),
-        ("VP_35", "ftsst"),
-        ("VP_35", "tsst"),
-        ("VP_36", "ftsst"),
-        ("VP_36", "tsst"),
-        ("VP_37", "ftsst"),
-        ("VP_37", "tsst"),
-        ("VP_38", "ftsst"),
-        ("VP_38", "tsst"),
-        ("VP_41", "ftsst"),
-        ("VP_41", "tsst"),
-    )
-
     def __init__(
         self,
         base_path: path_t,
@@ -115,6 +90,7 @@ class MacroBaseDataset(Dataset):
     ):
         # ensure pathlib
         self.base_path = base_path
+        self.data_tabular_path = base_path.joinpath("data_tabular")
         self.exclude_complete_subjects_if_error = exclude_complete_subjects_if_error
         self.exclude_without_mocap = exclude_without_mocap
         self.exclude_without_openpose = exclude_without_openpose
@@ -469,7 +445,7 @@ class MacroBaseDataset(Dataset):
         return data["data"].unstack("type")[[score_type]].dropna()
 
     def _load_saliva_data(self, saliva_type: str) -> pd.DataFrame:
-        data_path = self.base_path.joinpath(
+        data_path = self.data_tabular_path.joinpath(
             f"saliva/processed/{saliva_type}_samples.csv"
         )
         if not data_path.exists():
@@ -486,7 +462,7 @@ class MacroBaseDataset(Dataset):
         )
 
     def _load_saliva_features(self, saliva_type: str) -> pd.DataFrame:
-        data_path = self.base_path.joinpath(
+        data_path = self.data_tabular_path.joinpath(
             f"saliva/processed/{saliva_type}_features.csv"
         )
         data = load_long_format_csv(data_path)
