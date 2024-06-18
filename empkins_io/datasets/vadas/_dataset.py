@@ -4,11 +4,8 @@ from typing import Optional, Sequence, Tuple
 
 import biopsykit
 import pandas as pd
-from biopsykit.io.nilspod import _handle_counter_inconsistencies_session
-from biopsykit.utils.file_handling import get_subject_dirs
 from tpcp import Dataset
 
-from empkins_io.datasets.d03.macro_ap01 import CustomSyncedSession
 from empkins_io.utils._types import path_t
 
 
