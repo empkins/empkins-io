@@ -349,6 +349,10 @@ class BaseDataset(Dataset):
             sub_dir: Optional[str] (path to subdirectory in "data_per_location", e.g., "ensemble_averaging/all")
         Returns:
         """
+
+        if not self.is_single(["subject"]):
+            raise ValueError("Data can only be saved for a single participant at once")
+
         locations = self.index.drop(columns="subject").columns.tolist()
         if not self.is_single(locations):
             raise ValueError("Data can only be saved for a single location-breathing combination")
@@ -373,6 +377,9 @@ class BaseDataset(Dataset):
         Returns:
             data: pd.DataFrame (data frame containing the loaded data)
         """
+        if not self.is_single(["subject"]):
+            raise ValueError("Data can only be loaded for a single participant at once")
+
         locations = self.index.drop(columns="subject").columns.tolist()
         if not self.is_single(locations):
             raise ValueError("Data can only be loaded for a single location-breathing combination")
