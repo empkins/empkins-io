@@ -177,10 +177,12 @@ class MicroBaseDataset(Dataset):
         return None
 
     @property
-    def id_mapping(self) -> pd.DataFrame:
-        return load_long_format_csv(
+    def code_mapping(self) -> pd.DataFrame:
+        code_mapping = load_long_format_csv(
             self.data_tabular_path.joinpath("extras/processed/id_mapping.csv")
         )
+        code_mapping.columns = ["Code"]
+        return code_mapping
 
     @property
     def subset_demographics(self):
@@ -230,7 +232,7 @@ class MicroBaseDataset(Dataset):
     @property
     def condition_order(self) -> pd.DataFrame:
         return load_long_format_csv(
-            self.base_path.joinpath("extras/processed/condition_order.csv"),
+            self.data_tabular_path.joinpath("extras/processed/condition_order.csv"),
             index_cols=["subject"],
         )
 
@@ -378,8 +380,8 @@ class MicroBaseDataset(Dataset):
         participant_id = self.index["subject"][0]
         condition = self.index["condition"][0]
         path = _build_data_path(self.base_path, participant_id, condition)
-        path = path.joinpath(
-            f"video/face/processed/video_face_{participant_id.lower()}_{condition}.mp4"
+        path = path.joinpath(  # dele
+            f"video/face/raw/video_face_{participant_id.lower()}_{condition}.mp4"
         )
         return path
 

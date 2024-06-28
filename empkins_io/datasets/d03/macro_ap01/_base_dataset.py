@@ -347,7 +347,9 @@ class MacroBaseDataset(Dataset):
 
     @property
     def day_condition_map(self) -> pd.DataFrame:
-        data = pd.read_csv(self.base_path.joinpath("extras/condition_order.csv"))
+        data = pd.read_csv(
+            self.data_tabular_path.joinpath("extras/condition_order.csv")
+        )
         data = data.set_index("subject")[["T1", "T2"]].stack()
         data.index = data.index.set_names("day", level=-1)
         data = pd.DataFrame(data, columns=["condition"])
@@ -445,9 +447,7 @@ class MacroBaseDataset(Dataset):
         return data["data"].unstack("type")[[score_type]].dropna()
 
     def _load_saliva_data(self, saliva_type: str) -> pd.DataFrame:
-        data_path = self.data_tabular_path.joinpath(
-            f"saliva/processed/{saliva_type}_samples.csv"
-        )
+        data_path = self.data_tabular_path.joinpath(f"saliva/final/{saliva_type}.csv")
         if not data_path.exists():
             raise ValueError(
                 "Processed saliva data not available! "
