@@ -593,10 +593,6 @@ class MicroBaseDataset(Dataset):
         # used to correct the start points of the calculated points to match the manually labeled points
 
         # get the start sample of the phase (needed since all phases are combined after one another and sample count is based on the whole data and not just the phase)
-        phase = self.index["phase"][0]
-        subject = self.index["subject"][0]
-        condition = self.index["condition"][0]
-        transformed_string = subject.lower()
 
         fs = self.sampling_rates["biopac"]
         start = (ecg_clean.index[0] - ecg_start.index[0]).total_seconds()
