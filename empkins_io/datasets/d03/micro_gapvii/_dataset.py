@@ -91,7 +91,11 @@ class MicroBaseDataset(Dataset):
     CONDITIONS = ["tsst", "ftsst"]
 
     MISSING_DATA: Sequence[str] = [
-        "VP_045",
+        'VP_001', 'VP_002', 'VP_003', 'VP_004', 'VP_005', 'VP_006', 'VP_007', 'VP_008', 'VP_009', 'VP_010', 'VP_011', 'VP_012', 'VP_013', 'VP_014',
+        'VP_015', 'VP_016', 'VP_017', 'VP_018', 'VP_019', 'VP_020', 'VP_021', 'VP_022', 'VP_023', 'VP_024', 'VP_025', 'VP_026', 'VP_027', 'VP_028',
+        'VP_029', 'VP_030', 'VP_031', 'VP_032', 'VP_033', 'VP_034', 'VP_035', 'VP_036', 'VP_037', 'VP_038', 'VP_039', 'VP_040', 'VP_041', 'VP_042',
+        'VP_043', 'VP_044', 'VP_045', 'VP_046', 'VP_047', 'VP_048', 'VP_049', 'VP_050', 'VP_051', 'VP_052', 'VP_053', 'VP_054', 'VP_055', 'VP_056',
+        'VP_058', 'VP_060', 'VP_066', 'VP_067', 'VP_068', 'VP_071', 'VP_077', 'VP_080', 'VP_082', 'VP_083', 'VP_086', 'VP_093', 'VP_094', 'VP_103'
     ]  # Missing data (add participant IDs here)
 
     MISSING_RADAR_SYNC_IN_PEAKS: Sequence[str] = ["VP_002", "VP_003"]
@@ -396,7 +400,126 @@ class MicroBaseDataset(Dataset):
         condition = self.index["condition"][0]
         path = _build_data_path(self.base_path, participant_id, condition)
         path = path.joinpath(
-            f"video/body/processed/video_body_{participant_id.lower()}_{condition}.mp4"
+            f"video/body/raw/video_body_{participant_id.lower()}_{condition}.mp4"
+        )
+        return path
+
+    @property
+    def diarization(self) -> Path:
+        if not self.is_single(["subject", "condition"]):
+            raise ValueError(
+                "Video can only be accessed for a single participant in a single condition!"
+            )
+        if self.is_single("phase"):
+            raise ValueError("Video can only be accessed for all phases!")
+
+        participant_id = self.index["subject"][0]
+        condition = self.index["condition"][0]
+        path = _build_data_path(self.base_path, participant_id, condition)
+        path = path.joinpath(
+            f"video/body/processed/diarization_{participant_id.lower()}_{condition}.csv"
+        )
+        return path
+
+    @property
+    def trim_to_talk(self) -> Path:
+        if not self.is_single(["subject", "condition"]):
+            raise ValueError(
+                "Video can only be accessed for a single participant in a single condition!"
+            )
+        if self.is_single("phase"):
+            raise ValueError("Video can only be accessed for all phases!")
+
+        participant_id = self.index["subject"][0]
+        condition = self.index["condition"][0]
+        path = _build_data_path(self.base_path, participant_id, condition)
+        path = path.joinpath(
+            f"video/body/processed/trimmed_talk_section_audio_{participant_id.lower()}_{condition}.wav"
+        )
+        return path
+
+    @property
+    def trim_with_sp_dia(self) -> Path:
+        if not self.is_single(["subject", "condition"]):
+            raise ValueError(
+                "Video can only be accessed for a single participant in a single condition!"
+            )
+        if self.is_single("phase"):
+            raise ValueError("Video can only be accessed for all phases!")
+
+        participant_id = self.index["subject"][0]
+        condition = self.index["condition"][0]
+        path = _build_data_path(self.base_path, participant_id, condition)
+        path = path.joinpath(
+            f"video/body/processed/trimmed_sp_dia_audio_{participant_id.lower()}_{condition}.wav"
+        )
+        return path
+
+    @property
+    def transcript(self) -> Path:
+        if not self.is_single(["subject", "condition"]):
+            raise ValueError(
+                "Video can only be accessed for a single participant in a single condition!"
+            )
+        if self.is_single("phase"):
+            raise ValueError("Video can only be accessed for all phases!")
+
+        participant_id = self.index["subject"][0]
+        condition = self.index["condition"][0]
+        path = _build_data_path(self.base_path, participant_id, condition)
+        path = path.joinpath(
+            f"video/body/processed/transcript_{participant_id.lower()}_{condition}.txt"
+        )
+        return path
+
+    @property
+    def speech_features(self) -> Path:
+        if not self.is_single(["subject", "condition"]):
+            raise ValueError(
+                "Video can only be accessed for a single participant in a single condition!"
+            )
+        if self.is_single("phase"):
+            raise ValueError("Video can only be accessed for all phases!")
+
+        participant_id = self.index["subject"][0]
+        condition = self.index["condition"][0]
+        path = _build_data_path(self.base_path, participant_id, condition)
+        path = path.joinpath(
+            f"video/body/processed/speech_features{participant_id.lower()}_{condition}.csv"
+        )
+        return path
+
+    @property
+    def speech_sentiment(self) -> Path:
+        if not self.is_single(["subject", "condition"]):
+            raise ValueError(
+                "Video can only be accessed for a single participant in a single condition!"
+            )
+        if self.is_single("phase"):
+            raise ValueError("Video can only be accessed for all phases!")
+
+        participant_id = self.index["subject"][0]
+        condition = self.index["condition"][0]
+        path = _build_data_path(self.base_path, participant_id, condition)
+        path = path.joinpath(
+            f"video/body/processed/speech_sentiment{participant_id.lower()}_{condition}.csv"
+        )
+        return path
+
+    @property
+    def word_count(self) -> Path:
+        if not self.is_single(["subject", "condition"]):
+            raise ValueError(
+                "Video can only be accessed for a single participant in a single condition!"
+            )
+        if self.is_single("phase"):
+            raise ValueError("Video can only be accessed for all phases!")
+
+        participant_id = self.index["subject"][0]
+        condition = self.index["condition"][0]
+        path = _build_data_path(self.base_path, participant_id, condition)
+        path = path.joinpath(
+            f"video/body/processed/word_count{participant_id.lower()}_{condition}.csv"
         )
         return path
 
