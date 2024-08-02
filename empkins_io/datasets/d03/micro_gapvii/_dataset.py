@@ -27,6 +27,7 @@ from empkins_io.datasets.d03.micro_gapvii.helper import (
     load_opendbm_facial_tremor_data,
     load_opendbm_movement_data,
     load_speaker_diarization,
+    _time_convert_to_sec,
 )
 from empkins_io.utils._types import path_t
 
@@ -179,7 +180,7 @@ class MicroBaseDataset(Dataset):
     @property
     def code_mapping(self) -> pd.DataFrame:
         code_mapping = load_long_format_csv(
-            self.data_tabular_path.joinpath("extras/processed/id_mapping.csv")
+            self.data_tabular_path.joinpath("_extras/processed/id_mapping.csv")
         )
         code_mapping.columns = ["Code"]
         return code_mapping
@@ -225,21 +226,21 @@ class MicroBaseDataset(Dataset):
     @property
     def gender(self) -> pd.DataFrame:
         return load_long_format_csv(
-            self.base_path.joinpath("extras/processed/gender.csv"),
+            self.base_path.joinpath("_extras/processed/gender.csv"),
             index_cols=["subject"],
         )
 
     @property
     def condition_order(self) -> pd.DataFrame:
         return load_long_format_csv(
-            self.data_tabular_path.joinpath("extras/processed/condition_order.csv"),
+            self.data_tabular_path.joinpath("_extras/processed/condition_order.csv"),
             index_cols=["subject"],
         )
 
     @property
     def sit_stand(self) -> pd.DataFrame:
         return load_long_format_csv(
-            self.base_path.joinpath("extras/processed/sit_stand.csv"),
+            self.base_path.joinpath("_extras/processed/sit_stand.csv"),
             index_cols=["subject"],
         )
 
@@ -247,10 +248,14 @@ class MicroBaseDataset(Dataset):
     def condition_day_mapping(self) -> pd.DataFrame:
         return load_long_format_csv(
             self.data_tabular_path.joinpath(
-                "extras/processed/day_condition_mapping.csv"
+                "_extras/processed/day_condition_mapping.csv"
             ),
             index_cols=["subject", "day"],
         )
+
+    @property
+    def sample_times_saliva(self) -> Tuple[int]:
+        return self._sample_times_saliva
 
     @cached_property
     def biopac(self) -> pd.DataFrame:
@@ -280,18 +285,7 @@ class MicroBaseDataset(Dataset):
 
     @property
     def timelog(self) -> pd.DataFrame:
-        if self.is_single(None):
-            participant_id = self.index["subject"][0]
-            condition = self.index["condition"][0]
-            phase = self.index["phase"][0]
-            return self._get_timelog(participant_id, condition, phase)
-
         if self.is_single(["subject", "condition"]):
-            if not self._all_phases_selected():
-                raise ValueError(
-                    "Timelog can only be accessed for all phases or one specific phase!"
-                )
-
             participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
             return self._get_timelog(participant_id, condition, "all")
@@ -332,10 +326,10 @@ class MicroBaseDataset(Dataset):
         if self.is_single(None):
             participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
-            self.index["phase"][0]
+            phase = self.index["phase"][0]
 
             # load nilspod data for phase
-            return None
+            return self._get_nilspod_data(participant_id, condition, phase)
         if self.is_single(["subject", "condition"]):
             if not self._all_phases_selected():
                 raise ValueError(
@@ -346,7 +340,7 @@ class MicroBaseDataset(Dataset):
             condition = self.index["condition"][0]
 
             # load nilspod data for all phases
-            data = self._get_nilspod_data(participant_id, condition)
+            data = self._get_nilspod_data(participant_id, condition, "all")
             return data
 
         raise ValueError(
@@ -357,8 +351,8 @@ class MicroBaseDataset(Dataset):
     def ecg(self) -> pd.DataFrame:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            senor_id = self.NILSPOD_MAPPING["chest"]
-            data = self.nilspod.xs(senor_id, level=0, axis=1)
+            sensor_id = self.NILSPOD_MAPPING["chest"]
+            data = self.nilspod.xs(sensor_id, level=0, axis=1)
             return data[["ecg"]]
 
     @property
@@ -374,16 +368,32 @@ class MicroBaseDataset(Dataset):
             raise ValueError(
                 "Video can only be accessed for a single participant in a single condition!"
             )
-        if self.is_single("phase"):
-            raise ValueError("Video can only be accessed for all phases!")
 
         participant_id = self.index["subject"][0]
         condition = self.index["condition"][0]
         path = _build_data_path(self.base_path, participant_id, condition)
-        path = path.joinpath(  # dele
+        path = path.joinpath(
             f"video/face/raw/video_face_{participant_id.lower()}_{condition}.mp4"
         )
         return path
+
+    @property
+    def timelog_video(self):
+        if self.is_single(["subject", "condition"]):
+            timelog_all = pd.read_excel(
+                self.data_tabular_path.joinpath("_extras/raw/video_labels.xlsx")
+            )
+            timelog_all.set_index(["subject", "condition"], inplace=True)
+            timelog_all.drop(columns="Notes", inplace=True)
+            timelog_all = timelog_all.astype(str)
+
+            return timelog_all.loc[self.subject, self.condition].apply(
+                _time_convert_to_sec
+            )
+        else:
+            raise ValueError(
+                "Timelog can only be accessed for a single participant and a single condition at once!"
+            )
 
     @property
     def body_video_path(self) -> Path:
@@ -401,10 +411,6 @@ class MicroBaseDataset(Dataset):
             f"video/body/processed/video_body_{participant_id.lower()}_{condition}.mp4"
         )
         return path
-
-    @property
-    def nilspod(self) -> pd.DataFrame:  # TODO: implement
-        raise NotImplementedError("NilsPod data is not yet implemented!")
 
     @property
     def expected_files_list(self) -> pd.DataFrame:
@@ -445,12 +451,45 @@ class MicroBaseDataset(Dataset):
             data = data.loc[phase_start:phase_end]
             return data, fs
 
-    def _get_nilspod_data(self, subject_id: str, condition: str) -> pd.DataFrame:
+    def _get_nilspod_data(
+        self, subject_id: str, condition: str, phase: str
+    ) -> pd.DataFrame:
+        # if phase is None, return all data
         if self.use_cache:
             data, fs = _cached_load_nilspod_data(self.base_path, subject_id, condition)
         else:
             data, fs = _load_nilspod_session(self.base_path, subject_id, condition)
-        return data
+        if phase == "Baseline":
+            # return -10 to -5 min pre (f-)TSST
+            timelog = self.timelog
+            phase_start = timelog["Prep"]["start"][0]
+            start = phase_start - pd.Timedelta(minutes=10)
+            end = phase_start - pd.Timedelta(minutes=5)
+            data = data.loc[start:end]
+            return data
+        elif phase == "Recovery":
+            # return +5 to +10 min post (f-)TSST
+            timelog = self.timelog
+            phase_end = timelog["Pause_5"]["end"][0]
+            start = phase_end + pd.Timedelta(minutes=5)
+            end = phase_end + pd.Timedelta(minutes=10)
+            data = data.loc[start:end]
+            return data
+        elif phase == "all":
+            timelog = self.timelog
+            phase_start = timelog["Pause_1"]["start"][0]
+            phase_end = timelog["Pause_5"]["end"][0]
+            data = data.loc[phase_start:phase_end]
+            return data
+        elif phase is None:
+            return data
+        else:
+            # cut data to specified phase
+            timelog = self.timelog
+            phase_start = timelog[phase]["start"][0]
+            phase_end = timelog[phase]["end"][0]
+            data = data.loc[phase_start:phase_end]
+            return data
 
     def _get_radar_data(
         self, participant_id: str, condition: str, phase: str
@@ -481,6 +520,7 @@ class MicroBaseDataset(Dataset):
             self.base_path, participant_id, condition, phase, self.phase_fine
         )
 
+    # does this make sense? prefer to return the whole timelog everytime
     def _all_phases_selected(self) -> bool:
         # check if all phases are selected
         all_phases_fine = self.phase_fine and (

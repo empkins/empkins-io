@@ -21,6 +21,7 @@ def _check_filetype_present(
     file_pattern: str,
     expected_number_of_files: int,
     expected_filesize: float = np.nan,
+    skip_video_length_check: bool = True,
 ) -> dict:
     """Checks if the number of files that match the given pattern is as expected and if the (mean) file size is
     as expected (i.e. at max. 20% below the given expected file size).
@@ -34,7 +35,9 @@ def _check_filetype_present(
     if len(existing_files) == 0:
         # no files found => file size is 0 bytes
         actual_filesize = 0
-    elif file_pattern.endswith(".mp4") and len(existing_files) == 1:
+    elif not skip_video_length_check and (
+        file_pattern.endswith(".mp4") and len(existing_files) == 1
+    ):
         try:
             import cv2
         except ImportError as e:
@@ -53,7 +56,9 @@ def _check_filetype_present(
         # timelog and opendbm file size does not matter
         size_as_expected = True
     else:
-        size_as_expected = actual_filesize > 0.8 * expected_filesize  # 20% tolerance (downwards)
+        size_as_expected = (
+            actual_filesize > 0.8 * expected_filesize
+        )  # 20% tolerance (downwards)
 
     if not num_files_is_expected:
         comment = (
@@ -85,7 +90,9 @@ def _check_files_for_subject(subj_dir: Path, expected_files: pd.DataFrame) -> di
     return files_present
 
 
-def check_data_completeness_dict(data_per_subject_folder: Path, expected_files_list: pd.DataFrame) -> dict:
+def check_data_completeness_dict(
+    data_per_subject_folder: Path, expected_files_list: pd.DataFrame
+) -> dict:
     """Iterates over all subject directories in the data_per_subject folder and
     checks if all expected files are present. Results are summarized in a dictionary.
     """
@@ -95,15 +102,21 @@ def check_data_completeness_dict(data_per_subject_folder: Path, expected_files_l
         if "Template" in subject:
             # skip template folder
             continue
-        file_overview[subject] = _check_files_for_subject(subject_dir, expected_files_list)
+        file_overview[subject] = _check_files_for_subject(
+            subject_dir, expected_files_list
+        )
     return file_overview
 
 
-def check_data_completeness(data_per_subject_folder: Path, expected_files_list: pd.DataFrame) -> pd.DataFrame:
+def check_data_completeness(
+    data_per_subject_folder: Path, expected_files_list: pd.DataFrame
+) -> pd.DataFrame:
     """Iterates over all subject directories in the data_per_subject folder and
     checks if all expected files are present. Results are summarized in a DataFrame.
     """
-    file_overview_dict = check_data_completeness_dict(data_per_subject_folder, expected_files_list)
+    file_overview_dict = check_data_completeness_dict(
+        data_per_subject_folder, expected_files_list
+    )
     file_overview_df = (
         pd.DataFrame(file_overview_dict)
         .stack()
@@ -112,12 +125,16 @@ def check_data_completeness(data_per_subject_folder: Path, expected_files_list: 
         .swaplevel(1, 2)  # make condition the second level of the MultiIndex
         .sort_index()
     )
-    file_overview_df.index = file_overview_df.index.set_names(["subject", "condition", "modality"])
+    file_overview_df.index = file_overview_df.index.set_names(
+        ["subject", "condition", "modality"]
+    )
     return file_overview_df
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description="Checks if all expected files are present for each subject.")
+    parser = ArgumentParser(
+        description="Checks if all expected files are present for each subject."
+    )
 
     parser.add_argument(
         "data_per_subject_folder",
@@ -161,7 +178,9 @@ if __name__ == "__main__":
         expected_files_path = args.expected_files
 
     if not expected_files_path.exists():
-        raise FileNotFoundError(f"Expected files list {expected_files_path} does not exist.")
+        raise FileNotFoundError(
+            f"Expected files list {expected_files_path} does not exist."
+        )
     expected_files_list = pd.read_csv(expected_files_path, index_col=2)
 
     # check data completeness
