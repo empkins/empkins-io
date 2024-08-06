@@ -260,7 +260,6 @@ class SyncedDataset:
 
         if cut_to_shortest:
             shortest_length = min(len(data) for name, data in dict_resampled.items())
-            print("shortest:" + str(shortest_length))
             index = index[:shortest_length]
             for name, data in dict_resampled.items():
                 # cut name after second _ to get rid of _aligned_
