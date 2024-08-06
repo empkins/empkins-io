@@ -95,7 +95,7 @@ PSG_CHANNELS_MESA = Literal[
     "DHR",
 ]
 
-PSG_GROUP = Literal["FullPSG", "EEG", "ECG", "EOG", "SpO2", "System", "Resp", "EMG", "Sync", "Activity"]
+PSG_GROUP = Literal["FullPSG", "EEG", "ECG", "EOG", "SpO2", "System", "Resp", "EMG", "Sync", "Activity", "Position"]
 
 PSG_GROUP_MAPPING_SOMNO: Dict[PSG_GROUP, Sequence[PSG_CHANNELS_SOMNO]] = {
     "FullPSG": get_args(PSG_CHANNELS_SOMNO),
@@ -140,7 +140,8 @@ PSG_GROUP_MAPPING_SOMNO: Dict[PSG_GROUP, Sequence[PSG_CHANNELS_SOMNO]] = {
     "SpO2": ["SpO2"],
     "Sync": ["Sync."],
     "Activity": ["Activity"],
-    "System": ["Akku", "Akku Stan", "Light", "Pos."],
+    "System": ["Akku", "Akku Stan", "Light"],
+    "Position": ["Pos."],
     "Resp": ["Pleth", "Druck Flow", "RIP Abdom", "RIP Thora", "Summe RIP", "Druck Snore", "Schnarch."],
     "EMG": ["PLMr", "PLMl", "EMG1", "EMG2", "EMG3", "ArmLi", "ArmRe"],
 }
