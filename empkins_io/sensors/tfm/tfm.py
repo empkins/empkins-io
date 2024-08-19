@@ -1,14 +1,11 @@
-from pathlib import Path
-from typing import Dict, Optional, Sequence, List, Literal
+from typing import Dict, Optional, List
 import numpy as np
 
-import h5py
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 from typing_extensions import Self
 
 from empkins_io.utils._types import path_t
-from empkins_io.utils.exceptions import InvalidFileFormatError
 
 from scipy.io import loadmat
 
@@ -16,17 +13,6 @@ import warnings
 
 
 class TFMDataset:
-
-    _CHANNEL_MAPPING = {
-        "bp": "BPCONT_NOTCH_UC",
-        "ecg_1": "rawECG1",
-        "ecg_2": "rawECG2",
-        "icg_der": "rawICG",
-        "ext_1": "EXT1",
-        "ext_2": "EXT2",
-        "icg_raw": "Z0"
-    }
-
     _SAMPLING_RATES_HZ = {
         "bp": 100,
         "ecg_1": 1000,
@@ -37,26 +23,79 @@ class TFMDataset:
         "icg_raw": 50,
     }
 
-    _HEMODYNAMIC_PARAMETERS = [
-        "Zeit", "Beat", "CI", "HR", "HZV", "RRI", "SI", "SV", "TPR", "TPRI", "dBP", "mBP", "sBP"
-    ]
+    _RAW_SIGNAL_CHANNEL_MAPPING = {
+        "bp": "BPCONT_NOTCH_UC",
+        "ecg_1": "rawECG1",
+        "ecg_2": "rawECG2",
+        "icg_der": "rawICG",
+        "ext_1": "EXT1",
+        "ext_2": "EXT2",
+        "icg_raw": "Z0"
+    }
 
-    _BPV_PARAMETERS = [
-        "Zeit", "Beat", "HF_dBP", "HFnu_dBP", "LF_HF", "LF_HF_dBP", "LF_dBP", "LFnu_dBP", "PSD_dBP", "VLF_dBP"
-    ]
+    _HEMODYNAMIC_PARAMETERS_MAPPING = {
+        "relative_time": "Zeit",
+        "beat": "Beat",
+        "CI": "CI",
+        "HR": "HR",
+        "HZV": "HZV",
+        "RRI": "RRI",
+        "SI": "SI",
+        "SV": "SV",
+        "TPR": "TPR",
+        "TPRI": "TPRI",
+        "dBP": "dBP",
+        "mBP": "dBP",
+        "sBP": "sBP"
+    }
 
-    _CARDIAC_PARAMETERS = [
-        "Zeit", "Beat", "ACI", "CI", "EDI", "HR", "IC", "LVET", "LVWI", "SI", "TFC", "TPRI", "dBP", "mBP", "sBP"
-    ]
+    _BPV_PARAMETERS_MAPPING = {
+        "relative_time": "Zeit",
+        "beat": "Beat",
+        "HF_dBP": "HF_dBP",
+        "HFnu_dBP": "HFnu_dBP",
+        "LF_HF": "LF_HF",
+        "LF_HF_dBP": "LF_HF_dBP",
+        "LF_dBP": "LF_dBP",
+        "LFnu_dBP": "LFnu_dBP",
+        "PSD_dBP": "PSD_dBP",
+        "VLF_dBP": "VLF_dBP"
+    }
 
-    _HRV_PARAMETERS = [
-        "Zeit", "Beat", "HF_RRI", "HFnu_RRI", "LF_HF", "LF_HF_RRI", "LF_RRI", "LFnu_RRI", "PSD_RRI", "VLF_RRI",
-    ]
+    _CARDIAC_PARAMETERS_MAPPING = {
+        "relative_time": "Zeit",
+        "beat": "Beat",
+        "ACI": "ACI",
+        "CI": "CI",
+        "EDI": "EDI",
+        "HR": "HR",
+        "IC": "IC",
+        "LVET": "LVET",
+        "LVWI": "LVWI",
+        "SI": "SI",
+        "TFC": "TFC",
+        "TPRI": "TPRI",
+        "dBP": "dBP",
+        "mBP": "mBP",
+        "sBP": "sBP"
+    }
+
+    _HRV_PARAMETERS_MAPPING = {
+        "relative_time": "Zeit",
+        "beat": "Beat",
+        "HF_RRI": "HF_RRI",
+        "HFnu_RRI": "HFnu_RRI", "LF_HF": "LF_HF",
+        "LF_HF_RRI": "LF_HF_RRI",
+        "LF_RRI": "LF_RRI",
+        "LFnu_RRI": "LFnu_RRI",
+        "PSD_RRI": "PSD_RRI",
+        "VLF_RRI": "VLF_RRI",
+    }
 
     _timezone: str
-    _recording_date: float
-    _tfm_b2b_phase_data: Dict[str, Dict[str, Dict[str, Dict[str, np.ndarray]]]]
-    _tfm_raw_phase_data: Dict[str, Dict[str, Dict[str, np.ndarray]]]
+    _recording_date: str
+    _tfm_b2b_phase_data: Dict[str, Dict[str, Dict[str, np.ndarray]]]
+    _tfm_raw_phase_data: Dict[str, Dict[str, np.ndarray]]
     _phase_information: pd.DataFrame
     _oscillatory_blood_pressure: pd.DataFrame
 
@@ -66,8 +105,8 @@ class TFMDataset:
             recording_date: str,
             phase_information: pd.DataFrame,
             osc_bp: pd.DataFrame,
-            tfm_b2b_data: Dict[str, Dict[str, Dict[str, Dict[str, np.ndarray]]]],
-            tfm_raw_data: Dict[str, Dict[str, Dict[str, np.ndarray]]]
+            tfm_b2b_data: Dict[str, Dict[str, Dict[str, np.ndarray]]],
+            tfm_raw_data: Dict[str, Dict[str, np.ndarray]]
     ):
         self._timezone = timezone
         self._recording_date = recording_date
@@ -89,11 +128,15 @@ class TFMDataset:
         return self._oscillatory_blood_pressure
 
     @property
-    def b2b_data_dict(self) -> Dict[str, Dict[str, Dict[str, Dict[str, np.ndarray]]]]:
+    def b2b_data_dict(self) -> Dict[str, Dict[str, Dict[str, np.ndarray]]]:
         return self._tfm_b2b_phase_data
 
     @property
-    def raw_data_dict(self) -> Dict[str, Dict[str, Dict[str, np.ndarray]]]:
+    def recording_date(self) -> str:
+        return self._recording_date
+
+    @property
+    def raw_data_dict(self) -> Dict[str, Dict[str, np.ndarray]]:
         return self._tfm_raw_phase_data
 
     @property
@@ -121,7 +164,7 @@ class TFMDataset:
             path: path_t,
             timezone: Optional[str] = "Europe/Berlin",
             recording_date: Optional[str] = "1970-01-01",
-            phase_mapping: Optional=None
+            phase_mapping: Optional = None
     ) -> Self:
 
         _assert_file_extension(path, ".mat")
@@ -152,7 +195,7 @@ class TFMDataset:
         if len(df_iv.index) != len(set(df_iv.index)):
             warnings.warn("The TFM Dataset contains duplicate intervention names. "
                           "This may lead to unexpected behavior in the further use of this dataset."
-            )
+                          )
 
         return df_iv
 
@@ -168,9 +211,8 @@ class TFMDataset:
         df_osc["heart_rate"] = cls._unwrap_osc_data(data_tmp.HR)
         return df_osc
 
-
     @classmethod
-    def _unwrap_osc_data(self, var) -> List:
+    def _unwrap_osc_data(cls, var) -> List:
         info_tmp = [t.tolist() if isinstance(t, np.ndarray) else t for t in var]
         info_tmp = [
             item for sublist in info_tmp for item in (sublist if isinstance(sublist, list) else [sublist])
@@ -179,59 +221,52 @@ class TFMDataset:
         return info_tmp
 
     @classmethod
-    def _load_raw_data(cls, data, intervention_names)-> Dict[str, Dict[str, np.ndarray]]:
-        data_raw = data["RAW_SIGNALS"]
+    def _load_raw_data(cls, data, intervention_names) -> Dict[str, Dict[str, np.ndarray]]:
 
-        dict_raw_tmp = {key: getattr(data_raw, value) for key, value in cls._CHANNEL_MAPPING.items()}
-        dict_raw = {}
-
-        for key_bio_sig, value_bio_sig in dict_raw_tmp.items():
-            dict_raw[key_bio_sig] = {}
-            for i in range(len(intervention_names) - 1):
-                index = intervention_names[i]
-                dict_raw[key_bio_sig][index] = value_bio_sig[i]
+        dict_raw = cls._load_data(
+            data=data["RAW_SIGNALS"],
+            intervention_names=intervention_names,
+            mapping=cls._RAW_SIGNAL_CHANNEL_MAPPING
+        )
 
         return dict_raw
 
     @classmethod
     def _load_beat_to_beat_parameters(cls, data, intervention_names) -> Dict[str, Dict[str, Dict[str, np.ndarray]]]:
-        dict_beat_parameters = {}
 
-        dict_beat_parameters["hemodynamic_parameters"] = cls._load_beat_to_beat_data(
-            data=data["BeatToBeat"],
-            intervention_names=intervention_names,
-            parameters=cls._HEMODYNAMIC_PARAMETERS
-        )
-        dict_beat_parameters["bpv_parameters"] = cls._load_beat_to_beat_data(
-            data=data["BPV"],
-            intervention_names=intervention_names,
-            parameters=cls._BPV_PARAMETERS
-        )
-        dict_beat_parameters["hrv_parameters"] = cls._load_beat_to_beat_data(
-            data=data["HRV"],
-            intervention_names=intervention_names,
-            parameters=cls._HRV_PARAMETERS
-        )
-        dict_beat_parameters["cardiac_parameters"] = cls._load_beat_to_beat_data(
-            data=data["CardiacParams"],
-            intervention_names=intervention_names,
-            parameters=cls._CARDIAC_PARAMETERS
-        )
+        dict_beat_parameters = {
+            "hemodynamic_parameters": cls._load_data(
+                data=data["BeatToBeat"],
+                intervention_names=intervention_names,
+                mapping=cls._HEMODYNAMIC_PARAMETERS_MAPPING
+            ), "bpv_parameters": cls._load_data(
+                data=data["BPV"],
+                intervention_names=intervention_names,
+                mapping=cls._BPV_PARAMETERS_MAPPING
+            ), "hrv_parameters": cls._load_data(
+                data=data["HRV"],
+                intervention_names=intervention_names,
+                mapping=cls._HRV_PARAMETERS_MAPPING
+            ), "cardiac_parameters": cls._load_data(
+                data=data["CardiacParams"],
+                intervention_names=intervention_names,
+                mapping=cls._CARDIAC_PARAMETERS_MAPPING
+            )
+        }
 
         return dict_beat_parameters
 
-
     @classmethod
-    def _load_beat_to_beat_data(cls, data, intervention_names, parameters):
+    def _load_data(cls, data, intervention_names, mapping):
 
-        data_dict_tmp = {key: getattr(data, key) for key in parameters}
+        data_dict_tmp = {key: getattr(data, value) for key, value in mapping.items()}
         data_dict = {}
 
-        for key_btb, value_btb in data_dict_tmp.items():
-            data_dict[key_btb] = {}
+        for key, value in data_dict_tmp.items():
+            data_dict[key] = {}
             for i in range(len(intervention_names) - 1):
                 index = intervention_names[i]
-                data_dict[key_btb][index] = value_btb[i]
+                data_dict[key][index] = value[i]
 
         return data_dict
 
@@ -252,23 +287,6 @@ class TFMDataset:
 
         return dict_df
 
-    def raw_data_as_df_dict(self, index: Optional[str] = None):
-        data_dict_concat = {}
-        data_dict = self.raw_phase_data_as_df_dict(index=index)
-
-        for sig in data_dict.keys():
-            df = pd.DataFrame()
-            for key, value in data_dict[sig].items():
-                df = pd.concat([df, value], axis=0)
-
-            if df.index.duplicated().sum() > 0:
-                warnings.warn("Duplicated index values found. Dropping duplicates.")
-                df = df.loc[~df.index.duplicated()]
-
-            data_dict_concat[sig] = df
-
-        return data_dict_concat
-
     def b2b_phase_data_as_df_dict(self, index: Optional[str] = None):
 
         data_dict_inv = {}
@@ -287,7 +305,6 @@ class TFMDataset:
 
             for phase in data_dict_inv[params_group].keys():
                 df = pd.DataFrame.from_dict(data_dict_inv[params_group][phase])
-                df = df.rename(columns={'Zeit': 'relative_time'})
                 df = self._add_index_beat(
                     df, index=index,
                     start_time=self.phase_information.at[phase, "absolute_time"],
@@ -297,21 +314,26 @@ class TFMDataset:
 
         return data_dict_inv
 
+    def raw_data_as_df_dict(self, index: Optional[str] = None) -> Dict[str, pd.DataFrame]:
+        data_dict = self.raw_phase_data_as_df_dict(index=index)
+        return self._concat_data_over_time(data_dict)
 
-    def b2b_data_as_df_dict(self, index: Optional[str] = None):
-        data_dict_concat = {}
+    def b2b_data_as_df_dict(self, index: Optional[str] = None) -> Dict[str, pd.DataFrame]:
         data_dict = self.b2b_phase_data_as_df_dict(index=index)
+        return self._concat_data_over_time(data_dict)
 
-        for params_group in data_dict.keys():
+    def _concat_data_over_time(self, data):
+        data_dict_concat = {}
+        for group in data.keys():
             df = pd.DataFrame()
-            for key, value in data_dict[params_group].items():
+            for value in data[group].values():
                 df = pd.concat([df, value], axis=0)
 
             if df.index.duplicated().sum() > 0:
                 warnings.warn("Duplicated index values found. Dropping duplicates.")
                 df = df.loc[~df.index.duplicated()]
 
-            data_dict_concat[params_group] = df
+            data_dict_concat[group] = df
 
         return data_dict_concat
 
@@ -343,23 +365,15 @@ class TFMDataset:
 
         # convert to utc timestamps
         data.index /= self.sampling_rates_hz[data.columns[0]]
-        data.index += self._convert_time_to_unix(start_time)
 
-        if index == "utc_datetime":
-            data.index = pd.to_datetime(data.index, unit="s")
-            data.index = data.index.tz_localize("UTC")
-        if index == "local_datetime":
-            data.index = pd.to_datetime(data.index, unit="s")
-            data.index = data.index.tz_localize("UTC").tz_convert(self._timezone)
-
-        return data
+        return self._convert_index_to_datetime(data, start_time, index)
 
     def _add_index_beat(
             self,
             data: pd.DataFrame,
             index: str,
             start_time: str,
-            relative_start_time:float
+            relative_start_time: float
     ) -> pd.DataFrame:
 
         index_names = {
@@ -373,16 +387,18 @@ class TFMDataset:
             raise ValueError(f"Supplied value for index ({index}) is not allowed. Allowed values: {index_names.keys()}")
 
         if index is None:
-            data = data.set_index("Beat")
-            data.index.name = index_names[index]
-            return data
-        if index == "time":
+            data = data.set_index("beat")
+        elif index == "time":
             data = data.set_index("relative_time")
-            data.index.name = index_names[index]
-            return data
+        else:
+            data = data.set_index("relative_time", drop=False)
+            data.index -= relative_start_time
+            data = self._convert_index_to_datetime(data, start_time, index)
 
-        data = data.set_index("relative_time", drop=False)
-        data.index -= relative_start_time
+        data.index.name = index_names[index]
+        return data
+
+    def _convert_index_to_datetime(self, data, start_time, index):
         data.index += self._convert_time_to_unix(start_time)
 
         if index == "utc_datetime":
@@ -392,6 +408,4 @@ class TFMDataset:
             data.index = pd.to_datetime(data.index, unit="s")
             data.index = data.index.tz_localize("UTC").tz_convert(self._timezone)
 
-        data.index.name = index_names[index]
         return data
-
