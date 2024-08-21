@@ -20,6 +20,7 @@ tpcp = "^0.13"
 resampy = "^0.4.2"
 tables = "^3.9.2"
 
+
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
 poethepoet = "^0.10.0"
