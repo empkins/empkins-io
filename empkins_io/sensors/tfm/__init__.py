@@ -1,1 +1,1 @@
-from empkins_io.sensors.tfm.tfm import TFMDataset
+from empkins_io.sensors.tfm.tfm import TfmLoader
