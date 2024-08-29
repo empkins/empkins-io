@@ -98,6 +98,7 @@ class SyncedDataset:
                 fs_in = dataset["sampling_rate"]
             elif method == "dynamic":
                 fs_in = self._determine_actual_sampling_rate(dataset, **kwargs)
+
             else:
                 # this should never happen
                 raise ValueError(f"Method '{method}' not supported.")
@@ -105,6 +106,7 @@ class SyncedDataset:
             data_resample = resampy.resample(
                 dataset["data"].values, sr_orig=fs_in, sr_new=fs_out, axis=0, parallel=True
             )
+
             index_resample = pd.date_range(
                 start=dataset["data"].index[0],
                 periods=len(data_resample),
@@ -166,6 +168,9 @@ class SyncedDataset:
             # sync_type is "trigger"
             sync_data = data[sync_channel]
             sync_params["max_expected_peaks"] = 2
+            if "falling" in self.sync_type:
+                # invert sync channel to achieve rising sync signal
+                sync_data = -1 * sync_data
         elif "edge" in self.sync_type:
             # sync_type is "edge"
             sync_data = np.abs(np.ediff1d(data[sync_channel]))
@@ -181,9 +186,6 @@ class SyncedDataset:
         else:
             raise AttributeError("This should never happen.")
 
-        if "falling" in self.sync_type:
-            # invert sync channel to achieve rising sync signal
-            sync_data = -1 * data[sync_channel]
         peaks = SyncedDataset._find_sync_peaks(sync_data, sync_params)
         # cut data to region between first and last peak
         data_cut = data.iloc[peaks[0] :] if len(peaks) == 1 else data.iloc[peaks[0] : peaks[-1]]
