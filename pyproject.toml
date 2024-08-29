@@ -5,7 +5,7 @@ description = "A Python package to load and convert data from EmpkinS sensors."
 authors = ["Robert Richer <robert.richer@fau.de>"]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.11"
+python = ">=3.9,<3.11"
 numpy = ">=1.19,<1.25"
 pandas = "^1.2.0"
 scipy = "^1.7.0"
@@ -19,6 +19,8 @@ biopsykit = {git="https://github.com/mad-lab-fau/BioPsyKit.git", branch="main", 
 h5py = "^3.5.0"
 tpcp = "^0.13"
 resampy = "^0.4.2"
+tables = "^3.9.2"
+
 avro = "^1.11.3"
 fastavro = "^1.4.0"
 # opencv is optional, but required for some functions
