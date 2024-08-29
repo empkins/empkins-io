@@ -279,8 +279,13 @@ class TfmLoader:
         df_iv["relative_time"] = data["IV"].Reltime
 
         if len(df_iv.index) != len(set(df_iv.index)):
+
+            df_iv.index = df_iv.index.where(
+                ~df_iv.index.duplicated(), df_iv.index + "_" + df_iv.groupby(level=0).cumcount().astype(str)
+            )
+
             warnings.warn("The TFM Dataset contains duplicate intervention names. "
-                          "This may lead to unexpected behavior in the further use of this dataset."
+                          "Intervention names where renamed to avoid overwriting of data."
                           )
 
         return df_iv
