@@ -378,6 +378,30 @@ class MicroBaseDataset(Dataset):
         return path
 
     @property
+    def face_video_path_sliced(self) -> Path:
+        if self.is_single(["subject", "condition", "phase"]):
+            participant_id = self.subject
+            condition = self.condition
+            phase = self.phase
+            path = _build_data_path(self.base_path, participant_id, condition)
+            path = path.joinpath(
+                f"video/face/cleaned/video_face_{participant_id}_{condition}_sliced_{phase.lower()}.mp4"
+            )
+            return path
+        elif self.is_single(["subject", "condition"]):
+            participant_id = self.subject
+            condition = self.condition
+            path = _build_data_path(self.base_path, participant_id, condition)
+            path = path.joinpath(
+                f"video/face/cleaned/video_face_{participant_id}_{condition}_sliced.mp4"
+            )
+            return path
+        else:
+            raise ValueError(
+                "Only valid for a single participant and condition (and phase)!"
+            )
+
+    @property
     def timelog_video(self):
         if self.is_single(["subject", "condition"]):
             timelog_all = pd.read_excel(

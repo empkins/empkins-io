@@ -3,6 +3,7 @@ from functools import cached_property, lru_cache
 from itertools import product
 from pathlib import Path
 from typing import Dict, Optional, Sequence, Tuple
+from unittest.mock import inplace
 
 import pandas as pd
 from biopsykit.io import (
@@ -213,8 +214,8 @@ class MacroBaseDataset(Dataset):
                 "Heart rate data can only be accessed for a single participant in a single condition!"
             )
 
-        subject_id = self.group.subject
-        condition = self.group.condition
+        subject_id = self.subject
+        condition = self.condition
         ecg_path = self.ecg_output_path
         file_path = ecg_path.joinpath(f"hrv_result_{subject_id}_{condition}.csv")
         if not file_path.exists():
@@ -243,8 +244,8 @@ class MacroBaseDataset(Dataset):
         return self._load_time_log("gait")
 
     def _load_time_log(self, timelog_type: str):
-        subject_id = self.index["subject"][0]
-        condition = self.index["condition"][0]
+        subject_id = self.subject
+        condition = self.condition
         data_path = _build_data_path(
             self.base_path.joinpath("data_per_subject"), subject_id, condition
         )
@@ -340,7 +341,7 @@ class MacroBaseDataset(Dataset):
 
     @property
     def condition_order(self) -> pd.DataFrame:
-        data = pd.read_csv(self.base_path.joinpath("extras/condition_order.csv"))
+        data = pd.read_csv(self.base_path.joinpath("_extras/condition_order.csv"))
         data = data.set_index("subject")[["condition_order"]]
         subject_ids = self.index["subject"].unique()
         return data.loc[subject_ids]
@@ -348,7 +349,7 @@ class MacroBaseDataset(Dataset):
     @property
     def day_condition_map(self) -> pd.DataFrame:
         data = pd.read_csv(
-            self.data_tabular_path.joinpath("extras/condition_order.csv")
+            self.data_tabular_path.joinpath("_extras/condition_order.csv")
         )
         data = data.set_index("subject")[["T1", "T2"]].stack()
         data.index = data.index.set_names("day", level=-1)
@@ -369,7 +370,7 @@ class MacroBaseDataset(Dataset):
 
     @property
     def cortisol_features(self) -> pd.DataFrame:
-        return self._load_saliva_features("cortisol")
+        return self._load_saliva_features("cortisol_features")
 
     @property
     def amylase(self) -> pd.DataFrame:
@@ -462,12 +463,26 @@ class MacroBaseDataset(Dataset):
         )
 
     def _load_saliva_features(self, saliva_type: str) -> pd.DataFrame:
-        data_path = self.data_tabular_path.joinpath(
-            f"saliva/processed/{saliva_type}_features.csv"
+        data_path = self.data_tabular_path.joinpath(f"saliva/final/{saliva_type}.csv")
+
+        data = pd.read_csv(data_path)
+
+        data_long = pd.melt(
+            data, id_vars=["subject"], var_name="saliva_feature", value_name="data"
         )
-        data = load_long_format_csv(data_path)
+
+        data_long[["prefix1", "prefix2", "feature", "condition"]] = data_long[
+            "saliva_feature"
+        ].str.split("-", expand=True)
+
+        data_long.drop(["prefix1", "prefix2", "saliva_feature"], axis=1, inplace=True)
+        data_long.set_index(["subject", "condition", "feature"], inplace=True)
+        data_long.columns.name = f"{saliva_type}"
+
         subject_ids = self.index["subject"].unique()
         conditions = self.index["condition"].unique()
-        return data.reindex(subject_ids, level="subject").reindex(
-            conditions, level="condition"
+        return (
+            data_long.reindex(subject_ids, level="subject")
+            .reindex(conditions, level="condition")
+            .sort_index()
         )

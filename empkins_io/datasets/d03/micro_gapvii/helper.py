@@ -108,11 +108,10 @@ def _load_timelog(
 
 
 def _time_convert_to_sec(time: str) -> float:
-
     if time == "nan":
         return np.nan
 
-    m, s = map(int, time.split(":"))
+    m, s = map(int, time.split(":")[:2])
     return m * 60 + s
 
 
