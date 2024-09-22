@@ -7,10 +7,25 @@ from biopsykit.utils.time import tz
 from pandas import DataFrame
 from empkins_io.utils._types import path_t
 from empkins_io.sensors.emrad import EmradDataset
+from empkins_io.sensors.tfm import TfmLoader
 
 import pandas as pd
 import numpy as np
 
+PHASE_MAPPING = {
+        "Beginn der Aufzeichnung": "start_recording",
+        "Ende der Aufzeichnung": "end_recording",
+        "Beginn Ruhe 1": "start_rest_1",
+        "Ende Ruhe 1": "end_rest_1",
+        "Beginn Ruhe 2": "start_rest_2",
+        "Ende Ruhe 2": "end_rest_2",
+        "Beginn Ruhe 3": "start_rest_3",
+        "Ende Ruhe 3": "end_rest_3",
+        "Beginn CPT": "start_cpt",
+        "Ende CPT": "end_cpt",
+        "Beginn Atmung": "start_straw",
+        "Ende Atmung": "end_straw",
+}
 
 def _build_data_path(base_path: path_t, participant_id: str) -> Path:
     data_path = base_path.joinpath(f"data_per_subject/{participant_id}")
@@ -76,3 +91,29 @@ def _update_dates(base_path: path_t, subject_date_dict: dict, sheet_name: str = 
 
     # Save the changes to the workbook
     workbook.save(file_path)
+
+def _load_tfm_data(base_path: path_t, participant_id: str, date: str) -> tuple[pd.DataFrame, float]:
+    # Build the path to the TFM data directory for the given participant
+    tfm_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
+        "tfm/cleaned"
+    )
+
+    # Convert the input date string to a datetime object using the specified format
+    pd_date = pd.to_datetime(date, format='%d.%m.%Y')
+    form_date = pd_date.strftime('%Y-%m-%d')
+
+    # Construct the full path to the TFM data file for the participant
+    tfm_file_path = tfm_dir_path.joinpath(f"{participant_id}_tfm_data.mat")
+    # Load the TFM data from the specified .mat file
+    loader = TfmLoader.from_mat_file(
+        path=tfm_file_path,
+        recording_date=form_date,  # Use the reformatted date
+        phase_mapping=PHASE_MAPPING  # Map phases according to the dataset's mapping
+    )
+
+    # Extract the raw phase data as a dictionary of DataFrames, indexed by local datetime
+    data = loader.raw_phase_data_as_df_dict(index="local_datetime")
+    # Retrieve the sampling rates from the loader
+    fs = loader.sampling_rates_hz
+    return data, fs
+
