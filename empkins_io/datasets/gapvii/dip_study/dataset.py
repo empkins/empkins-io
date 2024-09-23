@@ -157,8 +157,9 @@ class DipStudyDataset(Dataset):
             for signal in data:
                 phase_dict = {}
                 for key in data[signal]:
-                    # Convert each phase's data to a DataFrame and store in phase_dict
-                    phase_dict[key] = pd.DataFrame(data[signal][key])
+                    # Convert each start_ phase's data to a DataFrame
+                    if key.startswith("start_"):
+                        phase_dict[key] = pd.DataFrame(data[signal][key])
                  # Store the phase data for each signal
                 res_data[signal] = phase_dict
         # Otherwise, only retrieve data for the specified phase
