@@ -2,7 +2,9 @@ from typing import Dict, Literal, Sequence
 
 from typing_extensions import get_args
 
-from empkins_io.sensors.motion_capture.motion_capture_systems import MOTION_CAPTURE_SYSTEM
+from empkins_io.sensors.motion_capture.motion_capture_systems import (
+    MOTION_CAPTURE_SYSTEM,
+)
 
 BODY_PART_PERCEPTION_NEURON = Literal[
     "Hips",
@@ -120,9 +122,47 @@ BODY_PART_OPENPOSE = Literal[
     "RightHeel",
 ]
 
+BODY_PART_MEDIAPIPE = Literal[
+    "Nose",
+    "LeftEyeInner",
+    "LeftEye",
+    "LeftEyeOuter",
+    "RightEyeInner",
+    "RightEye",
+    "RightEyeOuter",
+    "LeftEar",
+    "RightEar",
+    "MouthLeft",
+    "MouthRight",
+    "LeftShoulder",
+    "RightShoulder",
+    "LeftElbow",
+    "RightElbow",
+    "LeftWrist",
+    "RightWrist",
+    "LeftPinky",
+    "RightPinky",
+    "LeftIndex",
+    "RightIndex",
+    "LeftThumb",
+    "RightThumb",
+    "LeftHip",
+    "RightHip",
+    "LeftKnee",
+    "RightKnee",
+    "LeftAnkle",
+    "RightAnkle",
+    "LeftHeel",
+    "RightHeel",
+    "LeftFootIndex",
+    "RightFootIndex",
+]
+
 BODY_PART_GROUP = Literal["TotalBody", "UpperExtremities", "LowerExtremities", "Trunk"]
 
-BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[BODY_PART_GROUP, Sequence[BODY_PART_PERCEPTION_NEURON]] = {
+BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[
+    BODY_PART_GROUP, Sequence[BODY_PART_PERCEPTION_NEURON]
+] = {
     "TotalBody": get_args(BODY_PART_PERCEPTION_NEURON),
     "UpperExtremities": [
         "RightShoulder",
@@ -199,6 +239,40 @@ BODY_PART_MAPPING_XSENS: Dict[BODY_PART_GROUP, Sequence[BODY_PART_XSENS]] = {
     ],
 }
 
+BODY_PART_MAPPING_MEDIAPIPE: Dict[BODY_PART_GROUP, Sequence[BODY_PART_MEDIAPIPE]] = {
+    "TotalBody": get_args(BODY_PART_MEDIAPIPE),
+    "UpperExtremities": [
+        "LeftElbow",
+        "RightElbow",
+        "LeftWrist",
+        "RightWrist",
+        "LeftPinky",
+        "RightPinky",
+        "LeftIndex",
+        "RightIndex",
+        "LeftThumb",
+        "RightThumb",
+    ],
+    "LowerExtremities": [
+        "LeftHip",
+        "RightHip",
+        "LeftKnee",
+        "RightKnee",
+        "LeftAnkle",
+        "RightAnkle",
+        "LeftHeel",
+        "RightHeel",
+        "LeftFootIndex",
+        "RightFootIndex",
+    ],
+    "Trunk": [
+        "LeftShoulder",
+        "RightShoulder",
+        "RightHip",
+        "LeftHip",
+    ],
+}
+
 
 def get_all_body_parts(system: MOTION_CAPTURE_SYSTEM) -> Sequence[str]:
     """Return all body parts.
@@ -212,11 +286,15 @@ def get_all_body_parts(system: MOTION_CAPTURE_SYSTEM) -> Sequence[str]:
 
     """
     if system not in get_args(MOTION_CAPTURE_SYSTEM):
-        raise ValueError(f"Invalid 'system'! Expected one of {get_args(MOTION_CAPTURE_SYSTEM)}, got {system}.")
+        raise ValueError(
+            f"Invalid 'system'! Expected one of {get_args(MOTION_CAPTURE_SYSTEM)}, got {system}."
+        )
     if system == "perception_neuron":
         return get_args(BODY_PART_PERCEPTION_NEURON)
     elif system == "openpose":
         return get_args(BODY_PART_OPENPOSE)
+    elif system == "mediapipe":
+        return get_args(BODY_PART_MEDIAPIPE)
     else:
         return get_args(BODY_PART_XSENS)
 
@@ -247,7 +325,9 @@ def get_body_parts_by_group(
 
     """
     if system not in get_args(MOTION_CAPTURE_SYSTEM):
-        raise ValueError(f"Invalid 'system'! Expected one of {get_args(MOTION_CAPTURE_SYSTEM)}, got {system}.")
+        raise ValueError(
+            f"Invalid 'system'! Expected one of {get_args(MOTION_CAPTURE_SYSTEM)}, got {system}."
+        )
     if body_part_group not in get_args(BODY_PART_GROUP):
         raise ValueError(
             f"Invalid 'body_part_group'! Expected one of {get_args(BODY_PART_GROUP)}, got {body_part_group}."
@@ -256,5 +336,7 @@ def get_body_parts_by_group(
         return BODY_PART_MAPPING_PERCEPTION_NEURON[body_part_group]
     elif system == "openpose":
         return BODY_PART_MAPPING_OPENPOSE[body_part_group]
+    elif system == "mediapipe":
+        return BODY_PART_MAPPING_MEDIAPIPE[body_part_group]
     else:
         return BODY_PART_MAPPING_XSENS[body_part_group]
