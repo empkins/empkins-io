@@ -111,7 +111,7 @@ class DipStudyDataset(Dataset):
         return data
 
     @property
-    def tfm_data(self) -> pd.DataFrame:
+    def tfm_data(self) -> Dict[str, Dict[str, np.ndarray]]:
         if self.is_single(None):
             participant_id = self.index["subject"][0]
             phase = self.index["phase"][0]
@@ -129,7 +129,7 @@ class DipStudyDataset(Dataset):
         )
     
     @property
-    def emrad_raw_data(self) -> Dict[str, Dict[str, np.ndarray]]:
+    def emrad_raw_data(self) -> Dict[str, np.ndarray]:
         participant_id = self.index["subject"][0]
         data, fs = _load_radar_data(self.base_path, participant_id, self.sampling_rates["radar"])
         return data
