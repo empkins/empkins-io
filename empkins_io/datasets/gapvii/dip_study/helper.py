@@ -117,3 +117,22 @@ def _load_tfm_data(base_path: path_t, participant_id: str, date: str) -> tuple[p
     fs = loader.sampling_rates_hz
     return data, fs
 
+def _load_radar_data(base_path: path_t, participant_id: str, sampling_rate_hz: float) -> tuple[pd.DataFrame, float]:
+    # Build the directory path for radar data based on the base path and participant ID
+    radar_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
+        "emrad/raw"
+    )
+    
+    # Build the file path to the radar data (HDF5 format) using the participant ID
+    radar_file_path = radar_dir_path.joinpath(f"{participant_id}_emrad_data.h5")
+    # Load radar data from the HDF5 file using the EmradDataset class
+    dataset_radar = EmradDataset.from_hd5_file(radar_file_path, sampling_rate_hz=sampling_rate_hz)
+    
+    # Convert the radar data to a pandas DataFrame, using "local_datetime" as the index and adding a sync output column
+    data = dataset_radar.data_as_df(index="local_datetime", add_sync_out=True)
+    # Retrieve the sampling rate (Hz) from the dataset
+    fs = dataset_radar.sampling_rate_hz
+    # Return the DataFrame (data) and the sampling rate (fs)
+    return data, fs
+
+

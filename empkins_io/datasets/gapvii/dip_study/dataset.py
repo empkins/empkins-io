@@ -11,6 +11,7 @@ from empkins_io.sensors.tfm.tfm import TfmLoader
 from empkins_io.utils._types import path_t
 from empkins_io.datasets.gapvii.dip_study.helper import (
     _load_general_information,
+    _load_radar_data,
     _update_dates,
     _load_single_date,
     _load_tfm_data,
@@ -34,6 +35,7 @@ class DipStudyDataset(Dataset):
     }
     SUBJECTS_MISSING: Tuple[str] = ("VP_15", "VP_18")
     DEF_DATE = "01.01.1970"
+    TFM_TIME_OFFSET = pd.DateOffset(hours=3)
 
     def __init__(
             self,
@@ -104,9 +106,9 @@ class DipStudyDataset(Dataset):
 
     @property
     def tfm_raw_data(self) -> Dict[str, Dict[str, np.ndarray]]:
-        tfm_path = self.base_path.joinpath("")
-        tfm_loader = TfmLoader.from_mat_file(path=tfm_path)
-        return tfm_loader
+        participant_id = self.index["subject"][0]
+        data, fs = _load_tfm_data(self.base_path, participant_id, self.date)
+        return data
 
     @property
     def tfm_data(self) -> pd.DataFrame:
@@ -124,6 +126,29 @@ class DipStudyDataset(Dataset):
 
         raise ValueError(
             "TFM data can only be accessed for a single participant and a single condition at once!"
+        )
+    
+    @property
+    def emrad_raw_data(self) -> Dict[str, Dict[str, np.ndarray]]:
+        participant_id = self.index["subject"][0]
+        data, fs = _load_radar_data(self.base_path, participant_id, self.sampling_rates["radar"])
+        return data
+    
+    @property
+    def emrad_data(self) -> pd.DataFrame:
+        if self.is_single(None):
+            participant_id = self.index["subject"][0]
+            phase = self.index["phase"][0]
+            data, fs = self._get_radar_data(participant_id, phase)
+            return data
+
+        if self.is_single(["subject"]):
+            participant_id = self.index["subject"][0]
+            data, fs = self._get_radar_data(participant_id, "all")
+            return data
+
+        raise ValueError(
+            "Radar data can only be accessed for a single participant and a single condition at once!"
         )
 
     @property
@@ -143,7 +168,7 @@ class DipStudyDataset(Dataset):
         # Check if caching is enabled for data retrieval
         if self.use_cache:
             # TODO implement cache logic
-            data, fs = None, None  # Placeholder for future cache implementation
+            data, fs = None, None # Placeholder for future cache implementation
             pass
         else:
             # Load the TFM data from the dataset for the specified participant and date
@@ -151,7 +176,6 @@ class DipStudyDataset(Dataset):
 
         # Initialize a dictionary to store results
         res_data = {}
-
         # Check if all phases are requested
         if phase == "all":
             for signal in data:
@@ -159,7 +183,9 @@ class DipStudyDataset(Dataset):
                 for key in data[signal]:
                     # Convert each start_ phase's data to a DataFrame
                     if key.startswith("start_"):
-                        phase_dict[key] = pd.DataFrame(data[signal][key])
+                        df = pd.DataFrame(data[signal][key])
+                        df.index = df.index - self.TFM_TIME_OFFSET
+                        phase_dict[key] = df
                  # Store the phase data for each signal
                 res_data[signal] = phase_dict
         # Otherwise, only retrieve data for the specified phase
@@ -169,9 +195,49 @@ class DipStudyDataset(Dataset):
                 for key in data[signal]:
                     # Only retrieve data for the specific start phase
                     if key == f"start_{phase}":
-                        phase_dict[key] = pd.DataFrame(data[signal][key])
+                        df = pd.DataFrame(data[signal][key])
+                        df.index = df.index - self.TFM_TIME_OFFSET
+                        phase_dict[key] = df
                 # Store the specific phase data for each signal
                 res_data[signal] = phase_dict
 
         # Return the structured result data and the sampling rate
+        return res_data, fs
+    
+    def _get_radar_data(self, participant_id: str, phase: str) -> tuple[pd.DataFrame, float]:
+        if self.use_cache:
+            # TODO implement cache
+            data, fs = None, None # Placeholder for future cache implementation
+            pass
+        else:
+            # Load radar data for the given participant_id from the base path
+            data, fs = _load_radar_data(self.base_path, participant_id, self.sampling_rates["radar"])
+
+        # Dictionary to store filtered radar data based on the phase
+        res_data = {}  
+        # If phase is "all", process all available signals
+        if phase == "all":
+            sig, sig_data = next(iter(self.tfm_data.items()))  # Get first signal and its data
+            for key in sig_data:  # Loop over the signal data
+                # Get the start and end date from the signal's index
+                start_date = sig_data[key].index[0]
+                end_date = sig_data[key].index[-1]
+                # Filter the radar data using the date range
+                df_filtered = data.loc[start_date:end_date]
+                # Store the filtered data for the current key in the results dictionary
+                res_data[key] = pd.DataFrame(df_filtered)
+        # If a specific phase is selected, process only that phase
+        else:
+            sig, sig_data = next(iter(self.tfm_data.items()))  # Get the signal and its data
+            for key in sig_data:
+                if key == f"start_{phase}":  # Match the key to the selected phase
+                    # Get the start and end date from the signal's index
+                    start_date = sig_data[key].index[0]
+                    end_date = sig_data[key].index[-1]
+                    # Filter the radar data using the date range
+                    df_filtered = data.loc[start_date:end_date]
+                    # Store the filtered data for the current phase in the results dictionary
+                    res_data[key] = pd.DataFrame(df_filtered)
+
+        # Return the filtered data and the sampling frequency
         return res_data, fs
