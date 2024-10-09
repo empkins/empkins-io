@@ -107,12 +107,18 @@ class MacroBaseDataset(Dataset):
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
     def create_index(self):
-        subject_ids = [
-            subject_dir.name
-            for subject_dir in get_subject_dirs(
-                self.base_path.joinpath("data_per_subject"), "VP_*"
-            )
-        ]
+        if self.base_path.joinpath("data_per_subject").exists():
+
+            subject_ids = [
+                subject_dir.name
+                for subject_dir in get_subject_dirs(
+                    self.base_path.joinpath("data_per_subject"), "VP_*"
+                )
+            ]
+        else:
+            # list from VP_01 to VP_41
+            subject_ids = [f"VP_{i:02d}" for i in range(1, 42)]
+
         index_cols = ["subject", "condition"]
         index = list(product(subject_ids, self.CONDITIONS))
 
