@@ -27,6 +27,7 @@ class DipStudyDataset(Dataset):
     dates and create an index of subjects and phases.
     """
 
+    exlude_failed: bool
     base_path: path_t
     use_cache: bool
 
@@ -34,17 +35,20 @@ class DipStudyDataset(Dataset):
         "radar": 8000000 / 4096 / 2,
     }
     SUBJECTS_MISSING: Tuple[str] = ("VP_15", "VP_18")
+    RADAR_FAILURE: Tuple[str] = ("VP_03")
     DEF_DATE = "01.01.1970"
     TFM_TIME_OFFSET = pd.DateOffset(hours=3)
 
     def __init__(
             self,
             base_path: path_t,
+            exlude_failed: bool = False,
             groupby_cols: Optional[Sequence[str]] = None,
             subset_index: Optional[Sequence[str]] = None,
             use_cache: Optional[bool] = False
     ):
         self.base_path = base_path
+        self.exclude_failed = exlude_failed
         self.use_cache = use_cache
 
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
@@ -56,6 +60,11 @@ class DipStudyDataset(Dataset):
         for subject_id in self.SUBJECTS_MISSING:
             if subject_id in subject_ids:
                 subject_ids.remove(subject_id)
+
+        if self.exclude_failed:
+            for subject_id in self.RADAR_FAILURE:
+                if subject_id in subject_ids:
+                    subject_ids.remove(subject_id)
         return subject_ids
 
     def create_index(self):
