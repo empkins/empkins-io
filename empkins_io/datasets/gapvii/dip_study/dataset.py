@@ -27,8 +27,8 @@ class DipStudyDataset(Dataset):
     dates and create an index of subjects and phases.
     """
 
-    exlude_failed: bool
     base_path: path_t
+    exclude_failed: bool
     use_cache: bool
 
     _SAMPLING_RATES: Dict[str, int] = {
@@ -37,18 +37,17 @@ class DipStudyDataset(Dataset):
     SUBJECTS_MISSING: Tuple[str] = ("VP_15", "VP_18")
     RADAR_FAILURE: Tuple[str] = ("VP_03")
     DEF_DATE = "01.01.1970"
-    TFM_TIME_OFFSET = pd.DateOffset(hours=3)
 
     def __init__(
             self,
             base_path: path_t,
-            exlude_failed: bool = False,
+            exclude_failed: bool = False,
             groupby_cols: Optional[Sequence[str]] = None,
             subset_index: Optional[Sequence[str]] = None,
             use_cache: Optional[bool] = False
     ):
         self.base_path = base_path
-        self.exclude_failed = exlude_failed
+        self.exclude_failed = exclude_failed
         self.use_cache = use_cache
 
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
@@ -117,6 +116,7 @@ class DipStudyDataset(Dataset):
     def tfm_raw_data(self) -> Dict[str, Dict[str, np.ndarray]]:
         participant_id = self.index["subject"][0]
         data, fs = _load_tfm_data(self.base_path, participant_id, self.date)
+        self._SAMPLING_RATES.update(fs)
         return data
 
     @property
@@ -125,12 +125,13 @@ class DipStudyDataset(Dataset):
             participant_id = self.index["subject"][0]
             phase = self.index["phase"][0]
             data, fs = self._get_tfm_data(participant_id, phase)
+            self._SAMPLING_RATES.update(fs)
             return data
 
         if self.is_single(["subject"]):
             participant_id = self.index["subject"][0]
             data, fs = self._get_tfm_data(participant_id, "all")
-
+            self._SAMPLING_RATES.update(fs)     
             return data
 
         raise ValueError(
@@ -193,7 +194,6 @@ class DipStudyDataset(Dataset):
                     # Convert each start_ phase's data to a DataFrame
                     if key.startswith("start_"):
                         df = pd.DataFrame(data[signal][key])
-                        df.index = df.index - self.TFM_TIME_OFFSET
                         phase_dict[key] = df
                  # Store the phase data for each signal
                 res_data[signal] = phase_dict
@@ -205,7 +205,6 @@ class DipStudyDataset(Dataset):
                     # Only retrieve data for the specific start phase
                     if key == f"start_{phase}":
                         df = pd.DataFrame(data[signal][key])
-                        df.index = df.index - self.TFM_TIME_OFFSET
                         phase_dict[key] = df
                 # Store the specific phase data for each signal
                 res_data[signal] = phase_dict
@@ -222,31 +221,11 @@ class DipStudyDataset(Dataset):
             # Load radar data for the given participant_id from the base path
             data, fs = _load_radar_data(self.base_path, participant_id, self.sampling_rates["radar"])
 
-        # Dictionary to store filtered radar data based on the phase
-        res_data = {}  
-        # If phase is "all", process all available signals
+        res_data = None
         if phase == "all":
-            sig, sig_data = next(iter(self.tfm_data.items()))  # Get first signal and its data
-            for key in sig_data:  # Loop over the signal data
-                # Get the start and end date from the signal's index
-                start_date = sig_data[key].index[0]
-                end_date = sig_data[key].index[-1]
-                # Filter the radar data using the date range
-                df_filtered = data.loc[start_date:end_date]
-                # Store the filtered data for the current key in the results dictionary
-                res_data[key] = pd.DataFrame(df_filtered)
-        # If a specific phase is selected, process only that phase
+            res_data = data
         else:
-            sig, sig_data = next(iter(self.tfm_data.items()))  # Get the signal and its data
-            for key in sig_data:
-                if key == f"start_{phase}":  # Match the key to the selected phase
-                    # Get the start and end date from the signal's index
-                    start_date = sig_data[key].index[0]
-                    end_date = sig_data[key].index[-1]
-                    # Filter the radar data using the date range
-                    df_filtered = data.loc[start_date:end_date]
-                    # Store the filtered data for the current phase in the results dictionary
-                    res_data[key] = pd.DataFrame(df_filtered)
+            res_data = data
 
         # Return the filtered data and the sampling frequency
         return res_data, fs
