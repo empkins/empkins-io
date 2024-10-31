@@ -14,8 +14,8 @@ matplotlib = "^3"
 seaborn = "<0.13"
 statsmodels = "^0"
 pyquaternion = "^0.9.9"
-#biopsykit = {path="../BioPsyKit", extras=["jupyter"]}
-biopsykit = {git="https://github.com/mad-lab-fau/BioPsyKit.git", branch="main", extras=["jupyter"]}
+biopsykit = {path="../BioPsyKit", extras=["jupyter"]}
+#biopsykit = {git="https://github.com/mad-lab-fau/BioPsyKit.git", branch="main", extras=["jupyter"]}
 h5py = "^3.5.0"
 tpcp = "^0.13"
 resampy = "^0.4.2"
@@ -25,6 +25,7 @@ avro = "^1.11.3"
 fastavro = "^1.4.0"
 # opencv is optional, but required for some functions
 opencv-python = {version="^4.8", optional=true}
+construct = "^2.10.70"
 
 [tool.poetry.extras]
 opencv = ["opencv-python"]
