@@ -2,7 +2,7 @@
 name = "empkins-io"
 version = "0.1.1"
 description = "A Python package to load and convert data from EmpkinS sensors."
-authors = ["Robert Richer <robert.richer@fau.de>"]
+authors = ["Robert Richer <robert.richer@fau.de>", "Luca Abel <luca.abel@fau.de>"]
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"

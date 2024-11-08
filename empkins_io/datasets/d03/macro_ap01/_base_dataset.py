@@ -347,7 +347,9 @@ class MacroBaseDataset(Dataset):
 
     @property
     def condition_order(self) -> pd.DataFrame:
-        data = pd.read_csv(self.base_path.joinpath("_extras/condition_order.csv"))
+        data = pd.read_csv(
+            self.data_tabular_path.joinpath("_extras/condition_order.csv")
+        )
         data = data.set_index("subject")[["condition_order"]]
         subject_ids = self.index["subject"].unique()
         return data.loc[subject_ids]
