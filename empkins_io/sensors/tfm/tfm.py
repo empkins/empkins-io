@@ -285,8 +285,7 @@ class TfmLoader:
                 ~df_iv.index.duplicated(), df_iv.index + "_" + df_iv.groupby(level=0).cumcount().astype(str)
             )
             warnings.warn("The TFM Dataset contains duplicate intervention names. "
-                          "Intervention names where renamed to avoid overwriting of data."
-                          )
+                          "Intervention names were renamed to avoid overwriting of data.")
 
         # get relative start time of the recording
         relative_start_time = data["IV"].Reltime[0]
