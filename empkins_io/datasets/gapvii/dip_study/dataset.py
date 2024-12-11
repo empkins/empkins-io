@@ -31,11 +31,13 @@ class DipStudyDataset(Dataset):
     exclude_failed: bool
     use_cache: bool
 
+    _PHASES = ["rest_1", "cpt", "rest_2", "straw", "rest_3"]
     _SAMPLING_RATES: Dict[str, int] = {
         "radar": 8000000 / 4096 / 2,
     }
     SUBJECTS_MISSING: Tuple[str] = ("VP_15", "VP_18")
     RADAR_FAILURE: Tuple[str] = ("VP_03")
+    TFM_FAILURE: Tuple[Tuple[str]] = (("VP_08", "straw"), ("VP_12", "cpt"))
     DEF_DATE = "01.01.1970"
 
     def __init__(
@@ -68,10 +70,7 @@ class DipStudyDataset(Dataset):
 
     def create_index(self):
         subject_ids = self._get_ids()
-
-        phases = ["rest_1", "cpt", "rest_2", "straw", "rest_3"]
-
-        index = list(product(subject_ids, phases))
+        index = list(product(subject_ids, self._PHASES))
         index = pd.DataFrame(index, columns=["subject", "phase"])
         return index
 
@@ -98,6 +97,21 @@ class DipStudyDataset(Dataset):
             return _load_general_information(base_path=self.base_path, column="condition_order")[self.index["subject"][0]]
 
         return _load_general_information(base_path=self.base_path, column="condition_order")
+
+    @property
+    def ordered_phases(self):
+        # data = self.tfm_data.values()
+        # pre_phases = list(next(iter(data)).keys())
+        # phases = [phase.replace("start_", "") for phase in pre_phases if phase != 'start_recording']
+
+        if self.condition_order == 'cpt_first':
+            return self._PHASES
+        elif self.condition_order == 'straw_first':
+            res = self._PHASES.copy()
+            # exchange second and fourth element
+            res[1], res[3] = res[3], res[1]
+            return res
+        return None
 
     @property
     def cpt_duration(self):
