@@ -29,27 +29,34 @@ class DipStudyDataset(Dataset):
 
     base_path: path_t
     exclude_failed: bool
+    exclude_noisy_tfm: bool
     use_cache: bool
 
     _PHASES = ["rest_1", "cpt", "rest_2", "straw", "rest_3"]
     _SAMPLING_RATES: Dict[str, int] = {
         "radar": 8000000 / 4096 / 2,
     }
+    DEF_DATE = "01.01.1970"
     SUBJECTS_MISSING: Tuple[str] = ("VP_15", "VP_18")
     RADAR_FAILURE: Tuple[str] = ("VP_03")
-    TFM_FAILURE: Tuple[Tuple[str]] = (("VP_08", "straw"), ("VP_12", "cpt"))
-    DEF_DATE = "01.01.1970"
+    TFM_FAILURE: Tuple[Tuple[str, str]] = (
+      ("VP_05", "cpt"),
+      ("VP_08", "straw"),
+      ("VP_12", "straw"),
+    )
 
     def __init__(
             self,
             base_path: path_t,
             exclude_failed: bool = False,
+            exclude_noisy_tfm: bool = False,
             groupby_cols: Optional[Sequence[str]] = None,
             subset_index: Optional[Sequence[str]] = None,
             use_cache: Optional[bool] = False
     ):
         self.base_path = base_path
         self.exclude_failed = exclude_failed
+        self.exclude_noisy_tfm = exclude_noisy_tfm
         self.use_cache = use_cache
 
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
@@ -58,11 +65,14 @@ class DipStudyDataset(Dataset):
         subject_ids = [
             subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_*")
         ]
+
+        # Filter out missing subjects
         for subject_id in self.SUBJECTS_MISSING:
             if subject_id in subject_ids:
                 subject_ids.remove(subject_id)
 
-        if self.exclude_failed:
+        # Filter out failed subjects
+        if self.exclude_failed and self.RADAR_FAILURE:
             for subject_id in self.RADAR_FAILURE:
                 if subject_id in subject_ids:
                     subject_ids.remove(subject_id)
@@ -71,6 +81,11 @@ class DipStudyDataset(Dataset):
     def create_index(self):
         subject_ids = self._get_ids()
         index = list(product(subject_ids, self._PHASES))
+
+        # Filter out TFM failures
+        if self.exclude_noisy_tfm and self.TFM_FAILURE:
+            index = [entry for entry in index if entry not in self.TFM_FAILURE]
+
         index = pd.DataFrame(index, columns=["subject", "phase"])
         return index
 
