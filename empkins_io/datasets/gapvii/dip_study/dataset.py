@@ -40,9 +40,9 @@ class DipStudyDataset(Dataset):
     SUBJECTS_MISSING: Tuple[str] = ("VP_15", "VP_18")
     RADAR_FAILURE: Tuple[str] = ("VP_03")
     TFM_FAILURE: Tuple[Tuple[str, str]] = (
-      ("VP_05", "cpt"),
-      ("VP_08", "straw"),
-      ("VP_12", "straw"),
+    #   ("VP_05", "cpt"),
+    #   ("VP_08", "straw"),
+    #   ("VP_12", "straw"),
     )
 
     def __init__(
@@ -112,7 +112,7 @@ class DipStudyDataset(Dataset):
             return _load_general_information(base_path=self.base_path, column="condition_order")[self.index["subject"][0]]
 
         return _load_general_information(base_path=self.base_path, column="condition_order")
-
+    
     @property
     def ordered_phases(self):
         # data = self.tfm_data.values()
@@ -134,6 +134,13 @@ class DipStudyDataset(Dataset):
             return _load_general_information(base_path=self.base_path, column="cpt_duration")[self.index["subject"][0]]
 
         return _load_general_information(base_path=self.base_path, column="cpt_duration")
+
+    @property
+    def straw_duration(self):
+        if self.is_single(["subject"]):
+            return _load_general_information(base_path=self.base_path, column="straw_duration")[self.index["subject"][0]]
+
+        return _load_general_information(base_path=self.base_path, column="straw_duration")
 
     @property
     def subject(self) -> str:
