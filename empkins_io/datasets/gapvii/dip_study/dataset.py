@@ -15,6 +15,7 @@ from empkins_io.datasets.gapvii.dip_study.helper import (
     _update_dates,
     _load_single_date,
     _load_tfm_data,
+    _load_b2b_data
 )
 
 
@@ -173,6 +174,13 @@ class DipStudyDataset(Dataset):
         raise ValueError(
             "TFM data can only be accessed for a single participant and a single condition at once!"
         )
+    
+    @property
+    def b2b_data(self) -> pd.DataFrame:
+        participant_id = self.index["subject"][0]
+        data = _load_b2b_data(self.base_path, participant_id, self.date)
+        return data
+
     
     @property
     def emrad_raw_data(self) -> Dict[str, np.ndarray]:
