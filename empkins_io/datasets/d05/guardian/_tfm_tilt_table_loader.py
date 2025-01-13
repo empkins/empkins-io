@@ -62,17 +62,19 @@ class TFMTiltTableLoader:
     @classmethod
     def from_mat_file(
         cls,
-        path: path_t,
+        base_path: path_t,
+        file_path: path_t,
         tz: Optional[str] = "Europe/Berlin",
     ):
-        data = loadmat(path, struct_as_record=False, squeeze_me=True)
+        total_path = base_path.joinpath(file_path)
+        data = loadmat(total_path, struct_as_record=False, squeeze_me=True)
 
-        nur_gdn = os.path.basename(os.path.dirname(os.path.dirname(path)))
+        nur_gdn = os.path.basename(os.path.dirname(os.path.dirname(total_path)))
 
         data_raw = data["RAW_SIGNALS"]
         names = data["IV"].Name
         times = data["IV"].AbsTime
-        dates = pd.read_csv(r"C:\Users\Asus\Uni\Bachelorarbeit\Data\Guardian_Dataset\meassuring_dates.csv", sep=";")
+        dates = pd.read_csv(base_path.joinpath("meassuring_dates.csv"), sep=";")
 
         measuring_date = dates.loc[dates["participant"] == nur_gdn, "meassuring_date"].values[0]
 

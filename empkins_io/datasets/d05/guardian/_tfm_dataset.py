@@ -88,13 +88,13 @@ class GuardianTiltTableDataset(Dataset):
                 "for a single participant and a SINGLE phase."
             )
         if participant == "GDN0025":
-            tfm_path = self.base_path.joinpath(f"Data_raw/{participant}/TFM-Daten/{lower_letters}_no02.mat")
+            tfm_path = Path(f"Data_raw/{participant}/TFM-Daten/{lower_letters}_no02.mat")
         else:
-            tfm_path = self.base_path.joinpath(f"Data_raw/{participant}/TFM-Daten/{lower_letters}_no01.mat")
+            tfm_path = Path(f"Data_raw/{participant}/TFM-Daten/{lower_letters}_no01.mat")
         if self.use_cache:
-            tfm_data = _cached_get_tfm_data(tfm_path)
+            tfm_data = _cached_get_tfm_data(self.base_path, tfm_path)
         else:
-            tfm_data = _load_tfm_data(tfm_path)
+            tfm_data = _load_tfm_data(self.base_path, tfm_path)
         if self.only_labeled:
 
             label_path = self.base_path.joinpath(
@@ -201,7 +201,7 @@ class GuardianTiltTableDataset(Dataset):
         return data_ICG, data_ECG
 
     def correct_start_point(self, heartbeats, b_points=[], q_points=[], c_points=[], pep_results=[]):
-        # correct samples such manually labeled and calculted ones match
+        # correct samples such manually labeled and calculated ones match
 
         rows = self.load_annotations()
 
@@ -222,8 +222,7 @@ class GuardianTiltTableDataset(Dataset):
         # load annotations of label borders of random selected part of the phase
         participant = self.index["participant"][0]
         phase = self.index["phase"][0]
-        data_path = Path(r"C:\\Users\\Asus\\Uni\\Bachelorarbeit\\Data\\Guardian_Dataset")
-        annotations_path = data_path.joinpath(
+        annotations_path = self.base_path.joinpath(
             f"Data_raw/{participant}/TFM-Daten/manual_labeling/labeling_borders_{participant}.csv"
         )
         if not annotations_path.exists():

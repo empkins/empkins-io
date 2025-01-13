@@ -633,10 +633,9 @@ class MicroBaseDataset(Dataset):
         subject = self.index["subject"][0]
         condition = self.index["condition"][0]
 
-        data_path = Path(r"C:\Users\Asus\Uni\Bachelorarbeit\Data\EmpkinS_Micro_Data")
         transformed_string = subject.lower()
         transformed_string = transformed_string.replace("_0", "_", 1)
-        path_border = data_path.joinpath(
+        path_border = self.base_path.joinpath(
             "data_per_subject",
             f"{subject}",
             f"{condition}",
