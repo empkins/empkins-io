@@ -2,13 +2,16 @@ import warnings
 from functools import cached_property, lru_cache
 from itertools import product
 from pathlib import Path
-from typing import Dict, Optional, Sequence, Tuple
+from typing import Optional, Sequence, Tuple, ClassVar, Union
 import ast
 import json
 import numpy as np
 
 import pandas as pd
 from biopsykit.io.io import load_long_format_csv
+from biopsykit.signals.ecg.preprocessing import EcgPreprocessingNeurokit
+from biopsykit.signals.ecg.segmentation import HeartbeatSegmentationNeurokit
+from biopsykit.signals.icg.preprocessing import IcgPreprocessingBandpass
 from biopsykit.utils.file_handling import get_subject_dirs
 from pandas import DataFrame
 from tpcp import Dataset
@@ -30,6 +33,9 @@ from empkins_io.datasets.d03.micro_gapvii.helper import (
     load_opendbm_facial_tremor_data,
     load_opendbm_movement_data,
     load_speaker_diarization,
+    load_labeling_borders,
+    compute_reference_heartbeats,
+    compute_reference_pep,
 )
 from empkins_io.utils._types import path_t
 
@@ -48,22 +54,25 @@ _cached_load_speaker_diarization = lru_cache(maxsize=4)(load_speaker_diarization
 class MicroBaseDataset(Dataset):
     base_path: path_t
     data_tabular_path: path_t
+
+    SAMPLING_RATES_BIOPAC: ClassVar[dict[str, int]] = {"ecg": 1000, "icg": 1000}
+    SAMPLING_RATE_EMRAD: ClassVar[float] = 1953.125
+
     sync_on_load: bool
     use_cache: bool
     phase_fine: bool
     opendbm_suffix: Optional[str]
-    _sampling_rates: Dict[str, float] = {"biopac": 1000, "emrad": 1953.125}
-    _sample_times_saliva: Tuple[int] = (-40, -1, 16, 25, 35, 45, 60, 75)
-    _sample_times_bloodspot: Tuple[int] = (-40, 60)
+    _sample_times_saliva: ClassVar[tuple[int]] = (-40, -1, 16, 25, 35, 45, 60, 75)
+    _sample_times_bloodspot: ClassVar[tuple[int]] = (-40, 60)
 
-    NILSPOD_MAPPING: Dict[str, str] = {
+    NILSPOD_MAPPING: ClassVar[dict[str, str]] = {
         "chest": "b0c2",  # ecg
         "sternum": "157e",  # sternum
         "sync": "9e02",  # sync with mocap (MASTER)
         "board": "b012",  # sync with video (clapper board)
     }
 
-    PHASE_COARSE = [
+    PHASES_COARSE: ClassVar[Sequence[str]] = [
         "Prep",
         "Pause_1",
         "Talk",
@@ -74,7 +83,7 @@ class MicroBaseDataset(Dataset):
         "Pause_5",
     ]
 
-    PHASE_FINE = [
+    PHASES_FINE: ClassVar[Sequence[str]] = [
         "Prep",
         "Pause_1",
         "Talk_1",
@@ -87,22 +96,29 @@ class MicroBaseDataset(Dataset):
         "Pause_5",
     ]
 
-    CONDITIONS = ["tsst", "ftsst"]
+    CONDITIONS: ClassVar[Sequence[str]] = ["tsst", "ftsst"]
 
-    MISSING_DATA: Sequence[str] = [
+    MISSING_DATA: ClassVar[Sequence[str]] = [
         "VP_045",
     ]  # Missing data (add participant IDs here)
 
-    MISSING_RADAR_SYNC_IN_PEAKS: Sequence[str] = ["VP_002", "VP_003"]
+    MISSING_RADAR_SYNC_IN_PEAKS: ClassVar[Sequence[str]] = ["VP_002", "VP_003"]
+
+    MANUAL_START_TIME_BIOPAC: ClassVar[dict[str, dict[str, str]]] = {
+        "VP_096": {"tsst": "2023-11-16 13:23:43"},
+        "VP_097": {"tsst": "2023-11-16 14:26:18"},
+    }
+
+    GENDER_MAPPING: ClassVar[dict[int, str]] = {1: "Female", 2: "Male"}
 
     def __init__(
         self,
         base_path: path_t,
         groupby_cols: Optional[Sequence[str]] = None,
         subset_index: Optional[Sequence[str]] = None,
-        exclude_missing_data: Optional[bool] = False,
-        use_cache: Optional[bool] = True,
-        phase_fine: Optional[bool] = False,
+        exclude_missing_data: bool = False,
+        use_cache: bool = True,
+        phase_fine: bool = False,
         opendbm_suffix: Optional[str] = None,
         only_labeled: bool = False,
     ):
@@ -131,13 +147,13 @@ class MicroBaseDataset(Dataset):
                     participant_ids.remove(p_id)
 
         if self.phase_fine:
-            index = list(product(participant_ids, self.CONDITIONS, self.PHASE_FINE))
-            index = pd.DataFrame(index, columns=["subject", "condition", "phase"])
+            index = list(product(participant_ids, self.CONDITIONS, self.PHASES_FINE))
+            index = pd.DataFrame(index, columns=["participant", "condition", "phase"])
             return index
-        elif not self.phase_fine:
-            index = list(product(participant_ids, self.CONDITIONS, self.PHASE_COARSE))
-            index = pd.DataFrame(index, columns=["subject", "condition", "phase"])
-            return index
+
+        index = list(product(participant_ids, self.CONDITIONS, self.PHASES_COARSE))
+        index = pd.DataFrame(index, columns=["participant", "condition", "phase"])
+        return index
 
     @property
     def subset_micro1_0(self):
@@ -152,26 +168,183 @@ class MicroBaseDataset(Dataset):
         return self
 
     @property
-    def sampling_rates(self) -> Dict[str, float]:
-        return self._sampling_rates
+    def sampling_rate_emrad(self) -> float:
+        return self.SAMPLING_RATE_EMRAD
 
     @property
-    def subject(self) -> str:
-        if self.is_single("subject"):
-            return self.index["subject"][0]
-        return None
+    def sampling_rate_ecg(self) -> int:
+        return self.SAMPLING_RATES_BIOPAC["ecg"]
 
     @property
-    def condition(self) -> str:
-        if self.is_single("condition"):
-            return self.index["condition"][0]
-        return None
+    def sampling_rate_icg(self) -> int:
+        return self.SAMPLING_RATES_BIOPAC["icg"]
+
+    @cached_property
+    def biopac(self) -> pd.DataFrame:
+        participant = self.index["participant"][0]
+        condition = self.index["condition"][0]
+
+        if self.is_single(None):
+            phase = self.index["phase"][0]
+        elif self.is_single(["participant", "condition"]):
+            phase = "all"
+        else:
+            raise ValueError("Biopac data can only be accessed for one single participant and condition at once!")
+
+        # some recorded biopac data failed to have a correct start time in the acq file, so we manually set it here
+        # for most cases, the start time is correct in the acq file
+        start_time = self.MANUAL_START_TIME_BIOPAC.get(participant, {}).get(condition, None)
+        if start_time is not None:
+            start_time = pd.to_datetime(start_time).tz_localize("Europe/Berlin")
+        data, fs = self._get_biopac_data(participant, condition, phase, start_time=start_time)
+
+        if self.only_labeled:
+            biopac_data_dict = {}
+            labeling_borders = self.labeling_borders
+
+            if self.is_single(None):
+                biopac_data_dict = self._cut_to_labeling_borders(data, labeling_borders)
+            else:
+                for phase in self.PHASES_FINE if self.phase_fine else self.PHASES_COARSE:
+                    borders = labeling_borders[labeling_borders["description"].apply(lambda x, ph=phase: ph in x)]
+                    biopac_data_dict[phase] = self._cut_to_labeling_borders(data, borders)
+            return biopac_data_dict
+
+        return data
+
+    @staticmethod
+    def _cut_to_labeling_borders(data: pd.DataFrame, labeling_borders: pd.DataFrame) -> pd.DataFrame:
+        start_index = labeling_borders["sample_relative"].iloc[0]
+        end_index = labeling_borders["sample_relative"].iloc[-1]
+        return data.iloc[start_index:end_index]
 
     @property
-    def phase(self) -> str:
-        if self.is_single("phase"):
-            return self.index["phase"][0]
-        return None
+    def icg(self) -> pd.DataFrame:
+        if not self.is_single(None):
+            raise ValueError(
+                "ICG data can only be accessed for a single participant, a single condition, and a single phase!"
+            )
+        return self.biopac[["icg_der"]]
+
+    @property
+    def icg_clean(self) -> pd.DataFrame:
+        algo = IcgPreprocessingBandpass()
+        algo.clean(icg=self.icg, sampling_rate_hz=self.sampling_rate_icg)
+        return algo.icg_clean_
+
+    @property
+    def ecg(self) -> pd.DataFrame:
+        if not self.is_single(None):
+            raise ValueError(
+                "ECG data can only be accessed for a single participant, a single condition, and a single phase!"
+            )
+        return self.biopac[["ecg"]]
+
+    @property
+    def ecg_clean(self) -> pd.DataFrame:
+        algo = EcgPreprocessingNeurokit()
+        algo.clean(ecg=self.ecg, sampling_rate_hz=self.sampling_rate_ecg)
+        return algo.ecg_clean_
+
+    @property
+    def timelog(self) -> pd.DataFrame:
+        if self.is_single(None):
+            participant = self.index["participant"][0]
+            condition = self.index["condition"][0]
+            phase = self.index["phase"][0]
+            return self._get_timelog(participant, condition, phase)
+
+        if self.is_single(["participant", "condition"]):
+            if not self._all_phases_selected():
+                raise ValueError("Timelog can only be accessed for all phases or one specific phase!")
+
+            participant = self.index["participant"][0]
+            condition = self.index["condition"][0]
+            return self._get_timelog(participant, condition, "all")
+
+        raise ValueError("Timelog can only be accessed for a single participant and a single condition at once!")
+
+    @property
+    def labeling_borders(self) -> pd.DataFrame:
+        participant = self.index["participant"][0]
+        condition = self.index["condition"][0]
+
+        if not self.is_single("participant"):
+            raise ValueError("Labeling borders can only be accessed for a single participant.")
+
+        file_path = self.base_path.joinpath(
+            f"data_per_subject/{participant}/{condition}/biopac/reference_labels/{participant}_{condition}_labeling_borders.csv"
+        )
+        data = load_labeling_borders(file_path)
+
+        if self.is_single(None):
+            phase = self.index["phase"][0]
+            data = data[data["description"].apply(lambda x, ph=phase: ph in x)]
+
+        return data
+
+    @property
+    def reference_heartbeats(self) -> pd.DataFrame:
+        return self._load_reference_heartbeats()
+
+    @property
+    def reference_labels_ecg(self) -> Union[pd.DataFrame, dict[str, pd.DataFrame]]:
+        return self._load_reference_labels("ECG")
+
+    @property
+    def reference_labels_icg(self) -> Union[pd.DataFrame, dict[str, pd.DataFrame]]:
+        return self._load_reference_labels("ICG")
+
+    def _load_reference_heartbeats(self) -> pd.DataFrame:
+        reference_ecg = self.reference_labels_ecg
+        reference_heartbeats = reference_ecg.reindex(["heartbeat"], level="channel")
+        reference_heartbeats = compute_reference_heartbeats(reference_heartbeats)
+        return reference_heartbeats
+
+    def _load_reference_labels(self, channel: str) -> pd.DataFrame:
+        participant = self.index["participant"][0]
+        condition = self.index["condition"][0]
+        phases = self.index["phase"]
+
+        if not (
+            self.is_single(None) or len(phases) == len(self.PHASES_FINE if self.phase_fine else self.PHASES_COARSE)
+        ):
+            raise ValueError(
+                "Reference data can only be accessed for a single participant and ALL phases or "
+                "for a single participant and a SINGLE phase."
+            )
+
+        reference_data_dict = {}
+        for phase in phases:
+            file_path = self.base_path.joinpath(
+                f"data_per_subject/{participant}/{condition}/biopac/reference_labels/"
+                f"{participant}_{condition}_reference_labels_{phase.lower()}_{channel.lower()}.csv"
+            )
+            reference_data = pd.read_csv(file_path)
+            reference_data = reference_data.set_index(["heartbeat_id", "channel", "label"])
+
+            start_idx = self.get_subset(phase=phase).labeling_borders.iloc[0]
+            reference_data = reference_data.assign(
+                sample_relative=reference_data["sample_absolute"] - start_idx["sample_absolute"]
+            )
+
+            reference_data_dict[phase] = reference_data
+
+        if self.is_single(None):
+            return reference_data_dict[phases[0]]
+        return pd.concat(reference_data_dict, names=["phase"])
+
+    @property
+    def reference_pep(self) -> pd.DataFrame:
+        return compute_reference_pep(self)
+
+    @property
+    def heartbeats(self) -> pd.DataFrame:
+        heartbeat_algo = HeartbeatSegmentationNeurokit(variable_length=True)
+        ecg_clean = self.ecg_clean
+        heartbeat_algo.extract(ecg=ecg_clean, sampling_rate_hz=self.sampling_rate_ecg)
+        heartbeats = heartbeat_algo.heartbeat_list_
+        return heartbeats
 
     @property
     def id_mapping(self) -> pd.DataFrame:
@@ -196,14 +369,6 @@ class MicroBaseDataset(Dataset):
     def amylase_features(self) -> pd.DataFrame:
         amylase_features_path = self.data_tabular_path.joinpath("saliva/amylase/processed/amylase_features.csv")
         return load_long_format_csv(amylase_features_path, index_cols=["subject", "condition"])
-
-    @property
-    def pep_phase(self) -> pd.DataFrame:
-        if self.phase_fine:
-            pep_phase_path = self.data_tabular_path.joinpath("pep/pep_phase_fine.csv")
-        else:
-            pep_phase_path = self.data_tabular_path.joinpath("pep/pep_phase.csv")
-        return load_long_format_csv(pep_phase_path, index_cols=["subject", "condition", "phase"])
 
     @property
     def gender(self) -> pd.DataFrame:
@@ -233,75 +398,6 @@ class MicroBaseDataset(Dataset):
             index_cols=["subject", "day"],
         )
 
-    @cached_property
-    def biopac(self) -> pd.DataFrame:
-        if self.is_single(None):
-
-            participant_id = self.index["subject"][0]
-            condition = self.index["condition"][0]
-            phase = self.index["phase"][0]
-
-            data, fs = self._get_biopac_data(participant_id, condition, phase)
-            if self.only_labeled:
-
-                data_whole, fs_all = self._get_biopac_data(participant_id, condition, "all")
-                start = (data["ecg"].index[0] - data_whole["ecg"].index[0]).total_seconds()
-                start_phase = int(start * fs_all)
-                transformed_string = participant_id.lower()
-                transformed_string = transformed_string.replace("_0", "_", 1)
-                path_border = self.base_path.joinpath(
-                    "data_per_subject",
-                    f"{participant_id}",
-                    f"{condition}",
-                    "biopac",
-                    "manual_labeled",
-                    f"{transformed_string}_{condition}_label_borders_saved.csv",
-                )
-                data_labels = pd.read_csv(path_border)[["pos", "description"]]
-                data_labels["description"] = data_labels["description"].apply(lambda s: ast.literal_eval(s))
-                rows = data_labels[data_labels["description"].apply(lambda x: phase in x.keys())]
-
-                rows = rows.sort_values(by=["pos"])
-                rows = rows.reset_index(drop=True)
-
-                start = rows["pos"][0] - start_phase
-                end = rows["pos"][1] - start_phase
-                data = data.iloc[start:end]
-
-            return data
-
-        if self.is_single(["subject", "condition"]):
-            if not self._all_phases_selected():
-                raise ValueError("Biopac data can only be accessed for all phases or one specific phase!")
-
-            participant_id = self.index["subject"][0]
-            condition = self.index["condition"][0]
-
-            data, fs = self._get_biopac_data(participant_id, condition, "all")
-
-            return data
-
-        raise ValueError("Biopac data can only be accessed for one single participant and condition at once!")
-
-    @property
-    def timelog(self) -> pd.DataFrame:
-        if self.is_single(None):
-            participant_id = self.index["subject"][0]
-            condition = self.index["condition"][0]
-            phase = self.index["phase"][0]
-            return self._get_timelog(participant_id, condition, phase)
-
-        if self.is_single(["subject", "condition"]):
-            if not self._all_phases_selected():
-                raise ValueError("Timelog can only be accessed for all phases or one specific phase!")
-
-            participant_id = self.index["subject"][0]
-            condition = self.index["condition"][0]
-            return self._get_timelog(participant_id, condition, "all")
-
-        # TODO allow for multiple participants and conditions in the future (return as concatenated dataframe)
-        raise ValueError("Timelog can only be accessed for a single participant and a single condition at once!")
-
     @property
     def emrad(self) -> pd.DataFrame:
         if self.is_single(None):
@@ -329,9 +425,9 @@ class MicroBaseDataset(Dataset):
         if self.is_single(None):
             participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
-            self.index["phase"][0]
+            phase = self.index["phase"][0]
 
-            # load nilspod data for phase
+            # TODO: load nilspod data for phase
             return None
         if self.is_single(["subject", "condition"]):
             if not self._all_phases_selected():
@@ -345,21 +441,6 @@ class MicroBaseDataset(Dataset):
             return data
 
         raise ValueError("NilsPod data can only be accessed for a single participant in a single condition!")
-
-    @property
-    def ecg(self) -> pd.DataFrame:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            senor_id = self.NILSPOD_MAPPING["chest"]
-            data = self.nilspod.xs(senor_id, level=0, axis=1)
-            return data[["ecg"]]
-
-    @property
-    def pep(self) -> pd.DataFrame:
-        return load_long_format_csv(
-            self.base_path.joinpath("data_tabular/pep/pep_conditions.csv"),
-            index_cols=["subject", "condition"],
-        )
 
     @property
     def face_video_path(self) -> Path:
@@ -388,10 +469,6 @@ class MicroBaseDataset(Dataset):
         return path
 
     @property
-    def nilspod(self) -> pd.DataFrame:  # TODO: implement
-        raise NotImplementedError("NilsPod data is not yet implemented!")
-
-    @property
     def expected_files_list(self) -> pd.DataFrame:
         file_path = self.base_path / "expected_files_per_subject.csv"
         return pd.read_csv(file_path, index_col=2)
@@ -408,21 +485,22 @@ class MicroBaseDataset(Dataset):
             file_overview.to_csv(output_path)
         return file_overview
 
-    def _get_biopac_data(self, participant_id: str, condition: str, phase: str) -> Tuple[pd.DataFrame, int]:
+    def _get_biopac_data(
+        self, participant_id: str, condition: str, phase: str, start_time: Optional[pd.Timestamp] = None
+    ) -> tuple[pd.DataFrame, int]:
         if self.use_cache:
-            data, fs = _cached_get_biopac_data(self.base_path, participant_id, condition)
+            data, fs = _cached_get_biopac_data(self.base_path, participant_id, condition, start_time)
         else:
-            data, fs = _load_biopac_data(self.base_path, participant_id, condition)
+            data, fs = _load_biopac_data(self.base_path, participant_id, condition, start_time)
 
         if phase == "all":
             return data, fs
-        else:
-            # cut biopac data to specified phase
-            timelog = self.timelog
-            phase_start = timelog[phase]["start"][0]
-            phase_end = timelog[phase]["end"][0]
-            data = data.loc[phase_start:phase_end]
-            return data, fs
+        # cut biopac data to specified phase
+        timelog = self.timelog
+        phase_start = timelog[phase]["start"].iloc[0]
+        phase_end = timelog[phase]["end"].iloc[0]
+        data = data.loc[phase_start:phase_end]
+        return data, fs
 
     def _get_nilspod_data(self, subject_id: str, condition: str) -> pd.DataFrame:
         if self.use_cache:
@@ -459,200 +537,6 @@ class MicroBaseDataset(Dataset):
         all_phases_fine = self.phase_fine and (len(self.index["phase"]) == len(self.PHASE_FINE))
         all_phases_coarse = not self.phase_fine and (len(self.index["phase"]) == len(self.PHASE_COARSE))
         return all_phases_fine or all_phases_coarse
-
-    def calculate_pep_manual_labeled(self, ecg_clean, ecg_whole, heartbeats):
-        # calculate pep out of the manual labels
-
-        fs = self.sampling_rates["biopac"]
-
-        ecg_start = ecg_whole
-        start = (ecg_clean.index[0] - ecg_start.index[0]).total_seconds()
-        start = int(start * fs)
-        phase = self.index["phase"][0]
-
-        # load the manual labeled data
-        data_ICG, data_ECG = self.load_manual_labeled
-
-        if data_ICG is None or data_ECG is None:
-            return None, None, None
-        row = data_ECG[(data_ECG["Channel"] == phase) & (data_ECG["Label"] == "start")]
-
-        row_end = data_ECG[(data_ECG["Channel"] == phase) & (data_ECG["Label"] == "end")]
-
-        # selct only part of the labels within the specific phase
-        data_ECG = data_ECG.iloc[row.index[0] : row_end.index[0] + 2]
-        data_ICG = data_ICG.iloc[row.index[0] : row_end.index[0] + 2]
-        start_value = row["Samples"].values[0]
-        end_value = row_end["Samples"].values[0]
-
-        data_ICG = data_ICG[(data_ICG["Channel"] == "ICG") | (data_ICG["Channel"] == "Artefact")]
-
-        data_ECG = data_ECG[(data_ECG["Channel"] == "ECG") | (data_ECG["Channel"] == "Artefact")]
-
-        heartbeats["start_sample"] = heartbeats["start_sample"] + start
-        heartbeats["end_sample"] = heartbeats["end_sample"] + start
-
-        # exclude labeled points that are part of uncomplete heartbeats
-        heartbeats = heartbeats[(heartbeats["start_sample"] >= start_value) & (heartbeats["end_sample"] <= end_value)]
-
-        if data_ECG["Samples"].values[0] < heartbeats["start_sample"].values[0]:
-            data_ECG = data_ECG[1:]
-
-        if data_ECG["Samples"].values[-1] > heartbeats["end_sample"].values[-1]:
-            data_ECG = data_ECG[:-1]
-
-        if data_ICG["Samples"].values[0] < heartbeats["start_sample"].values[0]:
-            data_ICG = data_ICG[1:]
-
-        if data_ICG["Samples"].values[-1] > heartbeats["end_sample"].values[-1]:
-            data_ICG = data_ICG[:-1]
-
-        # insert nan for all artefacts
-        data_ICG.loc[data_ICG["Channel"] == "Artefact", "Samples"] = np.nan
-        data_ECG.loc[data_ECG["Channel"] == "Artefact", "Samples"] = np.nan
-
-        b_points = data_ICG["Samples"].values
-
-        q_onset = data_ECG["Samples"].values
-
-        if b_points[0] < q_onset[0]:
-            b_points = b_points[1:]
-        if b_points[-1] < q_onset[-1]:
-            q_onset = q_onset[:-1]
-
-        # insert nan values for heartbeats in which no points were labeled
-        count = 0
-        average_time = np.mean(heartbeats["rr_interval_samples"])
-        outliers = heartbeats[heartbeats["rr_interval_samples"] < (0.7 * average_time)]
-
-        for h in heartbeats.index:
-            # ignore if the heartbeat may be not a real heartbeat
-            if h in outliers.index:
-                count += 1
-                continue
-            start = heartbeats.loc[h]["start_sample"]
-            end = heartbeats.loc[h]["end_sample"]
-
-            if not any(start <= x <= end for x in b_points):
-                if not (pd.isna(b_points[count])):
-                    b_points = np.insert(b_points, count, np.nan)
-            if not any(start <= x <= end for x in q_onset):
-                if not (pd.isna(q_onset[count])):
-                    q_onset = np.insert(q_onset, count, np.nan)
-            count += 1
-        # calculate pep from start and end points
-        pep_df = pd.DataFrame((b_points - q_onset) / fs * 1000, columns=["pep"])
-        pep_df.index = range(len(pep_df))
-        pep_df.index.name = "heartbeat_id"
-
-        return b_points, q_onset, pep_df, start_value
-
-    @property
-    def load_manual_labeled(self):
-        # loadmanually labeled points
-
-        participant = self.index["subject"][0]
-        condition = self.index["condition"][0]
-        phase = self.index["phase"][0]
-        if phase is None:
-            raise ValueError("Phase must be specified to load manual labeled data.")
-        deploy_type = "local"
-        base_path = Path("..")
-        data_path = Path(json.load(base_path.joinpath("config.json").open(encoding="utf-8"))[deploy_type]["micro_path"])
-        data_path_ICG = data_path.joinpath(
-            "data_per_subject",
-            f"{participant}",
-            f"{condition}",
-            "biopac",
-            "manual_labeled",
-            "icg",
-            f"{participant}_{condition}_ICG.csv",
-        )
-        data_path_ECG = data_path.joinpath(
-            "data_per_subject",
-            f"{participant}",
-            f"{condition}",
-            "biopac",
-            "manual_labeled",
-            "ecg",
-            f"{participant}_{condition}_ECG.csv",
-        )
-
-        if not data_path_ICG.exists() or not data_path_ECG.exists():
-            return None, None
-        # read data for ECG and ICG labels
-        data_ICG = pd.read_csv(data_path_ICG)
-
-        data_ECG = pd.read_csv(data_path_ECG)
-
-        return data_ICG, data_ECG
-
-    def correct_start_points(
-        self, ecg_clean, ecg_start, heartbeats, b_points=[], q_points=[], c_points=[], pep_results=[]
-    ):
-        # used to correct the start points of the calculated points to match the manually labeled points
-
-        # get the start sample of the phase (needed since all phases are combined after one another and sample count is based on the whole data and not just the phase)
-
-        fs = self.sampling_rates["biopac"]
-        start = (ecg_clean.index[0] - ecg_start.index[0]).total_seconds()
-        start_phase = int(start * fs)
-        rows = self.load_annotations()
-
-        # start and end of the random selected part of the phase
-        start = rows["pos"][0]
-        end = rows["pos"][1]
-
-        heartbeats["start_sample"] = heartbeats["start_sample"] + start_phase
-        heartbeats["end_sample"] = heartbeats["end_sample"] + start_phase
-
-        heartbeats = heartbeats.loc[(heartbeats["start_sample"] >= start)]
-        heartbeats = heartbeats.loc[(heartbeats["end_sample"] <= end)]
-        ids = heartbeats.index
-
-        # correct the sample count of the calculated points to match the manually labeled points
-        if len(b_points) != 0:
-            b_points = b_points.iloc[ids]
-            b_points = b_points + start_phase
-
-        if len(q_points) != 0:
-            q_points = q_points.iloc[ids]
-            q_points = q_points + start_phase
-
-        if len(c_points) != 0:
-            c_points = c_points.iloc[ids]
-            c_points = c_points + start_phase
-        if len(pep_results) != 0:
-            pep_results = pep_results.iloc[ids]
-
-        return b_points, q_points, heartbeats, c_points, pep_results
-
-    def load_annotations(self):
-        # load annotations to get the start and end sample of the random part of the phase
-        phase = self.index["phase"][0]
-        subject = self.index["subject"][0]
-        condition = self.index["condition"][0]
-
-        transformed_string = subject.lower()
-        transformed_string = transformed_string.replace("_0", "_", 1)
-        path_border = self.base_path.joinpath(
-            "data_per_subject",
-            f"{subject}",
-            f"{condition}",
-            "biopac",
-            "manual_labeled",
-            f"{transformed_string}_{condition}_label_borders_saved.csv",
-        )
-
-        data = pd.read_csv(path_border)[["pos", "description"]]
-        data["description"] = data["description"].apply(lambda s: ast.literal_eval(s))
-        # select the rows that contain the phase
-        rows = data[data["description"].apply(lambda x: phase in x.keys())]
-
-        rows = rows.sort_values(by=["pos"])
-        rows = rows.reset_index(drop=True)
-
-        return rows
 
     # def _get_opendbm_facial_data(self, subject_id: str, condition: str) -> pd.DataFrame:
     #     if self.use_cache:

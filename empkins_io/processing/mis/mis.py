@@ -3,7 +3,7 @@ from typing import Dict, Optional, Sequence, Union
 import pandas as pd
 from biopsykit.signals.ecg import EcgProcessor
 from biopsykit.utils.data_processing import split_data
-from biopsykit.utils.datatype_helper import HeartRatePhaseDict, RPeakDataFrame, is_r_peak_dataframe
+from biopsykit.utils.dtypes import HeartRatePhaseDict, RPeakDataFrame, is_r_peak_dataframe
 from tqdm.auto import tqdm
 
 __all__ = ["MISProcessor"]

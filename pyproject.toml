@@ -5,10 +5,9 @@ description = "A Python package to load and convert data from EmpkinS sensors."
 authors = ["Robert Richer <robert.richer@fau.de>"]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.10,<3.13"
 pyquaternion = "^0.9.9"
-#biopsykit = {path="../BioPsyKit", extras=["jupyter"]}
-biopsykit = {git="https://github.com/mad-lab-fau/BioPsyKit.git", branch="main", extras=["jupyter"]}
+biopsykit = {git="https://github.com/mad-lab-fau/BioPsyKit.git", branch="main"}
 #biopsykit = {path="../BioPsyKit", develop=true}
 h5py = "^3.5.0"
 tpcp = ">=2"
