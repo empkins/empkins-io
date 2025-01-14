@@ -148,6 +148,19 @@ class DipStudyDataset(Dataset):
         if self.is_single(["subject"]):
             return self.index["subject"][0]
         return None
+    
+    @property
+    def date(self) -> str:
+        try:
+            if self.is_single(["subject"]):
+                return _load_general_information(base_path=self.base_path, column="date")[self.index["subject"][0]]
+
+            return _load_general_information(base_path=self.base_path, column="date")
+        except KeyError:
+            # Handle the KeyError, e.g., return a default value or log an error
+            print(f"Date was not found in empkins_dip_study.xlsx for subject {self.index['subject'][0]}")
+            print("Please check its protocol file and run fill_dates() method.")
+            return self.DEF_DATE  # or handle the error as needed
 
     @property
     def tfm_raw_data(self) -> Dict[str, Dict[str, np.ndarray]]:
@@ -177,9 +190,22 @@ class DipStudyDataset(Dataset):
     
     @property
     def b2b_data(self) -> pd.DataFrame:
-        participant_id = self.index["subject"][0]
-        data = _load_b2b_data(self.base_path, participant_id, self.date)
-        return data
+        if self.is_single(None):
+            participant_id = self.index["subject"][0]
+            phase = self.index["phase"][0]
+            data, fs = self._get_b2b_data(participant_id, phase)
+            self._SAMPLING_RATES.update(fs)
+            return data
+
+        if self.is_single(["subject"]):
+            participant_id = self.index["subject"][0]
+            data, fs = self._get_b2b_data(participant_id, "all")
+            self._SAMPLING_RATES.update(fs)
+            return data
+
+        raise ValueError(
+            "B2B data can only be accessed for a single participant and a single condition at once!"
+        )
 
     
     @property
@@ -205,19 +231,6 @@ class DipStudyDataset(Dataset):
             "Radar data can only be accessed for a single participant and a single condition at once!"
         )
 
-    @property
-    def date(self) -> str:
-        try:
-            if self.is_single(["subject"]):
-                return _load_general_information(base_path=self.base_path, column="date")[self.index["subject"][0]]
-
-            return _load_general_information(base_path=self.base_path, column="date")
-        except KeyError:
-            # Handle the KeyError, e.g., return a default value or log an error
-            print(f"Date was not found in empkins_dip_study.xlsx for subject {self.index['subject'][0]}")
-            print("Please check its protocol file and run fill_dates() method.")
-            return self.DEF_DATE  # or handle the error as needed
-
     def _get_tfm_data(self, participant_id: str, phase: str) -> tuple[pd.DataFrame, float]:
         # Check if caching is enabled for data retrieval
         if self.use_cache:
@@ -229,32 +242,47 @@ class DipStudyDataset(Dataset):
             data, fs = _load_tfm_data(self.base_path, participant_id, self.date)
 
         # Initialize a dictionary to store results
-        res_data = {}
-        # Check if all phases are requested
-        if phase == "all":
-            for signal in data:
-                phase_dict = {}
-                for key in data[signal]:
-                    # Convert each start_ phase's data to a DataFrame
+        tfm_data = {}
+
+        for signal in data:
+            phase_dict = {}
+            for key in data[signal]:
+                if phase == "all":
                     if key.startswith("start_"):
                         df = pd.DataFrame(data[signal][key])
                         phase_dict[key] = df
-                 # Store the phase data for each signal
-                res_data[signal] = phase_dict
-        # Otherwise, only retrieve data for the specified phase
+                elif key == f"start_{phase}":
+                    df = pd.DataFrame(data[signal][key])
+                    phase_dict[key] = df
+            tfm_data[signal] = phase_dict
+
+        return tfm_data, fs
+    
+    def _get_b2b_data(self, participant_id: str, phase: str) -> tuple[pd.DataFrame, float]:
+        # Check if caching is enabled for data retrieval
+        if self.use_cache:
+            # TODO implement cache logic
+            data, fs = None, None
+            pass
         else:
-            for signal in data:
-                phase_dict = {}
-                for key in data[signal]:
-                    # Only retrieve data for the specific start phase
-                    if key == f"start_{phase}":
+            # Load the TFM data from the dataset for the specified participant and date
+            data, fs = _load_b2b_data(self.base_path, participant_id, self.date)
+
+        b2b_data = {}
+
+        for signal in data:
+            phase_dict = {}
+            for key in data[signal]:
+                if phase == "all":
+                    if key.startswith("start_"):
                         df = pd.DataFrame(data[signal][key])
                         phase_dict[key] = df
-                # Store the specific phase data for each signal
-                res_data[signal] = phase_dict
+                elif key == f"start_{phase}":
+                    df = pd.DataFrame(data[signal][key])
+                    phase_dict[key] = df
+            b2b_data[signal] = phase_dict
 
-        # Return the structured result data and the sampling rate
-        return res_data, fs
+        return b2b_data, fs
     
     def _get_radar_data(self, participant_id: str, phase: str) -> tuple[pd.DataFrame, float]:
         if self.use_cache:
@@ -265,11 +293,11 @@ class DipStudyDataset(Dataset):
             # Load radar data for the given participant_id from the base path
             data, fs = _load_radar_data(self.base_path, participant_id, self.sampling_rates["radar"])
 
-        res_data = None
+        emrad_data = None
         if phase == "all":
-            res_data = data
+            emrad_data = data
         else:
-            res_data = data
+            emrad_data = data
 
         # Return the filtered data and the sampling frequency
-        return res_data, fs
+        return emrad_data, fs

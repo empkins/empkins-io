@@ -27,6 +27,7 @@ PHASE_MAPPING = {
         "Ende Atmung": "end_straw",
 }
 
+
 def _build_data_path(base_path: path_t, participant_id: str) -> Path:
     data_path = base_path.joinpath(f"data_per_subject/{participant_id}")
     assert data_path.exists()
@@ -92,25 +93,6 @@ def _update_dates(base_path: path_t, subject_date_dict: dict, sheet_name: str = 
     # Save the changes to the workbook
     workbook.save(file_path)
 
-
-def _load_tfm_data(base_path: path_t, participant_id: str, date: str) -> tuple[pd.DataFrame, float]:
-    # Create a TfmLoader object for the specified participant and date
-    loader = _create_loader(base_path, participant_id, date)
-    # Extract the raw phase data as a dictionary of DataFrames, indexed by local datetime
-    data = loader.raw_phase_data_as_df_dict(index="local_datetime")
-    # Retrieve the sampling rates from the loader
-    fs = loader.sampling_rates_hz
-    return data, fs
-
-
-def _load_b2b_data(base_path: path_t, participant_id: str, date: str) -> pd.DataFrame:
-    # Create a TfmLoader object for the specified participant and date
-    loader = _create_loader(base_path, participant_id, date)
-    # Extract the oscillometric blood pressure data as a DataFrame, indexed by local datetime
-    data = loader.b2b_data_as_df_dict(index="local_datetime")
-
-    return data
-
 def _create_loader(base_path: path_t, participant_id: str, date: str) -> TfmLoader:
     # Build the path to the TFM data directory for the given participant
     tfm_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
@@ -131,6 +113,25 @@ def _create_loader(base_path: path_t, participant_id: str, date: str) -> TfmLoad
     )
 
     return loader
+
+def _load_tfm_data(base_path: path_t, participant_id: str, date: str) -> tuple[pd.DataFrame, float]:
+    # Create a TfmLoader object for the specified participant and date
+    loader = _create_loader(base_path, participant_id, date)
+    # Extract the raw phase data as a dictionary of DataFrames, indexed by local datetime
+    data = loader.raw_phase_data_as_df_dict(index="local_datetime")
+    # Retrieve the sampling rates from the loader
+    fs = loader.sampling_rates_hz
+    return data, fs
+
+
+def _load_b2b_data(base_path: path_t, participant_id: str, date: str) -> tuple[pd.DataFrame, float]:
+    # Create a TfmLoader object for the specified participant and date
+    loader = _create_loader(base_path, participant_id, date)
+    # Extract the B2B phase data as a dictionary of DataFrames, indexed by local datetime
+    data = loader.b2b_phase_data_as_df_dict(index="local_datetime")
+    # Retrieve the sampling rates from the loader
+    fs = loader.sampling_rates_hz
+    return data, fs
 
 def _load_radar_data(base_path: path_t, participant_id: str, sampling_rate_hz: float) -> tuple[pd.DataFrame, float]:
     # Build the directory path for radar data based on the base path and participant ID
