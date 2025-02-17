@@ -50,6 +50,7 @@ class TfmLoader:
         "icg_raw": "Z0"
     }
 
+    # csv file: BeatToBeat
     _HEMODYNAMIC_PARAMETERS_MAPPING = {
         "relative_time": "Zeit",
         "beat": "Beat",
@@ -66,6 +67,7 @@ class TfmLoader:
         "sBP": "sBP"
     }
 
+    # csv file: BPV
     _BPV_PARAMETERS_MAPPING = {
         "relative_time": "Zeit",
         "beat": "Beat",
@@ -79,6 +81,7 @@ class TfmLoader:
         "VLF_dBP": "VLF_dBP"
     }
 
+    # csv file: CardiacParams
     _CARDIAC_PARAMETERS_MAPPING = {
         "relative_time": "Zeit",
         "beat": "Beat",
@@ -97,11 +100,13 @@ class TfmLoader:
         "sBP": "sBP"
     }
 
+    # csv file: HRV
     _HRV_PARAMETERS_MAPPING = {
         "relative_time": "Zeit",
         "beat": "Beat",
         "HF_RRI": "HF_RRI",
-        "HFnu_RRI": "HFnu_RRI", "LF_HF": "LF_HF",
+        "HFnu_RRI": "HFnu_RRI",
+        "LF_HF": "LF_HF",
         "LF_HF_RRI": "LF_HF_RRI",
         "LF_RRI": "LF_RRI",
         "LFnu_RRI": "LFnu_RRI",
