@@ -8,7 +8,7 @@ import resampy
 from biopsykit.utils._datatype_validation_helper import _assert_is_dtype
 from matplotlib import pyplot as plt
 from scipy import signal
-from scipy.signal import find_peaks, periodogram
+from scipy.signal import find_peaks, periodogram, resample
 
 from empkins_io.utils.exceptions import SynchronizationError, ValidationError
 
@@ -98,6 +98,7 @@ class SyncedDataset:
                 fs_in = dataset["sampling_rate"]
             elif method == "dynamic":
                 fs_in = self._determine_actual_sampling_rate(dataset, **kwargs)
+
             else:
                 # this should never happen
                 raise ValueError(f"Method '{method}' not supported.")
@@ -105,6 +106,7 @@ class SyncedDataset:
             data_resample = resampy.resample(
                 dataset["data"].values, sr_orig=fs_in, sr_new=fs_out, axis=0, parallel=True
             )
+
             index_resample = pd.date_range(
                 start=dataset["data"].index[0],
                 periods=len(data_resample),
@@ -166,6 +168,9 @@ class SyncedDataset:
             # sync_type is "trigger"
             sync_data = data[sync_channel]
             sync_params["max_expected_peaks"] = 2
+            if "falling" in self.sync_type:
+                # invert sync channel to achieve rising sync signal
+                sync_data = -1 * sync_data
         elif "edge" in self.sync_type:
             # sync_type is "edge"
             sync_data = np.abs(np.ediff1d(data[sync_channel]))
@@ -181,14 +186,103 @@ class SyncedDataset:
         else:
             raise AttributeError("This should never happen.")
 
-        if "falling" in self.sync_type:
-            # invert sync channel to achieve rising sync signal
-            sync_data = -1 * data[sync_channel]
         peaks = SyncedDataset._find_sync_peaks(sync_data, sync_params)
         # cut data to region between first and last peak
-        data_cut = data.iloc[peaks[0]:] if len(peaks) == 1 else data.iloc[peaks[0]:peaks[-1]]
+        data_cut = data.iloc[peaks[0] :] if len(peaks) == 1 else data.iloc[peaks[0] : peaks[-1]]
 
         return data_cut
+
+    def _find_shift(self, primary: str, sync_params: Optional[Dict[str, Any]] = None):
+        if sync_params is None:
+            sync_params = {}
+
+        # assert that sampling rates are equal for all datasets
+        sampling_rates = {dataset["sampling_rate"] for dataset in self.datasets.values()}
+        if len(sampling_rates) != 1:
+            # check if there are resampled datasets
+            if all("sampling_rate_resampled" in dataset for dataset in self.datasets.values()):
+                sampling_rates = {dataset["sampling_rate_resampled"] for dataset in self.datasets.values()}
+            else:
+                raise ValueError(
+                    "Sampling rates of datasets are not equal. Please resample all datasets to a "
+                    "common sampling rate using `SyncedDataset.resample_datasets()`."
+                )
+        dict_lags = {}
+
+        sync_params["sampling_rate"] = list(sampling_rates)[0]
+
+        sync_channel_primary = "Sync_Out"
+
+        fs = sync_params["sampling_rate"]
+
+        data_primary = self.datasets_aligned[primary]
+        data_primary = data_primary.copy()
+        data_primary.loc[:, sync_channel_primary] = self._binarize_signal(data_primary[sync_channel_primary])
+
+        for name, dataset in self.datasets_aligned.items():
+            if name == primary:
+                continue
+
+            data_secondary = dataset
+            sync_channel_secondary = "Sync_Out"
+            data_secondary.loc[:, sync_channel_secondary] = self._binarize_signal(
+                data_secondary[sync_channel_secondary]
+            )
+
+            data_primary = data_primary.reset_index()
+            data_secondary = data_secondary.reset_index()
+
+            # cut to search region
+            sync_region_samples = sync_params.get("sync_region_samples", (0, len(data_primary)))
+            data_primary_search = data_primary.iloc[sync_region_samples[0] : sync_region_samples[1]]
+            data_secondary_search = data_secondary.iloc[sync_region_samples[0] : sync_region_samples[1]]
+
+            lag_samples = self._find_sync_cross_correlation(
+                data_primary_search[sync_channel_primary], data_secondary_search[sync_channel_secondary], fs
+            )
+            dict_lags[name] = lag_samples
+            print("Shift: " + name + " " + str(lag_samples))
+
+        return dict_lags
+
+    def resample_sample_wise(self, primary, dict_sample_shift, cut_to_shortest=True):
+        dict_resampled = {}
+
+        for name in self.datasets_aligned:
+
+            df = self.datasets_aligned[name]
+
+            if name == primary:
+                index = df.index
+                df = df.reset_index(drop=True)
+                dict_resampled[name] = df
+                continue
+            data_resample = self._resample_sample_wise(df, dict_sample_shift[name])
+            dict_resampled[name] = data_resample
+
+        if cut_to_shortest:
+            shortest_length = min(len(data) for name, data in dict_resampled.items())
+            index = index[:shortest_length]
+            for name, data in dict_resampled.items():
+                # cut name after second _ to get rid of _aligned_
+                name = "_".join(name.split("_")[:2])
+
+                print(len(data))
+
+                data_aligned = data.iloc[:shortest_length]
+                data_aligned.index = index
+                setattr(self, f"{name}_resampled_", data_aligned)
+
+    def _resample_sample_wise(self, df, sample_shift):
+
+        df_size = len(df)
+
+        df_resample = resample(df, df_size + sample_shift)
+
+        # array should remain df, keep datetime index
+        df_resample = pd.DataFrame(df_resample, columns=df.columns)
+
+        return df_resample
 
     def align_and_cut_m_sequence(
         self,
@@ -213,7 +307,6 @@ class SyncedDataset:
                 )
 
         sync_params["sampling_rate"] = list(sampling_rates)[0]
-
         sync_channel_primary = self.datasets[primary]["sync_channel"]
 
         fs = sync_params["sampling_rate"]
@@ -256,6 +349,7 @@ class SyncedDataset:
             lag_samples = self._find_sync_cross_correlation(
                 data_primary_search[sync_channel_primary], data_secondary_search[sync_channel_secondary], fs
             )
+            print(lag_samples)
 
             dict_data_pad[name] = data_secondary
             dict_lags[name] = lag_samples
@@ -458,6 +552,9 @@ class SyncedDataset:
         freq_sync = fft_sync[idx_peak]
 
         fs_measured = (wave_frequency / freq_sync) * fs
+        print(f"Measured sampling rate: {fs_measured}")
+        print(f"Sync frequency: {freq_sync}")
+
         return fs_measured
 
     @classmethod

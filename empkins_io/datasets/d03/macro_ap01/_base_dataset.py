@@ -33,7 +33,7 @@ class MacroBaseDataset(Dataset):
     base_path: path_t
     data_tabular_path: path_t
     use_cache: bool
-    _sample_times_saliva: Tuple[int] = (-40, -1, 16, 25, 35, 45, 60, 75)
+    _sample_times_saliva: Tuple[int] = (-40, -1, 15, 25, 35, 45, 60, 75)
     _sample_times_bloodspot: Tuple[int] = (-40, 60)
 
     CONDITIONS = ["ftsst", "tsst"]
@@ -296,6 +296,10 @@ class MacroBaseDataset(Dataset):
         return self.questionnaire["Gender"]
 
     @property
+    def handedness(self) -> pd.Series:
+        return self.questionnaire["handedness"]
+
+    @property
     def questionnaire_scores(self) -> pd.DataFrame:
         data_path = self.base_path.joinpath(
             "questionnaires/processed/questionnaire_data_processed.csv"
@@ -334,12 +338,27 @@ class MacroBaseDataset(Dataset):
         return self._extract_questionnaire_score("PASA")
 
     @property
-    def stadi(self) -> pd.DataFrame:
-        return self._extract_questionnaire_score("STADI")
+    def stadi_state(self) -> pd.DataFrame:
+        return self._extract_questionnaire_score("STADI_State")
 
     @property
     def panas(self) -> pd.DataFrame:
         return self._extract_questionnaire_score("PANAS")
+
+    @property
+    def panas_diff(self) -> pd.DataFrame:
+        panas_data = self.panas
+        panas_data = panas_data.drop("Total", level="subscale")
+        panas_data = panas_data.reindex(["ftsst", "tsst"], level="condition").reindex(["pre", "post"], level="time")
+        panas_data = panas_data.unstack("time").diff(axis=1).stack().droplevel(-1)
+        return panas_data.reorder_levels(["subject", "condition", "subscale"])
+
+    @property
+    def stadi_state_diff(self) -> pd.DataFrame:
+        stadi_data = self.stadi_state
+        stadi_data = stadi_data.reindex(["pre", "post"], level="time")
+        stadi_data = stadi_data.unstack("time").diff(axis=1).stack().droplevel(-1)
+        return stadi_data.reorder_levels(["subject", "condition", "subscale"])
 
     @property
     def codebook(self) -> pd.DataFrame:
@@ -421,6 +440,15 @@ class MacroBaseDataset(Dataset):
             f"{self.group.subject}/{self.group.condition}/nilspod/processed/ecg"
         )
         return data_path
+
+    def add_cortisol_index(self, cort_data: pd.DataFrame) -> pd.DataFrame:
+        index_levels = list(cort_data.index.names)
+        new_index_levels = ["condition_order", "non_responder"]
+        cort_data = cort_data.join(self.condition_order).join(self.cort_non_responder)
+        cort_data = cort_data.set_index(new_index_levels, append=True)
+        cort_data = cort_data.reorder_levels(index_levels[:-1] + new_index_levels + [index_levels[-1]])
+
+        return cort_data
 
     def _get_nilspod_data(self, subject_id: str, condition: str) -> pd.DataFrame:
         if self.use_cache:
