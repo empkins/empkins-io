@@ -46,7 +46,6 @@ def _build_general_tabular_path(base_path: path_t) -> Path:
     assert data_path.exists()
     return data_path
 
-
 def _load_general_information(base_path: path_t, column: str) -> DataFrame:
     file_path = _build_general_tabular_path(base_path)
     df = pd.read_excel(file_path, index_col=0)
@@ -92,6 +91,18 @@ def _update_dates(base_path: path_t, subject_date_dict: dict, sheet_name: str = 
 
     # Save the changes to the workbook
     workbook.save(file_path)
+
+def _load_start_end_times(base_path: path_t, participant_id: str) -> (datetime.datetime, datetime.datetime):
+    data_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
+        "protocol/cleaned"
+    )
+    data_path = data_path.joinpath(f"{participant_id}_protocol.xlsx")
+    df = pd.read_excel(data_path, sheet_name="Messung", header=None)
+
+    # Convert the cell to DataFrame indices (C39, C175)
+    start_time = df.iloc[38, 2]
+    end_time = df.iloc[174, 2]
+    return (start_time, end_time)
 
 def _create_loader(base_path: path_t, participant_id: str, date: str) -> TfmLoader:
     # Build the path to the TFM data directory for the given participant
@@ -150,3 +161,35 @@ def _load_radar_data(base_path: path_t, participant_id: str, sampling_rate_hz: f
     fs = dataset_radar.sampling_rate_hz
     # Return the DataFrame (data) and the sampling rate (fs)
     return data, fs
+
+def _load_empatica_data(base_path: path_t, participant_id: str, date: str, empatica_lr: str, start_end_times: tuple[datetime.datetime, datetime.datetime], signal_type: list[str]):
+    data = []
+    
+    # Convert date from "dd.mm.yyyy" to "yyyy-mm-dd" for folder matching
+    date_parts = date.split(".")
+    folder_date = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}"
+
+    # Determine LEFT or RIGHT device usage
+    device_side = "LEFT1-3YK33141NH" if empatica_lr == "L" else "RIGHT-3YK34142G6"
+
+    # Determine the filename based on the device side, date, and signal type
+    file_prefix = "1-1-LEFT1" if empatica_lr == "L" else "1-1-RIGHT"
+
+    for signal in signal_type:
+        filename = f"{file_prefix}_{folder_date}_{signal}.csv"
+
+        # Build the path to the Empatica data directory for the given participant
+        final_path = base_path.joinpath(f"Empatica/{folder_date}/{device_side}/digital_biomarkers/aggregated_per_minute/{filename}")
+
+        # Load the Empatica data from the specified CSV file
+        df = pd.read_csv(final_path, index_col=1)
+        df["timestamp_unix"] = pd.to_numeric(df["timestamp_unix"], errors="coerce")  # Ensure numeric timestamps
+        df["timestamp_iso"] = pd.to_datetime(df["timestamp_iso"], errors="coerce")  # Convert to datetime
+
+        # Filter the data to the specified start and end times
+        df = df.loc[start_end_times[0]:start_end_times[1]]
+
+        # Append the filtered data to the list
+        data.append(df)
+        
+    return data

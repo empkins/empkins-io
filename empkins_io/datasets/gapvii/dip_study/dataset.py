@@ -15,7 +15,9 @@ from empkins_io.datasets.gapvii.dip_study.helper import (
     _update_dates,
     _load_single_date,
     _load_tfm_data,
-    _load_b2b_data
+    _load_b2b_data,
+    _load_start_end_times,
+    _load_empatica_data
 )
 
 
@@ -33,6 +35,7 @@ class DipStudyDataset(Dataset):
     exclude_noisy_tfm: bool
     use_cache: bool
 
+    _EMPATICA = ["eda", "temperature", "respiratory-rate", "pulse-rate", "wearing-detection"]
     _PHASES = ["rest_1", "cpt", "rest_2", "straw", "rest_3"]
     _SAMPLING_RATES: Dict[str, int] = {
         "radar": 8000000 / 4096 / 2,
@@ -142,6 +145,44 @@ class DipStudyDataset(Dataset):
             return _load_general_information(base_path=self.base_path, column="straw_duration")[self.index["subject"][0]]
 
         return _load_general_information(base_path=self.base_path, column="straw_duration")
+    
+    @property
+    def start_end_times(self):
+        if self.is_single(["subject"]):
+            return _load_start_end_times(self.base_path, self.index["subject"][0])
+
+        return {subject: _load_start_end_times(self.base_path, subject) for subject in self.index["subject"]}
+
+
+    @property
+    def empatica_lr(self):
+        if self.is_single(["subject"]):
+            return _load_general_information(base_path=self.base_path, column="used_empatica_lr")[self.index["subject"][0]]
+
+        return _load_general_information(base_path=self.base_path, column="used_empatica_lr")
+    
+    @property
+    def empatica_12(self):
+        if self.is_single(["subject"]):
+            return _load_general_information(base_path=self.base_path, column="used_empatica_12")[self.index["subject"][0]]
+
+        return _load_general_information(base_path=self.base_path, column="used_empatica_12")
+    
+    @property
+    def empatica_data(self):
+        # Check if data is requested for a single participant and a single condition
+        if self.is_single(["subject"]):
+            participant_id = self.index["subject"][0]
+            data = _load_empatica_data(self.base_path, participant_id, self.date, self.empatica_lr, self.start_end_times, self._EMPATICA)
+            return data
+        # Check if data is requested for a single participant
+        if self.is_single(None):
+            # TODO implement logic to load data for a single participant
+            pass
+
+        raise ValueError(
+            "Empatica data can only be accessed for a single participant and a single condition at once!"
+        )
 
     @property
     def subject(self) -> str:
