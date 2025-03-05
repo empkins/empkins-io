@@ -181,7 +181,7 @@ class DipStudyDataset(Dataset):
             return data
 
         raise ValueError(
-            "Empatica data can only be accessed for a single participant and a single condition at once!"
+            "Empatica data can only be accessed for a single participant and for all phases!"
         )
 
     @property
