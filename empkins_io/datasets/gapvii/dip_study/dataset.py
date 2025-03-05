@@ -171,14 +171,14 @@ class DipStudyDataset(Dataset):
     @property
     def empatica_data(self):
         # Check if data is requested for a single participant and a single condition
+        if self.is_single(None):
+            return #TODO
+            
+        # Check if data is requested for a single participant
         if self.is_single(["subject"]):
             participant_id = self.index["subject"][0]
             data = _load_empatica_data(self.base_path, participant_id, self.date, self.empatica_lr, self.start_end_times, self._EMPATICA)
             return data
-        # Check if data is requested for a single participant
-        if self.is_single(None):
-            # TODO implement logic to load data for a single participant
-            pass
 
         raise ValueError(
             "Empatica data can only be accessed for a single participant and a single condition at once!"

@@ -163,7 +163,7 @@ def _load_radar_data(base_path: path_t, participant_id: str, sampling_rate_hz: f
     return data, fs
 
 def _load_empatica_data(base_path: path_t, participant_id: str, date: str, empatica_lr: str, start_end_times: tuple[datetime.datetime, datetime.datetime], signal_type: list[str]):
-    data = []
+    data = {}
     
     # Convert date from "dd.mm.yyyy" to "yyyy-mm-dd" for folder matching
     date_parts = date.split(".")
@@ -176,20 +176,30 @@ def _load_empatica_data(base_path: path_t, participant_id: str, date: str, empat
     file_prefix = "1-1-LEFT1" if empatica_lr == "L" else "1-1-RIGHT"
 
     for signal in signal_type:
+        # Determine the filename based on the device side, date, and signal type
         filename = f"{file_prefix}_{folder_date}_{signal}.csv"
 
         # Build the path to the Empatica data directory for the given participant
         final_path = base_path.joinpath(f"Empatica/{folder_date}/{device_side}/digital_biomarkers/aggregated_per_minute/{filename}")
 
+        # Check if file exists
+        if not final_path.exists():
+            print(f"File not found: {final_path}")
+            continue
+
         # Load the Empatica data from the specified CSV file
-        df = pd.read_csv(final_path, index_col=1)
-        df["timestamp_unix"] = pd.to_numeric(df["timestamp_unix"], errors="coerce")  # Ensure numeric timestamps
-        df["timestamp_iso"] = pd.to_datetime(df["timestamp_iso"], errors="coerce")  # Convert to datetime
+        df = pd.read_csv(final_path, index_col=1, parse_dates=True)
+
+        # Ensure index is in datetime format
+        df.index = pd.to_datetime(df.index, utc=True)  # Ensure timestamps are timezone-aware in UTC
+
+        # Convert UTC index to CEST (Europe/Berlin, GMT+2 in summer)
+        df.index = df.index.tz_convert("Europe/Berlin")
 
         # Filter the data to the specified start and end times
         df = df.loc[start_end_times[0]:start_end_times[1]]
 
-        # Append the filtered data to the list
-        data.append(df)
+        # Append the filtered data to the dict
+        data[signal] = df
         
     return data
