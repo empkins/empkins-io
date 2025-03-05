@@ -284,8 +284,8 @@ class MacroBaseDataset(Dataset):
                 "Questionnaire data can not be accessed for a single condition!"
             )
         data = load_questionnaire_data(
-            self.base_path.joinpath(
-                "questionnaires/merged_total/questionnaire_data.xlsx"
+            self.data_tabular_path.joinpath(
+                "_archive/old/merged_total/questionnaire_data.xlsx"
             )
         )
         subject_ids = self.index["subject"].unique()

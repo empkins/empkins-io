@@ -47,6 +47,8 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
             verbose=verbose,
         )
 
+
+
     def create_index(self):
         subject_ids = [
             subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_*")
@@ -60,6 +62,12 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
         index = index.drop(index=self.data_to_exclude).reset_index()
 
         return index
+
+    @property
+    def phase(self) -> str_t:
+        if self.is_single(None):
+            return self.index["phase"][0]
+        raise ValueError("Phase can only be accessed for a single phase in the subset")
 
     @cached_property
     def mocap_data(self) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:

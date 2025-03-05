@@ -268,8 +268,8 @@ class TfmLoader:
         df_iv = pd.DataFrame()
 
         if phase_mapping is not None:
-            if set(list(data["IV"].Name)) != set(list(phase_mapping.keys())):
-                raise ValueError("Phase mapping values are not compatible with TFM intervention names")
+            #if set(list(data["IV"].Name)) != set(list(phase_mapping.keys())):
+            #    raise ValueError("Phase mapping values are not compatible with TFM intervention names")
             df_iv.index = [phase_mapping.get(name) for name in list(data["IV"].Name)]
         else:
             df_iv.index = list(data["IV"].Name)
