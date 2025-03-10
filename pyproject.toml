@@ -23,6 +23,8 @@ opencv = ["opencv-python"]
 [tool.poetry.group.dev.dependencies]
 black = "^24.8.0"
 ruff = "^0.6.3"
+ipykernel = "^6.29.5"
+ipympl = "^0.9.6"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
