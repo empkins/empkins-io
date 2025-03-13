@@ -51,17 +51,20 @@ class ZebrisDataset:
             self._raw_data = self.from_file(path)
 
     @classmethod
-    def from_folder(cls, folder_path: path_t) -> Self:
-
-        # ensure pathlib
+    def from_folder(cls, folder_path: Path) -> list[Path]:
+        # Ensure folder_path is a Path object
         folder_path = Path(folder_path)
 
-        list(sorted(folder_path.glob("*.csv")))
+        # Get a sorted list of all CSV files in the folder
+        return list(sorted(folder_path.glob("*.csv")))
 
     @classmethod
-    def from_file(cls, file_path: path_t) -> Self:
+    def from_file(cls, file_path: Path) -> list[Path]:
+        # Ensure file_path is a Path object
+        file_path = Path(file_path)
 
-        # ensure pathlib
-        folder_path = Path(file_path)
+        # Get the parent directory of the file
+        folder_path = file_path.parent
 
-        list(sorted(folder_path.glob("*.csv")))
+        # Get a sorted list of all CSV files in the same folder
+        return list(sorted(folder_path.glob("*.csv")))
