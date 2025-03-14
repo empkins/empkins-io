@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 
 from biopsykit.utils.file_handling import get_subject_dirs
+from biopsykit.io import load_long_format_csv
 from empkins_io.sensors.tfm.tfm import TfmLoader
 from empkins_io.utils._types import path_t
 from empkins_io.datasets.gapvii.dip_study.helper import (
@@ -138,6 +139,20 @@ class DipStudyDataset(Dataset):
         )
 
     @property
+    def questionnaire_data(self) -> pd.DataFrame:
+        quest_df = pd.read_csv(self.base_path.joinpath("data_tabular/processed/gap_vii_healthy_total.csv"), index_col="vpn")
+        quest_df.index.name = "subject"
+        return quest_df
+
+    @property
+    def ipos(self) -> pd.DataFrame:
+        return self.questionnaire_data.filter(like='IPOS')
+
+    @property
+    def distress_thermometer(self) -> pd.DataFrame:
+        return self.questionnaire_data.filter(like='Distress')
+
+    @property
     def ordered_phases(self):
         # data = self.tfm_data.values()
         # pre_phases = list(next(iter(data)).keys())
@@ -230,6 +245,22 @@ class DipStudyDataset(Dataset):
                 pd.concat(self.tfm_raw_data["ecg_2"])
                 .droplevel(0)
                 .rename(columns={"ecg_2": "ecg"})
+            )
+
+        raise ValueError(
+            "ECG data can only be accessed for a single participant and a single condition at once!"
+        )
+
+    @property
+    def icg(self) -> pd.DataFrame:
+        if self.is_single(None):
+            phase = self.index["phase"][0]
+            return self.tfm_data["icg_der"][f"start_{phase}"]
+
+        if self.is_single(["subject"]):
+            return (
+                pd.concat(self.tfm_raw_data["icg_der"])
+                .droplevel(0)
             )
 
         raise ValueError(

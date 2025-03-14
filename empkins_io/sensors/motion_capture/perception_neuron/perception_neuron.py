@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional, Sequence, Union
 
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_is_dir
-from biopsykit.utils._types import str_t
+from biopsykit.utils._types_internal import str_t
 
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
 from empkins_io.sensors.motion_capture.motion_capture_formats.bvh import BvhData
