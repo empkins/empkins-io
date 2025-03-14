@@ -1,34 +1,36 @@
-[tool.poetry]
+[project]
 name = "empkins-io"
 version = "0.1.1"
 description = "A Python package to load and convert data from EmpkinS sensors."
-authors = ["Robert Richer <robert.richer@fau.de>"]
+authors = [{ name = "Robert Richer", email = "robert.richer@fau.de" }]
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "pyquaternion>=0.9.9,<0.10",
+    "biopsykit",
+    "h5py>=3.5.0,<4",
+    "tpcp>=2",
+    "resampy>=0.4.2,<0.5",
+    "avro>=1.11.3,<2",
+    "fastavro>=1.4.0,<2",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.10,<3.13"
-pyquaternion = "^0.9.9"
-biopsykit = {git="https://github.com/mad-lab-fau/BioPsyKit.git", branch="main"}
-#biopsykit = {path="../BioPsyKit", develop=true}
-h5py = "^3.5.0"
-tpcp = ">=2"
-resampy = "^0.4.2"
-avro = "^1.11.3"
-fastavro = "^1.4.0"
-# opencv is optional, but required for some functions
-opencv-python = {version="^4.8", optional=true}
+[project.optional-dependencies]
+opencv = ["opencv-python~=4.8"]
 
-[tool.poetry.extras]
-opencv = ["opencv-python"]
+[dependency-groups]
+dev = [
+    "black>=24.8.0,<25",
+    "ruff>=0.6.3,<0.7",
+    "ipykernel>=6.29.5,<7",
+    "ipympl>=0.9.6,<0.10",
+]
 
-[tool.poetry.group.dev.dependencies]
-black = "^24.8.0"
-ruff = "^0.6.3"
-ipykernel = "^6.29.5"
-ipympl = "^0.9.6"
+[tool.uv.sources]
+biopsykit = { git = "https://github.com/mad-lab-fau/BioPsyKit.git", branch = "main" }
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.black]
 line-length = 120
