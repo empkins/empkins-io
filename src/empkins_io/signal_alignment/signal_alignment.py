@@ -67,9 +67,7 @@ def chisqr_align(
 
     if len(reference) != len(target):
         raise ValueError(
-            "Both input signals need to have equal length! Got target {}, reference {}".format(
-                len(target), len(reference)
-            )
+            f"Both input signals need to have equal length! Got target {len(target)}, reference {len(reference)}"
         )
     if roi is None:
         roi = [0, len(reference) - 1]

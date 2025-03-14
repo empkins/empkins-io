@@ -1,11 +1,10 @@
 from itertools import product
 from typing import Dict, Optional, Sequence, Tuple
+
 import pandas as pd
-
-from empkins_io.datasets.radarcardia.base.dataset import BaseDataset
-
 from biopsykit.utils.file_handling import get_subject_dirs
 
+from empkins_io.datasets.radarcardia.base.dataset import BaseDataset
 from empkins_io.utils._types import path_t
 
 

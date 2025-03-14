@@ -1,11 +1,10 @@
 from itertools import product
 from typing import Dict, Optional, Sequence
+
 import pandas as pd
-
-from empkins_io.datasets.radarcardia.base.dataset import BaseDataset
-
 from biopsykit.utils.file_handling import get_subject_dirs
 
+from empkins_io.datasets.radarcardia.base.dataset import BaseDataset
 from empkins_io.utils._types import path_t
 
 """
@@ -14,7 +13,6 @@ Dataset for Radar and BIOPAC data recorded in Hamburg at 2023-04-25
 
 
 class RadarCardiaPreStudyHDataset(BaseDataset):
-
     BIOPAC_CHANNEL_MAPPING: Dict[str, str] = {
         "ECG (.05 - 150 Hz)": "ecg",
         "Cardiac Output - Z": "icg",
@@ -31,7 +29,6 @@ class RadarCardiaPreStudyHDataset(BaseDataset):
         subset_index: Optional[Sequence[str]] = None,
         use_cache: bool = True,
     ):
-
         super().__init__(base_path=base_path, groupby_cols=groupby_cols, subset_index=subset_index, use_cache=use_cache)
 
     def create_index(self):

@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional, Sequence, Union
 
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_is_dir
+
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
 from empkins_io.sensors.motion_capture.motion_capture_formats.bvh import BvhData
 from empkins_io.sensors.motion_capture.motion_capture_formats.calc import CalcData
@@ -191,7 +192,7 @@ class PerceptionNeuronDataset:
                     f"file is in the folder!"
                 )
             return bvh_data
-        elif len(bvh_files) > 1:
+        if len(bvh_files) > 1:
             raise ValueError(
                 f"More than one bvh file found in {path}. Please make sure only one bvh file is in the folder!"
             )
@@ -201,7 +202,7 @@ class PerceptionNeuronDataset:
         calc_files = _get_files(path, [".calc", ".calc.gz"])
         if len(calc_files) == 1:
             return CalcData(calc_files[0], system="perception_neuron")
-        elif len(calc_files) > 1:
+        if len(calc_files) > 1:
             raise ValueError(
                 f"More than one calc file found in {path}. Please make sure only one calc file is in the folder!"
             )
@@ -211,7 +212,7 @@ class PerceptionNeuronDataset:
         center_mass_files = _get_files(path, ["centerOfMass.txt", "centerOfMass.csv"])
         if len(center_mass_files) == 1:
             return CenterOfMassData(center_mass_files[0], system="perception_neuron")
-        elif len(center_mass_files) > 1:
+        if len(center_mass_files) > 1:
             raise ValueError(
                 f"More than one center of mass file found in {path}. "
                 f"Please make sure only one center of mass file is in the folder!"
@@ -266,7 +267,6 @@ def _get_files(folder_path: path_t, extensions: Union[Sequence[str], str]):
 def load_perception_neuron_folder(
     folder_path: path_t, index_start: Optional[int] = 0, index_end: Optional[int] = -1
 ) -> Dict[str, Any]:
-
     warnings.warn(
         "The 'load_perception_neuron_folder' function is deprecated and will be removed in a future version. "
         "Use the 'PerceptionNeuronDataset' class instead.",

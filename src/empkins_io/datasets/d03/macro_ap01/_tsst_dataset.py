@@ -33,7 +33,6 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         use_cache: bool = True,
         verbose: bool = True,
     ):
-
         self.verbose = verbose
 
         super().__init__(
@@ -114,11 +113,10 @@ class MacroStudyTsstDataset(MacroBaseDataset):
                         except:
                             pass
                     return obj
-                else:
-                    try:
-                        return pd.to_timedelta(obj)
-                    except:
-                        return obj
+                try:
+                    return pd.to_timedelta(obj)
+                except:
+                    return obj
 
         if not self.sync_path.exists():
             subject_id = self.group.subject

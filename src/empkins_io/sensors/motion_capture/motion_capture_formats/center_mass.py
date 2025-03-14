@@ -53,7 +53,7 @@ class CenterOfMassData(_BaseMotionCaptureDataFormat):
                 [body_parts, channels, data.columns], names=["body_part", "channel", "axis"]
             )
         else:
-            data = pd.read_csv(file_path, header=list(range(0, 3)), index_col=0)
+            data = pd.read_csv(file_path, header=list(range(3)), index_col=0)
 
         super().__init__(data=data, system=system, sampling_rate=sampling_rate, channels=channels, axis=axis)
 

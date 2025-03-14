@@ -215,10 +215,9 @@ def get_all_body_parts(system: MOTION_CAPTURE_SYSTEM) -> Sequence[str]:
         raise ValueError(f"Invalid 'system'! Expected one of {get_args(MOTION_CAPTURE_SYSTEM)}, got {system}.")
     if system == "perception_neuron":
         return get_args(BODY_PART_PERCEPTION_NEURON)
-    elif system == "openpose":
+    if system == "openpose":
         return get_args(BODY_PART_OPENPOSE)
-    else:
-        return get_args(BODY_PART_XSENS)
+    return get_args(BODY_PART_XSENS)
 
 
 def get_body_parts_by_group(
@@ -254,7 +253,6 @@ def get_body_parts_by_group(
         )
     if system == "perception_neuron":
         return BODY_PART_MAPPING_PERCEPTION_NEURON[body_part_group]
-    elif system == "openpose":
+    if system == "openpose":
         return BODY_PART_MAPPING_OPENPOSE[body_part_group]
-    else:
-        return BODY_PART_MAPPING_XSENS[body_part_group]
+    return BODY_PART_MAPPING_XSENS[body_part_group]

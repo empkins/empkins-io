@@ -1,25 +1,24 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Dict, Optional, Sequence, Union
+
 import pandas as pd
 from tpcp import Dataset
-from pathlib import Path
-
 
 from empkins_io.datasets.radarcardia.base.helper import (
+    _build_protocol_path,
+    _build_timelog_path,
+    _get_biopac_timelog_shift,
+    _load_apnea_segmentation,
     _load_biopac_data,
+    _load_data_from_location_h5,
+    _load_flipping,
+    _load_protocol,
     _load_radar_data,
     _load_timelog,
-    _build_timelog_path,
-    _build_protocol_path,
-    _get_biopac_timelog_shift,
-    _load_protocol,
-    _save_data_to_location_h5,
-    _load_data_from_location_h5,
-    _load_apnea_segmentation,
     _load_visual_segmentation,
-    _load_flipping,
+    _save_data_to_location_h5,
 )
-
 from empkins_io.utils._types import path_t
 
 _cached_get_biopac_data = lru_cache(maxsize=4)(_load_biopac_data)
@@ -27,7 +26,6 @@ _cached_get_radar_data = lru_cache(maxsize=4)(_load_radar_data)
 
 
 class BaseDataset(Dataset):
-
     base_path: path_t
     use_cache: bool
     calc_biopac_timelog_shift: bool
@@ -63,7 +61,9 @@ class BaseDataset(Dataset):
                 BIOPAC event marker and the start of the sync timelog entry to correct start and end times)
             trigger_data_extraction: Optional[bool] (flag indicating whether to trigger the data extraction from the
                 BIOPAC and radar data)
-        Returns:
+
+        Returns
+        -------
         """
         self.base_path = base_path
         self.use_cache = use_cache
@@ -343,7 +343,9 @@ class BaseDataset(Dataset):
             data: pd.DataFrame (data frame containing the data to be saved)
             file_name: str (name of the file to be saved)
             sub_dir: Optional[str] (path to subdirectory in "data_per_location", e.g., "ensemble_averaging/all")
-        Returns:
+
+        Returns
+        -------
         """
         locations = self.index.drop(columns="subject").columns.tolist()
         if not self.is_single(locations):
@@ -366,7 +368,9 @@ class BaseDataset(Dataset):
         Args:
             file_name: str (name of the file to be loaded)
             sub_dir: Optional[str] (path to subdirectory in "data_per_location", e.g., "ensemble_averaging/all")
-        Returns:
+
+        Returns
+        -------
             data: pd.DataFrame (data frame containing the loaded data)
         """
         locations = self.index.drop(columns="subject").columns.tolist()
@@ -450,8 +454,7 @@ class BaseDataset(Dataset):
         if loc in ["aorta_prox_hold", "aorta_med_hold", "aorta_dist_hold"]:
             apnea_seg = _load_apnea_segmentation(self.base_path, participant_id)
             return apnea_seg[loc]
-        else:
-            raise ValueError("Apnea Segmentation is only available for hold measurements")
+        raise ValueError("Apnea Segmentation is only available for hold measurements")
 
     def _get_visual_segmentation(self, participant_id: str) -> pd.DataFrame:
         return _load_visual_segmentation(self.base_path, participant_id)

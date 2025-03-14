@@ -90,7 +90,6 @@ class _BaseMotionCaptureProcessor(ABC):
         body_parts: Sequence[str],
         filter_params: Dict[str, Any] = None,
     ) -> pd.DataFrame:
-
         data_before = data.loc[:, body_parts]
         sos = ss.butter(
             N=filter_params.get("N", 1),

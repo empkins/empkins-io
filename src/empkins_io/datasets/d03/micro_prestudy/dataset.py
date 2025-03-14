@@ -214,11 +214,10 @@ class MicroPreStudyDataset(Dataset):
             raise ValueError("Emotion data only be accessed for an individual study part!")
         if emotion_type == "emotion":
             emotion_func = _cached_load_emotion_data if self.use_cache else load_emotion_data
+        elif self.use_cache:
+            emotion_func = _cached_load_dominant_emotion_data
         else:
-            if self.use_cache:
-                emotion_func = _cached_load_dominant_emotion_data
-            else:
-                emotion_func = load_dominant_emotion_data
+            emotion_func = load_dominant_emotion_data
 
         phases, subphases = self._get_phases_subphases()
 
@@ -263,9 +262,8 @@ class MicroPreStudyDataset(Dataset):
     def _check_artifact(self, prop: str_t) -> str_t:
         if any([self.is_single(None), self.is_single("artifact")]):
             artifact = self.index["artifact"][0]
+        elif all(artifact in self.index["artifact"].unique() for artifact in ARTIFACTS):
+            artifact = None
         else:
-            if all(artifact in self.index["artifact"].unique() for artifact in ARTIFACTS):
-                artifact = None
-            else:
-                raise ValueError(f"{prop} can only be accessed for either an individual artifact or for all artifacts")
+            raise ValueError(f"{prop} can only be accessed for either an individual artifact or for all artifacts")
         return artifact

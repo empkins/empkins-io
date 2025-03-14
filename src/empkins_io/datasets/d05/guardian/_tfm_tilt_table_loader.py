@@ -1,11 +1,12 @@
-from typing import Dict, Optional
-import pandas as pd
-import numpy as np
 import os
+from typing import Dict, Optional
+
+import numpy as np
+import pandas as pd
+from biopsykit.utils.array_handling import downsample
 from scipy.io import loadmat
 
 from empkins_io.utils._types import path_t
-from biopsykit.utils.array_handling import downsample
 
 
 class TFMTiltTableLoader:
@@ -94,26 +95,22 @@ class TFMTiltTableLoader:
             if cls.SAMPLING_RATES_IN[ecg_key] != cls.SAMPLING_RATE_OUT:
                 for recording_key, recording_value in ecg_value.items():
                     if isinstance(recording_value, np.ndarray):
-
                         if len(recording_value) == 0:
                             continue
-                        else:
-                            data_dict[ecg_key][recording_key] = downsample(
-                                recording_value, fs_in=cls.SAMPLING_RATES_IN[ecg_key], fs_out=cls.SAMPLING_RATE_OUT
-                            )
+                        data_dict[ecg_key][recording_key] = downsample(
+                            recording_value, fs_in=cls.SAMPLING_RATES_IN[ecg_key], fs_out=cls.SAMPLING_RATE_OUT
+                        )
 
         new_data = {}
 
         for ecg_key, ecg_value in data_dict.items():
             for recording_key, recording_value in ecg_value.items():
                 if recording_key not in new_data:
-
                     new_data[recording_key] = {}
 
                 new_data[recording_key][ecg_key] = recording_value
 
         for key2, value2 in new_data.items():
-
             new_data[key2] = pd.concat(
                 [
                     pd.Series(new_data[key2]["ecg_1"]),
@@ -128,9 +125,7 @@ class TFMTiltTableLoader:
         start_time_dict = {}
 
         for key1, value1 in cls.ORIGINAL_NAMES.items():
-
             if value1 not in names:
-
                 start_time_dict[key1] = pd.Timestamp("2000-01-01 00:00:00", tz="EUROPE/BERLIN")
 
             else:
@@ -169,7 +164,6 @@ class TFMTiltTableLoader:
         data.index.name = index_name
 
         if index is None:
-
             data = data.reset_index(drop=True)
             data.index.name = index_name
             return data
@@ -177,7 +171,6 @@ class TFMTiltTableLoader:
         data.index = data.index / self.SAMPLING_RATE_OUT
 
         if index == "time":
-
             return data
 
         if index == "utc":
@@ -202,7 +195,6 @@ class TFMTiltTableLoader:
         data.index = pd.to_datetime(data.index, unit="s").tz_convert("UTC")
 
         if index == "local_datetime":
-
             data.index = pd.to_datetime(data.index, unit="s").tz_convert(self.timezone)
 
         return data

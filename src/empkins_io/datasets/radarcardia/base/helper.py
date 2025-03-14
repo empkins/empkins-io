@@ -1,22 +1,22 @@
 import datetime
+import json
 from pathlib import Path
 from typing import Dict, Literal, Optional, Union
 
-import pandas as pd
+import bioread
 import numpy as np
+import pandas as pd
 from biopsykit.io.biopac import BiopacDataset
 from biopsykit.utils.time import tz
 from pandas import DataFrame
-from empkins_io.sync import SyncedDataset
+
 from empkins_io.sensors.emrad import EmradDataset
+from empkins_io.sync import SyncedDataset
 from empkins_io.utils._types import path_t
 from empkins_io.utils.exceptions import (
     SamplingRateMismatchException,
     TimelogNotFoundException,
 )
-
-import bioread
-import json
 
 
 def _build_data_path(base_path: path_t, participant_id: str) -> Path:
@@ -81,8 +81,7 @@ def _load_biopac_data(
             data_type="biopac",
         )
         return biopac
-    else:
-        raise ValueError("Invalid Biopac data processing state")
+    raise ValueError("Invalid Biopac data processing state")
 
 
 def _load_radar_data(
@@ -125,8 +124,7 @@ def _load_radar_data(
             data_type="emrad",
         )
         return radar
-    else:
-        raise ValueError("Invalid Biopac data processing state")
+    raise ValueError("Invalid Biopac data processing state")
 
 
 def _load_biopac_raw_unsynced_data(
@@ -436,7 +434,6 @@ def _get_biopac_timelog_shift(base_path: path_t, participant_id: str, trigger_ex
 
 
 def _calc_biopac_timelog_shift(base_path: path_t, participant_id: str):
-
     # biopac sync event marker
     biopac_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath("biopac/raw")
     biopac_file_path = biopac_dir_path.joinpath(f"biopac_data_{participant_id}.acq")
@@ -495,8 +492,7 @@ def _load_apnea_segmentation(base_path: path_t, participant_id: str) -> Dict:
     if apnea_seg_file_path.exists():
         apnea_seg = json.load(apnea_seg_file_path.open(encoding="utf-8"))
         return apnea_seg
-    else:
-        raise FileNotFoundError("Apnea segmentation file was not found.")
+    raise FileNotFoundError("Apnea segmentation file was not found.")
 
 
 def _load_visual_segmentation(base_path: path_t, participant_id: str) -> pd.DataFrame:
@@ -506,8 +502,7 @@ def _load_visual_segmentation(base_path: path_t, participant_id: str) -> pd.Data
     if file_path.exists():
         seg = pd.read_excel(file_path, index_col=0)
         return seg
-    else:
-        raise FileNotFoundError("Visual segmentation file was not found.")
+    raise FileNotFoundError("Visual segmentation file was not found.")
 
 
 def _load_flipping(base_path: path_t, modality: str) -> pd.DataFrame:
@@ -515,5 +510,4 @@ def _load_flipping(base_path: path_t, modality: str) -> pd.DataFrame:
     if file_path.exists():
         data = pd.read_excel(file_path, index_col=0)
         return data
-    else:
-        raise FileNotFoundError("Flipping file was not found.")
+    raise FileNotFoundError("Flipping file was not found.")

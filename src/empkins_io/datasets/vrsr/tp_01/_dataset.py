@@ -12,7 +12,6 @@ _cached_load_ecg_data = lru_cache(maxsize=4)(_load_ecg_data)
 
 
 class VRSR_Dataset(Dataset):
-
     MISSING_DATA = {}
 
     ECG_SAMPLING_RATE = 256
@@ -61,8 +60,7 @@ class VRSR_Dataset(Dataset):
 
         if self.use_cache:
             return _cached_load_ecg_data(self.base_path, self.subject)
-        else:
-            return _load_ecg_data(self.base_path, self.subject)
+        return _load_ecg_data(self.base_path, self.subject)
 
     @property
     def raw_log(self) -> pd.DataFrame:

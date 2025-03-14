@@ -10,7 +10,6 @@ from empkins_io.utils._types import path_t
 
 
 class EmpaticaDataset:
-
     path: path_t
     _raw_data: dict
 
@@ -80,16 +79,12 @@ class EmpaticaDataset:
             raise ValueError(f"Supplied sensor ({sensor}) is not allowed. Allowed values: {self._sensor_dict.keys()}")
 
         if self.path.is_file():
-
             return self._data_as_df_single_file(sensor)
 
-        else:
-
-            return self._data_as_df_folder(sensor)
+        return self._data_as_df_folder(sensor)
 
     def _data_as_df_folder(self, sensor: str) -> pd.DataFrame:
         """Get pandas DataFrame for a specific sensor."""
-
         out = {}
         prev_last_timestamp = None
         sampling_frequencies = []
@@ -123,7 +118,6 @@ class EmpaticaDataset:
 
     def _data_as_df_single_file(self, sensor: str) -> pd.DataFrame:
         """Get pandas DataFrame for a specific sensor."""
-
         sensor_dict = self._raw_data["rawData"][sensor]
 
         df = pd.DataFrame({f"{sensor}_{channel}": sensor_dict[channel] for channel in self._sensor_dict[sensor]})
@@ -176,7 +170,6 @@ class EmpaticaDataset:
     def _add_index_for_stitching(
         self, data: pd.DataFrame, sampling_rate_hz: float, start_time_unix: int
     ) -> pd.DataFrame:
-
         return self._add_index(data, "utc_datetime", sampling_rate_hz, start_time_unix)
 
 

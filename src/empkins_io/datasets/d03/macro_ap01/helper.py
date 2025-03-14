@@ -116,7 +116,7 @@ def _get_times_for_mocap(
 
 
 def rearrange_hr_ensemble_data(
-    hr_ensemble: Dict[str, pd.DataFrame]
+    hr_ensemble: Dict[str, pd.DataFrame],
 ) -> Tuple[Dict[str, pd.DataFrame], Dict[str, Dict[str, int]]]:
     hr_ensemble = {
         cond: {key: val.xs(cond, level="condition", axis=1) for key, val in hr_ensemble.items()}

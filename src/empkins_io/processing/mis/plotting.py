@@ -13,7 +13,7 @@ def hr_plot_ecg_radar(hr_ecg: HeartRateDataFrame, hr_radar: HeartRateDataFrame, 
     ax: plt.Axes = kwargs.pop("ax", None)
 
     if ax is None:
-        fig, ax = plt.subplots(figsize=kwargs.get("figsize", None))
+        fig, ax = plt.subplots(figsize=kwargs.get("figsize"))
     else:
         fig = ax.get_figure()
 
@@ -88,7 +88,7 @@ def _hr_plot_ecg_radar_outlier(data: RPeakDataFrame, color: str, ax: plt.Axes):
 def _hr_plot_ecg_radar_quality(hr_radar: HeartRateDataFrame, ax: plt.Axes):
     qual_handles = []
     qual_labels = ["Bad", "OK", "Good"]
-    for (lims, color) in zip([(0.0, 1.8), (1.8, 2.5), (2.5, 100)], ["wiso", "phil", "nat"]):
+    for lims, color in zip([(0.0, 1.8), (1.8, 2.5), (2.5, 100)], ["wiso", "phil", "nat"]):
         edgecolor = (*to_rgb(getattr(colors_all, color)), 0.3)
         facecolor = (*to_rgb(getattr(colors_all, color)), 0.05)
         mask = hr_radar["Heartsound_Quality"].between(*lims)

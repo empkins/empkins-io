@@ -1,7 +1,7 @@
 from functools import cached_property, lru_cache
 from itertools import product
 from pathlib import Path
-from typing import Optional, Sequence, ClassVar, Union
+from typing import ClassVar, Optional, Sequence, Union
 
 import pandas as pd
 from biopsykit.io.io import load_long_format_csv
@@ -21,7 +21,10 @@ from empkins_io.datasets.d03.micro_gapvii.helper import (
     _load_nilspod_session,
     _load_radar_data,
     _load_timelog,
+    compute_reference_heartbeats,
+    compute_reference_pep,
     get_opendbm_derived_features,
+    load_labeling_borders,
     load_opendbm_acoustic_data,
     load_opendbm_acoustic_seg_data,
     load_opendbm_audio_seg_data,
@@ -29,9 +32,6 @@ from empkins_io.datasets.d03.micro_gapvii.helper import (
     load_opendbm_facial_tremor_data,
     load_opendbm_movement_data,
     load_speaker_diarization,
-    load_labeling_borders,
-    compute_reference_heartbeats,
-    compute_reference_pep,
 )
 from empkins_io.utils._types import path_t
 
@@ -517,13 +517,12 @@ class MicroBaseDataset(Dataset):
             phase_end = timelog["Pause_5"]["end"][0]
             data = data.loc[phase_start:phase_end]
             return data, fs
-        else:
-            # cut radar data to specified phase
-            timelog = self.timelog
-            phase_start = timelog[phase]["start"][0]
-            phase_end = timelog[phase]["end"][0]
-            data = data.loc[phase_start:phase_end]
-            return data, fs
+        # cut radar data to specified phase
+        timelog = self.timelog
+        phase_start = timelog[phase]["start"][0]
+        phase_end = timelog[phase]["end"][0]
+        data = data.loc[phase_start:phase_end]
+        return data, fs
 
     def _get_timelog(self, participant_id: str, condition: str, phase: str) -> pd.DataFrame:
         return _load_timelog(self.base_path, participant_id, condition, phase, self.phase_fine)

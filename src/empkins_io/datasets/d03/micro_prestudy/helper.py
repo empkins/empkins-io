@@ -224,9 +224,8 @@ def _load_and_split_data(
                 else:
                     end_time_idx = -1
                 return data.between_time(timelog.iloc[0, 0], timelog.iloc[0, end_time_idx])
-            else:
-                relevant_data, relevant_annotations = _cut_data_to_timelog(data, annotations, timelog, study_part)
-                return extract_annotated_data(relevant_data, relevant_annotations, sync_interval)
+            relevant_data, relevant_annotations = _cut_data_to_timelog(data, annotations, timelog, study_part)
+            return extract_annotated_data(relevant_data, relevant_annotations, sync_interval)
         for key, timelog_phase in timelog.groupby("phase", axis=1):
             # all phases were selected, but only specific subphases were selected => extract these subphases and return
             # a dictionary with data from these subphases
@@ -344,24 +343,22 @@ def load_annotations(annotation_file: path_t, artifact: Optional[str_t] = None) 
             return annot_data
         if artifact == "all":
             return annot_data[["start_time", "end_time"]]
+        descriptor = ARTIFACT_MAPPING[artifact]
+        # only one keyword to search for
+        if isinstance(descriptor, str):
+            annot_data_filtered = annot_data[annot_data["description"].str.contains(descriptor)]
+        # list of possible keywords to search for
+        elif isinstance(descriptor, list):
+            annot_data_filtered = pd.DataFrame(columns=annot_data.columns)
+            for d in descriptor:
+                data_to_append = annot_data[annot_data["description"].str.contains(str(d))]
+                annot_data_filtered = pd.concat((annot_data_filtered, data_to_append))
+            annot_data_filtered = annot_data_filtered.drop_duplicates()
         else:
-            descriptor = ARTIFACT_MAPPING[artifact]
-            # only one keyword to search for
-            if isinstance(descriptor, str):
-                annot_data_filtered = annot_data[annot_data["description"].str.contains(descriptor)]
-            # list of possible keywords to search for
-            elif isinstance(descriptor, list):
-                annot_data_filtered = pd.DataFrame(columns=annot_data.columns)
-                for d in descriptor:
-                    data_to_append = annot_data[annot_data["description"].str.contains(str(d))]
-                    annot_data_filtered = pd.concat((annot_data_filtered, data_to_append))
-                annot_data_filtered = annot_data_filtered.drop_duplicates()
-            else:
-                raise ValueError("Artifact mapping has invalid data type")
-            return annot_data_filtered[["start_time", "end_time"]]
-    else:
-        # if artifact is None, data won't be cut into artifact occurrences
-        return None
+            raise ValueError("Artifact mapping has invalid data type")
+        return annot_data_filtered[["start_time", "end_time"]]
+    # if artifact is None, data won't be cut into artifact occurrences
+    return None
 
 
 def _find_study_part_file(path: path_t, study_part: str, file_ending: str):
@@ -386,8 +383,7 @@ def extract_annotated_data(
 
     if filtered_data.empty:
         return []
-    else:
-        return filtered_data.to_list()
+    return filtered_data.to_list()
 
 
 def load_heart_rate_data(ecg_file: path_t, radar_file: path_t, study_part: str):

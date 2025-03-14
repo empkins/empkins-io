@@ -44,6 +44,5 @@ def cut_data_to_overlap(
     if start_idx > end_idx:
         # no overlap
         return pd.DataFrame(columns=reference.columns.copy()), pd.DataFrame(columns=target.columns.copy())
-    else:
-        # extract overlapping regions
-        return reference.between_time(start_idx, end_idx), target.between_time(start_idx, end_idx)
+    # extract overlapping regions
+    return reference.between_time(start_idx, end_idx), target.between_time(start_idx, end_idx)

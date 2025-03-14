@@ -37,7 +37,6 @@ SYNC_TYPE_ESB = [
 
 
 class SyncedDataset:
-
     _VALID_INDEX_NAMES = (r"t", r"utc", r"date", r"date \(.*\)")
 
     datasets: Dict[str, Dict[str, Any]]
@@ -140,7 +139,6 @@ class SyncedDataset:
             setattr(self, f"{name}_cut_", data_cut)
 
     def _cut_dataset_to_sync_region(self, dataset: Dict[str, Any], sync_params: Dict[str, Any]) -> pd.DataFrame:
-
         if self.sync_type == "m-sequence":
             raise NotImplementedError(
                 "For cutting and aligning datasets, please use the 'cut_to_sync_start_m_sequence' method."
@@ -248,7 +246,6 @@ class SyncedDataset:
         dict_resampled = {}
 
         for name in self.datasets_aligned:
-
             df = self.datasets_aligned[name]
 
             if name == primary:
@@ -273,7 +270,6 @@ class SyncedDataset:
                 setattr(self, f"{name}_resampled_", data_aligned)
 
     def _resample_sample_wise(self, df, sample_shift):
-
         df_size = len(df)
 
         df_resample = resample(df, df_size + sample_shift)
@@ -465,12 +461,12 @@ class SyncedDataset:
 
     @staticmethod
     def _find_sync_peaks(data: np.ndarray, sync_params: Dict[str, Any]) -> np.ndarray:
-        max_expected_peaks = sync_params.get("max_expected_peaks", None)
-        search_region_samples = sync_params.get("search_region_samples", None)
-        distance = sync_params.get("distance", None)
+        max_expected_peaks = sync_params.get("max_expected_peaks")
+        search_region_samples = sync_params.get("search_region_samples")
+        distance = sync_params.get("distance")
         height = sync_params.get("height", 0.1)
-        width = sync_params.get("width", None)
-        prominence = sync_params.get("prominence", None)
+        width = sync_params.get("width")
+        prominence = sync_params.get("prominence")
 
         # normalize data between 0 and 1
         data_norm = (data - np.min(data)) / (np.max(data) - np.min(data))
@@ -497,7 +493,6 @@ class SyncedDataset:
         secondary: Union[np.ndarray, pd.DataFrame],
         fs: float,
     ) -> int:
-
         # find the cross-correlation values and the index of the maximum cross-correlation
         lag_values = np.arange((-len(primary) + 1) / fs, len(primary) / fs, 1 / fs)
 
@@ -539,7 +534,7 @@ class SyncedDataset:
         )
 
     def _determine_actual_sampling_rate(self, dataset: Dict[str, Any], **kwargs) -> float:
-        wave_frequency = kwargs.get("wave_frequency", None)
+        wave_frequency = kwargs.get("wave_frequency")
         data = dataset["data"]
         sync_channel = dataset["sync_channel"]
         fs = dataset["sampling_rate"]

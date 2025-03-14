@@ -1,18 +1,17 @@
 import ast
 import json
-from pathlib import Path
-from itertools import product
-from typing import Optional, Sequence, Union, Dict
-
 from functools import lru_cache
+from itertools import product
+from pathlib import Path
+from typing import Dict, Optional, Sequence, Union
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+from empkins_micro.feature_extraction.pep.algorithms.ecg.extraction_heartbeats import HeartBeatExtraction
 from tpcp import Dataset
 
-from empkins_io.utils._types import path_t
 from empkins_io.datasets.d05.guardian._helper import _load_tfm_data
-from empkins_micro.feature_extraction.pep.algorithms.ecg.extraction_heartbeats import HeartBeatExtraction
+from empkins_io.utils._types import path_t
 
 _cached_get_tfm_data = lru_cache(maxsize=4)(_load_tfm_data)
 
@@ -95,7 +94,6 @@ class GuardianTiltTableDataset(Dataset):
         else:
             tfm_data = _load_tfm_data(self.base_path, tfm_path)
         if self.only_labeled:
-
             label_path = self.base_path.joinpath(
                 f"Data_raw/{participant}/TFM-Daten/manual_labeling/labeling_borders_{participant}.csv"
             )
@@ -110,10 +108,9 @@ class GuardianTiltTableDataset(Dataset):
                 tfm_data = tfm_data.loc[(tfm_data.index >= start) & (tfm_data.index <= end)]
                 return tfm_data
 
-        else:
-            if self.is_single(None):
-                tfm_data = tfm_data[phases[0]]
-                return tfm_data
+        elif self.is_single(None):
+            tfm_data = tfm_data[phases[0]]
+            return tfm_data
         return tfm_data
 
     def calculate_pep_manual_labeled(self, ecg_clean):
@@ -144,10 +141,8 @@ class GuardianTiltTableDataset(Dataset):
         q_onset = data_ECG["Samples"].values
 
         if b_points[0] < q_onset[0]:
-
             b_points = b_points[1:]
         if b_points[-1] < q_onset[-1]:
-
             q_onset = q_onset[:-1]
 
         # calculate pep from manually labeled points
@@ -162,13 +157,11 @@ class GuardianTiltTableDataset(Dataset):
         # exclude labeled points that are part of uncomplete heartbeats
 
         if q_onset[0] < heartbeats["start_sample"].values[0]:
-
             q_onset = q_onset[1:]
             b_points = b_points[1:]
             pep_df = pep_df[1:]
 
         if q_onset[-1] > heartbeats["end_sample"].values[-1]:
-
             q_onset = q_onset[:-1]
             b_points = b_points[:-1]
             pep_df = pep_df[:-1]

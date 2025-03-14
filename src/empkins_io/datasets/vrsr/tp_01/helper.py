@@ -23,8 +23,7 @@ def _load_ecg_data(base_path: path_t, subject: str, to_local_time: Optional[bool
     df.columns = ["ecg", "event"]
     if to_local_time:
         return _convert_to_timestamps(df, start_time(base_path, subject))
-    else:
-        return df
+    return df
 
 
 def _load_raw_log(base_path: path_t, subject: str) -> pd.DataFrame:
