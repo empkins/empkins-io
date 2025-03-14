@@ -1,7 +1,7 @@
 __all__ = ["ZebrisDataset"]
 
 from pathlib import Path
-from typing import Self
+from typing_extensions import Self
 
 from empkins_io.utils._types import path_t
 
