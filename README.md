@@ -68,3 +68,20 @@ uv sync
 ```
 
 For more commands see the [official documentation](https://docs.astral.sh/uv/).
+
+### Format and Linting
+
+To ensure consistent code structure this project uses black and ruff to automatically check (and fix) the code format.
+
+```
+poe format  # runs ruff format and ruff lint with the autofix flag
+poe lint # runs ruff without autofix (will show issues that can not automatically be fixed)
+```
+
+If you want to check if all code follows the code guidelines, run `poe ci_check`.
+This can be useful in the CI context
+
+
+### Tests
+
+All tests are located in the `tests` folder and can be executed by using `poe test`.
