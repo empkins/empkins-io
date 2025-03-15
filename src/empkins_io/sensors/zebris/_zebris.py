@@ -10,37 +10,20 @@ class ZebrisDataset:
     base_path: path_t
 
     _sensor_dict = {
-        "force curve": ["values"],  # force-curve.csv
-        "force curve L": ["values"],  # force-curve-L.csv
-        "force curve R": ["values"],  # force-curve-R.csv
-        "force forefoot L %": ["values"],  # parameters.csv
-        "force forefoot R %": ["values"],  # parameters.csv
-        "force backfoot L %": ["values"],  # parameters.csv
-        "force backfoot R %": ["values"],  # parameters.csv
-        "total force %": ["values"],  # parameters.csv
-        "total force R %": ["values"],  # parameters.csv
-        "total force L %": ["values"],  # parameters.csv
-        "force curve backfoot L": ["values"],  # force-curve_backfoot-L.csv
-        "force curve backfoot R": ["values"],  # force-curve_backfoot-R.csv
-        "force curve forefoot L": ["values"],  # force-curve_forefoot-L.csv
-        "force curve forefoot R": ["values"],  # force-curve_forefoot-R.csv
-        "gait line": ["x", "y"],  # gait-line.csv
-        "gait line L": ["x", "y"],  # gait-line-L.csv
-        "gait line R": ["x", "y"],  # gait-line-R.csv
-        "COP": ["x", "y"],  # parameters.csv in [mm]
-        "COP L": ["x", "y"],  # parameters.csv in [mm]
-        "COP R": ["x", "y"],  # parameters.csv in [mm]
-        "COP forefoot L": ["x", "y"],  # parameters.csv [mm]
-        "COP forefoot R": ["x", "y"],  # parameters.csv [mm]
-        "COP backfoot L": ["x", "y"],  # parameters.csv [mm]
-        "COP backfoot R": ["x", "y"],  # parameters.csv [mm]
-        "COP trajectory length": ["values"],  # parameters.csv in [mm]
-        "total time": ["values"],  # parameters.csv
-        "Area of the 95% confidence ellipse": ["values"],  # parameters.csv [mm2]
-        "average velocity": ["values"],  # parameters.csv [mm/s]
+        "time_series_data": ["time", "values"],  # For time-series CSVs
+        "parameter_data": ["type", "Vorfuß COP x, links, mm", "Vorfuß COP y, links, mm",
+                           "Rückfuß COP x, links, mm", "Rückfuß COP y, links, mm",
+                           "Vorfuß COP x, rechts, mm", "Vorfuß COP y, rechts, mm",
+                           "Rückfuß COP x, rechts, mm", "Rückfuß COP y, rechts, mm",
+                           "COP x, links, mm", "COP y, links, mm", "COP x, rechts, mm",
+                           "COP y, rechts, mm", "COP x, mm", "COP y, mm",
+                           "Kraft Vorfuß L, %", "Kraft Rückfuß L, %", "Gesamtkraft L, %",
+                           "Kraft Vorfuß R, %", "Kraft Rückfuß R, %", "Gesamtkraft R, %",
+                           "Messdauer [Sek]", "Fläche der 95% Vertrauensellipse [mm²]",
+                           "Länge der COP-Spur [mm]", "Gemittelte Geschwindigkeit [mm/Sek]"]
     }
 
-    def __init__(self, path: path_t):
+    def __init__(self, path: Path):
         path = Path(path)  # Convert to Path object
         self.path = path
         if path.is_dir():
@@ -52,10 +35,7 @@ class ZebrisDataset:
 
     @classmethod
     def from_folder(cls, folder_path: Path) -> list[Path]:
-        # Ensure folder_path is a Path object
         folder_path = Path(folder_path)
-
-        # Get a sorted list of all CSV files in the folder
         return sorted(folder_path.glob("*.csv"))
 
     @classmethod
@@ -66,26 +46,47 @@ class ZebrisDataset:
         return []
 
     def data_as_df(self):
-        sensor_data = {}
+        time_series_data = {}
+        parameter_data = {}
 
-        for sensor, columns in self._sensor_dict.items():
-            matching_files = [file for file in self._raw_data if sensor in file.stem]
+        for file in self._raw_data:
+            # Read the file
+            df = pd.read_csv(file)
 
-            if matching_files:
-                df_list = [pd.read_csv(file) for file in matching_files]
-                sensor_data[sensor] = pd.concat(df_list, axis=0, ignore_index=True)
+            # Check if the file contains metadata section (looking for 'type' column)
+            if "type" in df.columns:
+                # Read metadata and extract time-series data
+                metadata = df.iloc[0, :]
+                signal_type = metadata["type"]
+                signal_name = metadata["name"]
+                units = metadata["units"]
+
+                # Read actual time-series data (skip first row)
+                df_data = pd.read_csv(file, skiprows=2)  # Skip metadata rows
+                df_data.columns = ["time", "value"]  # Ensure columns are named correctly
+
+                # Store the time-series data with signal metadata
+                time_series_data[file.stem] = {
+                    "metadata": {"type": signal_type, "name": signal_name, "units": units},
+                    "data": df_data
+                }
             else:
-                sensor_data[sensor] = pd.DataFrame(columns=columns)
-        # Create a MultiIndex for the columns (sensor names + values or x/y)
-        multi_index = pd.MultiIndex.from_tuples(
-            [(sensor, col) for sensor, cols in self._sensor_dict.items() for col in cols],
-            names=["Sensor", "Metric"]
-        )
+                # Add parameter data to the dictionary (single-row data)
+                parameter_data[file.stem] = df
 
-        # Combine all the sensor data into a single DataFrame
-        zebris_df = pd.DataFrame(sensor_data)
+            # Combine time-series data into DataFrames (multiple signals may exist)
+        time_series_df = pd.concat(
+            [data["data"] for data in time_series_data.values()],
+            axis=0, ignore_index=True
+        ) if time_series_data else pd.DataFrame()
 
-        # Reindex to apply the MultiIndex to the columns
-        zebris_df.columns = multi_index
+        # Combine parameter data into a DataFrame (one row per file)
+        parameter_df = pd.concat(parameter_data.values(), axis=0,
+                                 ignore_index=True) if parameter_data else pd.DataFrame()
 
-        return zebris_df
+        # Return a dictionary with the data frames for each type
+        return {
+            "time_series_data": time_series_df,
+            "parameter_data": parameter_df,
+            "time_series_metadata": time_series_data  # Additional metadata information
+        }
