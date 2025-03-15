@@ -6,7 +6,7 @@ from empkins_io.utils._types import path_t
 
 
 class ZebrisDataset:
-    path: path_t
+    base_path: path_t
 
     _sensor_dict = {
         "force curve": ["values"],  # force-curve.csv
