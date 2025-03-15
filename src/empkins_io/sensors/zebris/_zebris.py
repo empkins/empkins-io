@@ -2,7 +2,7 @@ __all__ = ["ZebrisDataset"]
 
 from pathlib import Path
 
-from empkins_io.utils._types import path_t
+from src.empkins_io.utils._types import path_t
 
 
 class ZebrisDataset:
