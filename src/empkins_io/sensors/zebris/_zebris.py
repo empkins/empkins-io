@@ -57,13 +57,25 @@ class ZebrisDataset:
             if "type" in df.columns:
                 # Read metadata and extract time-series data
                 metadata = df.iloc[0, :]
-                signal_type = metadata["type"]
-                signal_name = metadata["name"]
-                units = metadata["units"]
+                signal_type = metadata.get("type", None)  # Use .get() to avoid KeyError
+                signal_name = metadata.get("name", "Unnamed")  # Default to "Unnamed" if "name" is not found
+                units = metadata.get("units", None)  # Use .get() to avoid KeyError
 
                 # Read actual time-series data (skip first row)
                 df_data = pd.read_csv(file, skiprows=2)  # Skip metadata rows
-                df_data.columns = ["time", "value"]  # Ensure columns are named correctly
+
+                # Print the columns of the data to debug
+                print(f"Columns in {file.stem}: {df_data.columns}")
+
+                # Handle three-column data (time, x, y)
+                if len(df_data.columns) == 3:
+                    df_data.columns = ["time", "x", "y"]  # Rename columns appropriately
+                # Handle two-column data (time, value)
+                elif len(df_data.columns) == 2:
+                    df_data.columns = ["time", "value"]  # Ensure columns are named correctly
+                else:
+                    print(f"Skipping {file.stem} due to unexpected column structure")
+                    continue  # Skip this file if column structure is not as expected
 
                 # Store the time-series data with signal metadata
                 time_series_data[file.stem] = {
@@ -71,10 +83,14 @@ class ZebrisDataset:
                     "data": df_data
                 }
             else:
-                # Add parameter data to the dictionary (single-row data)
+                # If no metadata, treat as parameter data (e.g., gait-line data)
+                print(f"No metadata found in {file.stem}, treating as parameter data.")
+                # If it's a single-row file with x, y columns (no time)
+                if len(df.columns) == 3:
+                    df.columns = ["time", "x", "y"]  # Rename columns for consistency
                 parameter_data[file.stem] = df
 
-            # Combine time-series data into DataFrames (multiple signals may exist)
+        # Combine time-series data into DataFrames (multiple signals may exist)
         time_series_df = pd.concat(
             [data["data"] for data in time_series_data.values()],
             axis=0, ignore_index=True
