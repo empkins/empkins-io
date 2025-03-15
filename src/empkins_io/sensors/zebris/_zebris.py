@@ -1,5 +1,6 @@
 __all__ = ["ZebrisDataset"]
 
+import pandas as pd
 from pathlib import Path
 
 from src.empkins_io.utils._types import path_t
@@ -39,15 +40,15 @@ class ZebrisDataset:
         "average velocity": ["values"],  # parameters.csv [mm/s]
     }
 
-    def __init__(
-        self,
-        path: path_t,
-    ):
+    def __init__(self, path: path_t):
+        path = Path(path)  # Convert to Path object
         self.path = path
         if path.is_dir():
             self._raw_data = self.from_folder(path)
-        else:
+        elif path.is_file():
             self._raw_data = self.from_file(path)
+        else:
+            raise FileNotFoundError(f"Invalid path: '{path}'. Not a file or directory.")
 
     @classmethod
     def from_folder(cls, folder_path: Path) -> list[Path]:
@@ -59,11 +60,32 @@ class ZebrisDataset:
 
     @classmethod
     def from_file(cls, file_path: Path) -> list[Path]:
-        # Ensure file_path is a Path object
-        file_path = Path(file_path)
+        file_path = Path(file_path)  # Ensure it's a Path object
+        if file_path.suffix == ".csv":
+            return [file_path]
+        return []
 
-        # Get the parent directory of the file
-        folder_path = file_path.parent
+    def data_as_df(self):
+        sensor_data = {}
 
-        # Get a sorted list of all CSV files in the same folder
-        return sorted(folder_path.glob("*.csv"))
+        for sensor, columns in self._sensor_dict.items():
+            matching_files = [file for file in self._raw_data if sensor in file.stem]
+
+            if matching_files:
+                df_list = [pd.read_csv(file) for file in matching_files]
+                sensor_data[sensor] = pd.concat(df_list, axis=0, ignore_index=True)
+            else:
+                sensor_data[sensor] = pd.DataFrame(columns=columns)
+        # Create a MultiIndex for the columns (sensor names + values or x/y)
+        multi_index = pd.MultiIndex.from_tuples(
+            [(sensor, col) for sensor, cols in self._sensor_dict.items() for col in cols],
+            names=["Sensor", "Metric"]
+        )
+
+        # Combine all the sensor data into a single DataFrame
+        zebris_df = pd.DataFrame(sensor_data)
+
+        # Reindex to apply the MultiIndex to the columns
+        zebris_df.columns = multi_index
+
+        return zebris_df
