@@ -1,7 +1,6 @@
 __all__ = ["ZebrisDataset"]
 
 from pathlib import Path
-from typing_extensions import Self
 
 from empkins_io.utils._types import path_t
 
@@ -41,8 +40,8 @@ class ZebrisDataset:
     }
 
     def __init__(
-            self,
-            path: path_t,
+        self,
+        path: path_t,
     ):
         self.path = path
         if path.is_dir():
@@ -56,7 +55,7 @@ class ZebrisDataset:
         folder_path = Path(folder_path)
 
         # Get a sorted list of all CSV files in the folder
-        return list(sorted(folder_path.glob("*.csv")))
+        return sorted(folder_path.glob("*.csv"))
 
     @classmethod
     def from_file(cls, file_path: Path) -> list[Path]:
@@ -67,4 +66,4 @@ class ZebrisDataset:
         folder_path = file_path.parent
 
         # Get a sorted list of all CSV files in the same folder
-        return list(sorted(folder_path.glob("*.csv")))
+        return sorted(folder_path.glob("*.csv"))
