@@ -26,6 +26,7 @@ fastavro = "^1.4.0"
 # opencv is optional, but required for some functions
 opencv-python = {version="^4.8", optional=true}
 construct = "^2.10.70"
+openpyxl = "^3.1.5"
 
 [tool.poetry.extras]
 opencv = ["opencv-python"]

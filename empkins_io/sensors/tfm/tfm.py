@@ -243,10 +243,10 @@ class TfmLoader:
 
         data = loadmat(path, struct_as_record=False, squeeze_me=True)
 
-        df_iv = cls._load_intervention_variables(data, phase_mapping)
+        df_iv, rel_start_time = cls._load_intervention_variables(data, phase_mapping)
         intervention_names = list(df_iv.index)
         df_osc = cls._load_osc_blood_pressure(data)
-        dict_beat2beat = cls._load_beat_to_beat_parameters(data, intervention_names)
+        dict_beat2beat = cls._load_beat_to_beat_parameters(data, intervention_names, rel_start_time)
         dict_raw = cls._load_raw_data(data, intervention_names)
 
         return cls(tz, recording_date, df_iv, df_osc, dict_beat2beat, dict_raw)
@@ -269,6 +269,7 @@ class TfmLoader:
             If the loaded phase (intervention) names do not match the phase mapping
 
         """
+
         df_iv = pd.DataFrame()
 
         if phase_mapping is not None:
@@ -289,10 +290,12 @@ class TfmLoader:
                 ~df_iv.index.duplicated(), df_iv.index + "_" + df_iv.groupby(level=0).cumcount().astype(str)
             )
             warnings.warn("The TFM Dataset contains duplicate intervention names. "
-                          "Intervention names where renamed to avoid overwriting of data."
-                          )
+                          "Intervention names were renamed to avoid overwriting of data.")
 
-        return df_iv
+        # get relative start time of the recording
+        relative_start_time = data["IV"].Reltime[0]
+
+        return df_iv, relative_start_time
 
     @classmethod
     def _load_osc_blood_pressure(cls, data) -> pd.DataFrame:
@@ -352,7 +355,7 @@ class TfmLoader:
         return dict_raw
 
     @classmethod
-    def _load_beat_to_beat_parameters(cls, data, intervention_names) -> Dict[str, Dict[str, Dict[str, np.ndarray]]]:
+    def _load_beat_to_beat_parameters(cls, data, intervention_names, rel_start_time) -> Dict[str, Dict[str, Dict[str, np.ndarray]]]:
         """Load beat-to-beat parameters from MATLAB dict.
 
         Parameters
@@ -368,26 +371,33 @@ class TfmLoader:
             "hemodynamic_parameters": cls._load_data(
                 data=data["BeatToBeat"],
                 intervention_names=intervention_names,
-                mapping=cls._HEMODYNAMIC_PARAMETERS_MAPPING
-            ), "bpv_parameters": cls._load_data(
+                mapping=cls._HEMODYNAMIC_PARAMETERS_MAPPING,
+                relative_start_time = rel_start_time
+            ),
+            "bpv_parameters": cls._load_data(
                 data=data["BPV"],
                 intervention_names=intervention_names,
-                mapping=cls._BPV_PARAMETERS_MAPPING
-            ), "hrv_parameters": cls._load_data(
+                mapping=cls._BPV_PARAMETERS_MAPPING,
+                relative_start_time=rel_start_time
+            ),
+            "hrv_parameters": cls._load_data(
                 data=data["HRV"],
                 intervention_names=intervention_names,
-                mapping=cls._HRV_PARAMETERS_MAPPING
-            ), "cardiac_parameters": cls._load_data(
+                mapping=cls._HRV_PARAMETERS_MAPPING,
+                relative_start_time=rel_start_time
+            ),
+            "cardiac_parameters": cls._load_data(
                 data=data["CardiacParams"],
                 intervention_names=intervention_names,
-                mapping=cls._CARDIAC_PARAMETERS_MAPPING
+                mapping=cls._CARDIAC_PARAMETERS_MAPPING,
+                relative_start_time=rel_start_time
             )
         }
 
         return dict_beat_parameters
 
     @classmethod
-    def _load_data(cls, data, intervention_names, mapping):
+    def _load_data(cls, data, intervention_names, mapping, relative_start_time: Optional=None):
         """Load data and assign correct parameters and phase names.
 
         Parameters
@@ -398,19 +408,71 @@ class TfmLoader:
             Phase (intervention) names.
         mapping : dict
             Dictionary containing the mapping of the original and the given parameter names
+        relative_start_time : float
+            Relative start time of the recording - Relative time of the intervention "Beginn der Aufzeichnung"
 
         """
 
         data_dict_tmp = {key: getattr(data, value) for key, value in mapping.items()}
         data_dict = {}
 
-        for key, value in data_dict_tmp.items():
-            data_dict[key] = {}
+        # check if data of one phase are missing
+        first_param = list(data_dict_tmp.values())[0]
+        if (len(intervention_names) - 1) != len(first_param):
+            warnings.warn("Number of data packages does not match the number of intervention phases when extracting "
+                          "beat-to-beat parameters.")
+            n_missing_phases = len(intervention_names) - 1 - len(first_param)
+            missing_phases = cls._check_for_missing_phases(
+                data_time=data_dict_tmp["relative_time"],
+                intervention_names=intervention_names,
+                n_missing_phases=n_missing_phases,
+                relative_start_time=relative_start_time
+            )
+        else:
+            missing_phases = []
+
+
+        # loop through parameters
+        for key_param, value_param in data_dict_tmp.items():
+            data_dict[key_param] = {}
+
+            # loop through interventions
+            data_cnt = 0
             for i in range(len(intervention_names) - 1):
                 index = intervention_names[i]
-                data_dict[key][index] = value[i]
-
+                if index in missing_phases:
+                    warnings.warn(f"Phase {index} is missing for one beat-to-beat parameter group. "
+                                  f"Data are replaced with NaN.")
+                    data_dict[key_param][index] = np.nan
+                else:
+                    data_dict[key_param][index] = value_param[data_cnt]
+                    data_cnt += 1
         return data_dict
+
+    @classmethod
+    def _check_for_missing_phases(cls, data_time, intervention_names, n_missing_phases, relative_start_time):
+
+        # determine the time gap between the relative start time of the current phase
+        # and the relative start time of the previous phase
+        time_end_last_phase = relative_start_time
+        gaps = []
+        for i in range(np.shape(data_time)[0]):
+            time_start_current_phase = data_time[i][0]
+            gaps.append(time_start_current_phase - time_end_last_phase)
+            time_end_last_phase = data_time[i][-1]
+
+        # detected the missing phase as the gap with highest time jump
+        missing_phases = []
+        while n_missing_phases > 0:
+            index_missing_phase = gaps.index(max(gaps))
+            gaps[index_missing_phase] = 0
+            n_missing_phases -= 1
+            missing_phases.append(intervention_names[index_missing_phase])
+
+        return missing_phases
+
+
+
 
     def raw_phase_data_as_df_dict(self, index: Optional[str] = None) -> Dict[str, Dict[str, pd.DataFrame]]:
         """Generate dictionary containing the raw data as dataframes separated in phases.
@@ -605,3 +667,7 @@ class TfmLoader:
             data.index = data.index.tz_localize("UTC").tz_convert(self.timezone)
 
         return data
+
+
+
+
