@@ -41,13 +41,13 @@ class DipStudyDataset(Dataset):
         "radar": 8000000 / 4096 / 2,
     }
     DEF_DATE = "01.01.1970"
-    SUBJECTS_MISSING: Tuple[str] = ("VP_15", "VP_18")
-    RADAR_FAILURE: Tuple[str] = ("VP_03")
-    TFM_FAILURE: Tuple[Tuple[str, str]] = (
+    SUBJECTS_MISSING: list[str] = ["VP_15", "VP_18"]
+    RADAR_FAILURE: list[str] = ["VP_03"]
+    TFM_FAILURE: list[Tuple[str, str]] = [
     #   ("VP_05", "cpt"),
     #   ("VP_08", "straw"),
     #   ("VP_12", "straw"),
-    )
+    ]
 
     def __init__(
             self,
@@ -80,6 +80,7 @@ class DipStudyDataset(Dataset):
             for subject_id in self.RADAR_FAILURE:
                 if subject_id in subject_ids:
                     subject_ids.remove(subject_id)
+
         return subject_ids
 
     def create_index(self):
