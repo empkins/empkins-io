@@ -1,108 +1,163 @@
-__all__ = ["ZebrisDataset"]
-
 import pandas as pd
+import numpy as np
 from pathlib import Path
+from typing import Dict, Union
 
 from src.empkins_io.utils._types import path_t
 
 
 class ZebrisDataset:
-    base_path: path_t
+    def __init__(self, path: Union[str, Path]):
+        """
+        Initialize ZebrisDataset with a path to a folder or specific CSV file.
 
-    _sensor_dict = {
-        "time_series_data": ["time", "values"],  # For time-series CSVs
-        "parameter_data": ["type", "Vorfuß COP x, links, mm", "Vorfuß COP y, links, mm",
-                           "Rückfuß COP x, links, mm", "Rückfuß COP y, links, mm",
-                           "Vorfuß COP x, rechts, mm", "Vorfuß COP y, rechts, mm",
-                           "Rückfuß COP x, rechts, mm", "Rückfuß COP y, rechts, mm",
-                           "COP x, links, mm", "COP y, links, mm", "COP x, rechts, mm",
-                           "COP y, rechts, mm", "COP x, mm", "COP y, mm",
-                           "Kraft Vorfuß L, %", "Kraft Rückfuß L, %", "Gesamtkraft L, %",
-                           "Kraft Vorfuß R, %", "Kraft Rückfuß R, %", "Gesamtkraft R, %",
-                           "Messdauer [Sek]", "Fläche der 95% Vertrauensellipse [mm²]",
-                           "Länge der COP-Spur [mm]", "Gemittelte Geschwindigkeit [mm/Sek]"]
-    }
-
-    def __init__(self, path: Path):
+        Args:
+            path (str or Path): Path to a directory containing CSV files or a specific CSV file
+        """
         path = Path(path)  # Convert to Path object
         self.path = path
+
         if path.is_dir():
-            self._raw_data = self.from_folder(path)
-        elif path.is_file():
-            self._raw_data = self.from_file(path)
+            self._raw_data = sorted(path.glob("*.csv"))
+        elif path.is_file() and path.suffix == ".csv":
+            self._raw_data = [path]
         else:
-            raise FileNotFoundError(f"Invalid path: '{path}'. Not a file or directory.")
+            raise FileNotFoundError(f"Invalid path: '{path}'. Not a CSV file or directory.")
 
-    @classmethod
-    def from_folder(cls, folder_path: Path) -> list[Path]:
-        folder_path = Path(folder_path)
-        return sorted(folder_path.glob("*.csv"))
+    def _read_csv_with_metadata(self, file_path: Path) -> pd.DataFrame:
+        """
+        Read CSV files with potential metadata rows.
 
-    @classmethod
-    def from_file(cls, file_path: Path) -> list[Path]:
-        file_path = Path(file_path)  # Ensure it's a Path object
-        if file_path.suffix == ".csv":
-            return [file_path]
-        return []
+        Args:
+            file_path (Path): Path to the CSV file
 
-    def data_as_df(self):
-        time_series_data = {}
-        parameter_data = {}
+        Returns:
+            pd.DataFrame: Loaded DataFrame
+        """
+        try:
+            # First, try to read the first two rows to understand the file structure
+            with open(file_path, 'r') as f:
+                first_row = f.readline().strip().strip('"').split('","')
+                second_row = f.readline().strip().strip('"').split('","')
 
-        for file in self._raw_data:
-            # Read the file
-            df = pd.read_csv(file)
+            # Special handling for pressure matrix files with many columns
+            if len(first_row) > 10 and 'signal_matrix' in first_row:
+                # Read the file with manual parsing to handle wide data
+                df = pd.read_csv(file_path,
+                                 header=[0, 1],  # Use first two rows as multi-level header
+                                 skiprows=[2],  # Skip the third row if it's continuation of metadata
+                                 engine='python')  # Use Python engine for more flexible parsing
 
-            # Check if the file contains metadata section (looking for 'type' column)
-            if "type" in df.columns:
-                # Read metadata and extract time-series data
-                metadata = df.iloc[0, :]
-                signal_type = metadata.get("type", None)  # Use .get() to avoid KeyError
-                signal_name = metadata.get("name", "Unnamed")  # Default to "Unnamed" if "name" is not found
-                units = metadata.get("units", None)  # Use .get() to avoid KeyError
+                # Clean up column names
+                df.columns = [col[1] if col[1] else col[0] for col in df.columns]
 
-                # Read actual time-series data (skip first row)
-                df_data = pd.read_csv(file, skiprows=2)  # Skip metadata rows
+                # Attach metadata
+                df.attrs['metadata'] = dict(zip(first_row[:-1], second_row[:-1]))
+                df.attrs['filename'] = file_path.stem
 
-                # Print the columns of the data to debug
-                print(f"Columns in {file.stem}: {df_data.columns}")
+                return df
 
-                # Handle three-column data (time, x, y)
-                if len(df_data.columns) == 3:
-                    df_data.columns = ["time", "x", "y"]  # Rename columns appropriately
-                # Handle two-column data (time, value)
-                elif len(df_data.columns) == 2:
-                    df_data.columns = ["time", "value"]  # Ensure columns are named correctly
-                else:
-                    print(f"Skipping {file.stem} due to unexpected column structure")
-                    continue  # Skip this file if column structure is not as expected
+            # Default handling for other files
+            df = pd.read_csv(file_path,
+                             header=None,  # Read all rows as data
+                             engine='python')  # More flexible parsing
 
-                # Store the time-series data with signal metadata
-                time_series_data[file.stem] = {
-                    "metadata": {"type": signal_type, "name": signal_name, "units": units},
-                    "data": df_data
-                }
+            # Check if the CSV has at least two rows
+            if len(df) < 2:
+                print(f"Warning: {file_path.name} has fewer than two rows.")
+                return pd.DataFrame()
+
+            # Extract metadata from first row
+            metadata_row = df.iloc[0].tolist()
+            data_type_row = df.iloc[1].tolist()
+
+            # Use the second row as column names, or the first row if second is empty
+            if len(set(data_type_row)) <= 1:  # If second row is mostly identical
+                columns = metadata_row
+                data_rows = df.iloc[2:]
             else:
-                # If no metadata, treat as parameter data (e.g., gait-line data)
-                print(f"No metadata found in {file.stem}, treating as parameter data.")
-                # If it's a single-row file with x, y columns (no time)
-                if len(df.columns) == 3:
-                    df.columns = ["time", "x", "y"]  # Rename columns for consistency
-                parameter_data[file.stem] = df
+                columns = data_type_row
+                data_rows = df.iloc[2:]
 
-        # Combine time-series data into DataFrames (multiple signals may exist)
-        time_series_df = pd.concat(
-            [data["data"] for data in time_series_data.values()],
-            axis=0, ignore_index=True
-        ) if time_series_data else pd.DataFrame()
+            # Create a new DataFrame with correct columns
+            df_cleaned = pd.DataFrame(data_rows.values, columns=columns)
 
-        # Combine parameter data into a DataFrame (one row per file)
-        parameter_df = pd.concat(parameter_data.values(), axis=0,
-                                 ignore_index=True) if parameter_data else pd.DataFrame()
+            # Attach metadata as attributes
+            df_cleaned.attrs['metadata'] = dict(zip(metadata_row, data_type_row))
+            df_cleaned.attrs['filename'] = file_path.stem
 
-        # Return a dictionary with the data frames for each type
-        return {
-            "time_series_data": time_series_df,
-            "parameter_data": parameter_df,
-            "time_series_metadata": time_series_data  # Additional metadata information
-        }
+            return df_cleaned
+
+        except Exception as e:
+            print(f"Error reading {file_path}: {e}")
+            return pd.DataFrame()
+
+    def data_as_df(self) -> Dict[str, pd.DataFrame]:
+        """
+        Load all CSV files and organize them by type.
+
+        Returns:
+            Dict[str, pd.DataFrame]: Dictionary of DataFrames by data type
+        """
+        # Organize dataframes by type
+        time_series_dfs = {}
+        parameter_dfs = {}
+        pressure_matrix_dfs = {}
+        patient_info_dfs = {}
+
+        for file_path in self._raw_data:
+            df = self._read_csv_with_metadata(file_path)
+
+            if df.empty:
+                continue
+
+            # Determine DataFrame type based on columns and metadata
+            metadata = df.attrs.get('metadata', {})
+            data_type = metadata.get('type', '')
+
+            # Categorize based on content
+            if len(df.columns) == 2 and 'time' in df.columns:
+                # Two-column time series (possibly force curves)
+                if 'value' not in df.columns:
+                    df.columns = ['time', 'value']
+                time_series_dfs[df.attrs['filename']] = df
+
+            elif len(df.columns) == 3 and all(col in df.columns for col in ['time', 'x', 'y']):
+                # Three-column time series (possibly COP or 2D signals)
+                time_series_dfs[df.attrs['filename']] = df
+
+            elif data_type == 'signal_matrix':
+                # Pressure matrix data
+                pressure_matrix_dfs[df.attrs['filename']] = df
+
+            elif 'Vorname' in df.columns or 'type' in df.columns and 'patient and record info' in df.iloc[0].values:
+                # Patient and record info
+                patient_info_dfs[df.attrs['filename']] = df
+
+            elif 'type' in df.columns and 'parameter values' in df.iloc[0].values:
+                # Parameter data
+                parameter_dfs[df.attrs['filename']] = df
+
+            else:
+                # Default to parameter data if no specific type matches
+                parameter_dfs[df.attrs['filename']] = df
+
+        # Combine DataFrames if multiple exist
+        result = {'time_series_data': pd.concat(time_series_dfs.values(),
+                                                ignore_index=True) if time_series_dfs else pd.DataFrame(),
+                  'parameter_data': pd.concat(parameter_dfs.values(),
+                                              ignore_index=True) if parameter_dfs else pd.DataFrame(),
+                  'pressure_matrix_data': pd.concat(pressure_matrix_dfs.values(),
+                                                    ignore_index=True) if pressure_matrix_dfs else pd.DataFrame(),
+                  'patient_info': pd.concat(patient_info_dfs.values(),
+                                            ignore_index=True) if patient_info_dfs else pd.DataFrame(),
+                  '_file_details': {
+                      'time_series_files': list(time_series_dfs.keys()),
+                      'parameter_files': list(parameter_dfs.keys()),
+                      'pressure_matrix_files': list(pressure_matrix_dfs.keys()),
+                      'patient_info_files': list(patient_info_dfs.keys())
+                  }}
+
+        # Attach original file details for reference
+
+        return result
