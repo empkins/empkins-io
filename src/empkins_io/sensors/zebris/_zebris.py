@@ -1,21 +1,21 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Dict, Union
-
-from src.empkins_io.utils._types import path_t
+from typing import Dict, Union, List, Any
 
 
 class ZebrisDataset:
-    def __init__(self, path: Union[str, Path]):
+    def __init__(self, path: Union[str, Path], verbose: bool = True):
         """
         Initialize ZebrisDataset with a path to a folder or specific CSV file.
 
         Args:
             path (str or Path): Path to a directory containing CSV files or a specific CSV file
+            verbose (bool): Enable detailed logging
         """
         path = Path(path)  # Convert to Path object
         self.path = path
+        self.verbose = verbose
 
         if path.is_dir():
             self._raw_data = sorted(path.glob("*.csv"))
@@ -24,140 +24,273 @@ class ZebrisDataset:
         else:
             raise FileNotFoundError(f"Invalid path: '{path}'. Not a CSV file or directory.")
 
+        if self.verbose:
+            print(f"Found {len(self._raw_data)} CSV files")
+            for file in self._raw_data:
+                print(f"  - {file.name}")
+
+        # Store processed data after initialization
+        self._processed_data = self.separate_data(verbose=self.verbose)
+
     def _read_csv_with_metadata(self, file_path: Path) -> pd.DataFrame:
         """
-        Read CSV files with potential metadata rows.
-
-        Args:
-            file_path (Path): Path to the CSV file
-
-        Returns:
-            pd.DataFrame: Loaded DataFrame
+        Enhanced method to read CSV files with flexible parsing for Zebris datasets.
         """
         try:
-            # First, try to read the first two rows to understand the file structure
-            with open(file_path, 'r') as f:
-                first_row = f.readline().strip().strip('"').split('","')
-                second_row = f.readline().strip().strip('"').split('","')
+            # Read the first few lines to determine file structure
+            with open(file_path, 'r', encoding='utf-8') as f:
+                # First line: headers or type
+                first_line = f.readline().strip().strip('"').split('","')
+                # Second line: type or first data row
+                second_line = f.readline().strip().strip('"').split('","')
 
-            # Special handling for pressure matrix files with many columns
-            if len(first_row) > 10 and 'signal_matrix' in first_row:
-                # Read the file with manual parsing to handle wide data
-                df = pd.read_csv(file_path,
-                                 header=[0, 1],  # Use first two rows as multi-level header
-                                 skiprows=[2],  # Skip the third row if it's continuation of metadata
-                                 engine='python')  # Use Python engine for more flexible parsing
+            # Debug print
+            if self.verbose:
+                print(f"\nReading file: {file_path.name}")
+                print(f"First line: {first_line}")
+                print(f"Second line: {second_line}")
 
-                # Clean up column names
-                df.columns = [col[1] if col[1] else col[0] for col in df.columns]
+            # Determine file type
+            file_type = second_line[0] if len(second_line) > 0 else first_line[0]
 
-                # Attach metadata
-                df.attrs['metadata'] = dict(zip(first_row[:-1], second_row[:-1]))
-                df.attrs['filename'] = file_path.stem
+            # Specific handling for different file types
+            if file_type == 'parameter values':
+                # Parameters file
+                df = pd.read_csv(file_path, header=0, encoding='utf-8')
+                df.columns = [col.strip('"') for col in df.columns]
+                df.attrs['type'] = 'parameter values'
 
-                return df
+                if self.verbose:
+                    print("Recognized as parameter values file")
 
-            # Default handling for other files
-            df = pd.read_csv(file_path,
-                             header=None,  # Read all rows as data
-                             engine='python')  # More flexible parsing
+            elif file_type == 'patient and record info':
+                # Patient info file
+                df = pd.read_csv(file_path, header=0, encoding='utf-8')
+                df.columns = [col.strip('"') for col in df.columns]
+                df.attrs['type'] = 'patient and record info'
 
-            # Check if the CSV has at least two rows
-            if len(df) < 2:
-                print(f"Warning: {file_path.name} has fewer than two rows.")
-                return pd.DataFrame()
+                if self.verbose:
+                    print("Recognized as patient and record info file")
 
-            # Extract metadata from first row
-            metadata_row = df.iloc[0].tolist()
-            data_type_row = df.iloc[1].tolist()
+            elif file_type in ['signal', 'signal_2d', 'signal_matrix']:
+                # Time series files
+                # Skip first two rows, use third row as header
+                df = pd.read_csv(file_path, header=1, encoding='utf-8')
 
-            # Use the second row as column names, or the first row if second is empty
-            if len(set(data_type_row)) <= 1:  # If second row is mostly identical
-                columns = metadata_row
-                data_rows = df.iloc[2:]
+                # Add metadata from first line
+                metadata = {}
+                for i in range(0, len(first_line) - 1, 2):
+                    metadata[first_line[i]] = first_line[i + 1]
+
+                df.attrs['metadata'] = metadata
+                df.attrs['type'] = file_type
+
+                if self.verbose:
+                    print(f"Recognized as {file_type} file")
+                    print(f"Columns: {df.columns}")
+
+                # Rename columns if needed
+                if 'value' in df.columns and 'time' not in df.columns:
+                    df = df.rename(columns={'index': 'time'})
+
             else:
-                columns = data_type_row
-                data_rows = df.iloc[2:]
+                # Fallback to default reading
+                df = pd.read_csv(file_path, header=0, encoding='utf-8')
+                print(f"Unrecognized file type for {file_path}")
 
-            # Create a new DataFrame with correct columns
-            df_cleaned = pd.DataFrame(data_rows.values, columns=columns)
+            # Add filename and path to attributes
+            df.attrs['filename'] = file_path.stem
+            df.attrs['file_path'] = str(file_path)
 
-            # Attach metadata as attributes
-            df_cleaned.attrs['metadata'] = dict(zip(metadata_row, data_type_row))
-            df_cleaned.attrs['filename'] = file_path.stem
-
-            return df_cleaned
+            return df
 
         except Exception as e:
             print(f"Error reading {file_path}: {e}")
             return pd.DataFrame()
 
-    def data_as_df(self) -> Dict[str, pd.DataFrame]:
+    def separate_data(self, verbose: bool = False) -> Dict[str, pd.DataFrame]:
         """
-        Load all CSV files and organize them by type.
+        Separate CSV files into time-dependent and single-value DataFrames.
+
+        Args:
+            verbose (bool, optional): If True, provides detailed logging about file processing.
+                                      Defaults to False.
 
         Returns:
-            Dict[str, pd.DataFrame]: Dictionary of DataFrames by data type
+            Dict[str, pd.DataFrame]: A dictionary with two DataFrames:
+            - 'time_dependent_data': DataFrame with time series and signal data
+            - 'single_value_data': DataFrame with parameters and patient info
         """
-        # Organize dataframes by type
-        time_series_dfs = {}
-        parameter_dfs = {}
-        pressure_matrix_dfs = {}
-        patient_info_dfs = {}
+        # Dictionaries to store DataFrames by type
+        time_dependent_dfs = {}
+        single_value_dfs = {}
+
+        # Logging method
+        def log(message: str) -> None:
+            """Internal logging method that prints only if verbose is True."""
+            if verbose:
+                print(message)
+
+        # Error tracking
+        processing_errors = []
+
+        log(f"Processing {len(self._raw_data)} CSV files...")
 
         for file_path in self._raw_data:
-            df = self._read_csv_with_metadata(file_path)
+            try:
+                # Read the DataFrame
+                df = self._read_csv_with_metadata(file_path)
 
-            if df.empty:
-                continue
+                if df.empty:
+                    log(f"Skipping empty DataFrame: {file_path}")
+                    continue
 
-            # Determine DataFrame type based on columns and metadata
-            metadata = df.attrs.get('metadata', {})
-            data_type = metadata.get('type', '')
+                # Determine file type from attributes
+                file_type = df.attrs.get('type', 'unknown')
+                filename = df.attrs.get('filename', file_path.stem)
 
-            # Categorize based on content
-            if len(df.columns) == 2 and 'time' in df.columns:
-                # Two-column time series (possibly force curves)
-                if 'value' not in df.columns:
-                    df.columns = ['time', 'value']
-                time_series_dfs[df.attrs['filename']] = df
+                log(f"Processing file: {filename} (Type: {file_type})")
 
-            elif len(df.columns) == 3 and all(col in df.columns for col in ['time', 'x', 'y']):
-                # Three-column time series (possibly COP or 2D signals)
-                time_series_dfs[df.attrs['filename']] = df
+                # Categorize time-dependent vs single-value data
+                if file_type in ['signal', 'signal_2d', 'signal_matrix']:
+                    # Time series and matrix data
+                    time_dependent_dfs[filename] = df
+                elif file_type in ['parameter values', 'patient and record info']:
+                    # Single-value data
+                    single_value_dfs[filename] = df
+                else:
+                    log(f"Unrecognized file type for {filename}: {file_type}")
 
-            elif data_type == 'signal_matrix':
-                # Pressure matrix data
-                pressure_matrix_dfs[df.attrs['filename']] = df
+            except Exception as e:
+                error_msg = f"Error processing {file_path}: {str(e)}"
+                processing_errors.append(error_msg)
+                log(error_msg)
 
-            elif 'Vorname' in df.columns or 'type' in df.columns and 'patient and record info' in df.iloc[0].values:
-                # Patient and record info
-                patient_info_dfs[df.attrs['filename']] = df
+        # Combine DataFrames
+        result = {
+            'time_dependent_data': pd.concat(list(time_dependent_dfs.values()),
+                                             ignore_index=True) if time_dependent_dfs else pd.DataFrame(),
+            'single_value_data': pd.concat(list(single_value_dfs.values()),
+                                           ignore_index=True) if single_value_dfs else pd.DataFrame()
+        }
 
-            elif 'type' in df.columns and 'parameter values' in df.iloc[0].values:
-                # Parameter data
-                parameter_dfs[df.attrs['filename']] = df
+        # Log processing summary
+        log("\n--- Processing Summary ---")
+        log(f"Time-Dependent Files: {len(time_dependent_dfs)}")
+        log(f"Single-Value Files: {len(single_value_dfs)}")
 
-            else:
-                # Default to parameter data if no specific type matches
-                parameter_dfs[df.attrs['filename']] = df
-
-        # Combine DataFrames if multiple exist
-        result = {'time_series_data': pd.concat(time_series_dfs.values(),
-                                                ignore_index=True) if time_series_dfs else pd.DataFrame(),
-                  'parameter_data': pd.concat(parameter_dfs.values(),
-                                              ignore_index=True) if parameter_dfs else pd.DataFrame(),
-                  'pressure_matrix_data': pd.concat(pressure_matrix_dfs.values(),
-                                                    ignore_index=True) if pressure_matrix_dfs else pd.DataFrame(),
-                  'patient_info': pd.concat(patient_info_dfs.values(),
-                                            ignore_index=True) if patient_info_dfs else pd.DataFrame(),
-                  '_file_details': {
-                      'time_series_files': list(time_series_dfs.keys()),
-                      'parameter_files': list(parameter_dfs.keys()),
-                      'pressure_matrix_files': list(pressure_matrix_dfs.keys()),
-                      'patient_info_files': list(patient_info_dfs.keys())
-                  }}
-
-        # Attach original file details for reference
+        # Log any processing errors
+        if processing_errors:
+            log("\n--- Processing Errors ---")
+            for error in processing_errors:
+                log(error)
 
         return result
+
+    def force_data_as_df(self, side: str = 'both') -> pd.DataFrame:
+        """
+        Extract force curve data from the dataset.
+        """
+        # Retrieve time-dependent data
+        time_dependent_data = self._processed_data['time_dependent_data']
+
+        if self.verbose:
+            print("\nForce Data Extraction:")
+            print(f"Time-dependent data columns: {time_dependent_data.columns}")
+
+        # Updated column detection for force data
+        force_columns = [
+            col for col in time_dependent_data.columns
+            if any(keyword in col.lower() for keyword in ['kraft', 'force', 'value'])
+        ]
+
+        if self.verbose:
+            print(f"Detected force columns: {force_columns}")
+
+        if not force_columns:
+            raise ValueError("No force curve data found in the dataset.")
+
+        # Side filtering
+        if side == 'left':
+            force_columns = [col for col in force_columns if 'l' in col.lower()]
+        elif side == 'right':
+            force_columns = [col for col in force_columns if 'r' in col.lower()]
+
+        # Ensure time column is present
+        columns_to_extract = ['time'] + force_columns if 'time' in time_dependent_data.columns else force_columns
+
+        # Extract relevant columns
+        force_df = time_dependent_data[columns_to_extract].copy()
+
+        return force_df
+
+
+    def gait_line_data_as_df(self, side: str = 'both') -> pd.DataFrame:
+        """
+        Extract gait line data from the dataset.
+
+        Args:
+            side (str, optional): Specify which side to extract.
+                                  Options: 'left', 'right', 'both'.
+                                  Defaults to 'both'.
+
+        Returns:
+            pd.DataFrame: DataFrame containing gait line data
+        """
+        # Retrieve time-dependent data
+        time_dependent_data = self._processed_data['time_dependent_data']
+
+        # Filter for gait line files
+        gait_columns = [col for col in time_dependent_data.columns if 'x' in col.lower() or 'y' in col.lower()]
+
+        if not gait_columns:
+            raise ValueError("No gait line data found in the dataset.")
+
+        # Select data based on side specification
+        if side == 'left':
+            gait_columns = [col for col in gait_columns if 'l' in col.lower()]
+        elif side == 'right':
+            gait_columns = [col for col in gait_columns if 'r' in col.lower()]
+
+        # Ensure 'time' column is included if it exists
+        columns_to_extract = ['time'] + gait_columns if 'time' in time_dependent_data.columns else gait_columns
+
+        # Extract relevant columns
+        gait_df = time_dependent_data[columns_to_extract].copy()
+
+        return gait_df
+
+    def pressure_data_as_df(self, average: bool = True) -> pd.DataFrame:
+        """
+        Extract pressure distribution data from the dataset.
+
+        Args:
+            average (bool, optional): If True, returns averaged pressure data.
+                                      If False, returns full pressure matrix.
+                                      Defaults to True.
+
+        Returns:
+            pd.DataFrame: DataFrame containing pressure distribution data
+        """
+        # Retrieve time-dependent data
+        time_dependent_data = self._processed_data['time_dependent_data']
+
+        # Filter for pressure distribution files
+        pressure_columns = [col for col in time_dependent_data.columns if col not in ['time']]
+
+        if not pressure_columns:
+            raise ValueError("No pressure distribution data found in the dataset.")
+
+        # Extract relevant columns
+        pressure_df = time_dependent_data[pressure_columns].copy()
+
+        return pressure_df
+
+    def patient_info_as_df(self) -> pd.DataFrame:
+        """
+        Extract patient and record information.
+
+        Returns:
+            pd.DataFrame: DataFrame containing patient information
+        """
+        return self._processed_data['single_value_data']
