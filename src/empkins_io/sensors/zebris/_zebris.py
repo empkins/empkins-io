@@ -72,7 +72,7 @@ class ZebrisDataset:
             # Read the first two lines to determine file structure
             with open(file_path, 'r', encoding='utf-8-sig') as f:
                 first_line = f.readline().strip().strip('"').split('","')
-                second_line = f.readline().strip().strip('"').split('","')
+                second_line = f.readline().strip().strip('"').split(',')
 
             if self.explain:
                 print(f"\nReading file: {file_path.name}")
@@ -80,8 +80,34 @@ class ZebrisDataset:
                 print(f"Second line: {second_line}")
 
             # Determine file type
-            file_type = second_line[0] if len(second_line) > 0 else first_line[0]
+            file_type = first_line[0].strip('"')
 
+            # Special handling for parameter files
+            if file_type == 'parameter values':
+                # Use first line as columns, remove the first column
+                columns = first_line[1:]
+
+                # Use second line as values, remove the first column
+                values = second_line[1:]
+
+                # Create DataFrame
+                df = pd.DataFrame([values], columns=columns)
+
+                # Convert to numeric
+                df = df.apply(pd.to_numeric, errors='coerce')
+
+                # Set file type and filename as attributes
+                df.attrs['type'] = file_type
+                df.attrs['filename'] = file_path.stem
+
+                if self.explain:
+                    print(f"Recognized as {file_type} file")
+                    print(f"Columns: {df.columns}")
+                    print(f"Shape: {df.shape}")
+
+                return df
+
+            # Existing code for other file types
             # Read CSV, skipping the first two rows and using robust parsing
             df = pd.read_csv(file_path,
                              encoding='utf-8-sig',
