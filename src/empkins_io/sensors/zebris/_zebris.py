@@ -66,28 +66,36 @@ class ZebrisDataset:
 
     def _read_parameters_csv(self, file_path: Path) -> pd.DataFrame:
         """
-        Read parameters CSV file with a single row of values.
+        Read parameters CSV file with robust handling.
         """
         try:
-            # Read the CSV with explicit handling of quotes
+            # Read the CSV with explicit handling
             df = pd.read_csv(file_path,
                              quotechar='"',
                              skipinitialspace=True,
-                             header=0)
+                             encoding='utf-8-sig',
+                             header=0)  # Keep header=0 to use the first row as column names
 
-            # Remove the first 'type' column if it exists
+            # Remove the first 'type' column
             if 'type' in df.columns:
-                df = df.iloc[:, 1:]
+                df = df.drop(columns=['type'])
 
-            df.attrs['type'] = 'parameter values'
-            df.attrs['filename'] = file_path.stem
+            # Transpose to make it more readable
+            df_transposed = df.transpose()
+            df_transposed.columns = ['Value']
+            df_transposed.index.name = 'Parameter'
+
+            # Add metadata attributes
+            df_transposed.attrs['type'] = 'parameter values'
+            df_transposed.attrs['filename'] = file_path.stem
 
             if self.explain:
                 print(f"\nReading parameters file: {file_path.name}")
-                print(f"Columns: {df.columns.tolist()}")
-                print(f"Shape: {df.shape}")
+                print(f"Number of parameters: {len(df_transposed)}")
+                print("\nFirst few parameters:")
+                print(df_transposed.head())
 
-            return df
+            return df_transposed
 
         except Exception as e:
             print(f"Error reading parameters file {file_path}: {e}")
@@ -101,8 +109,17 @@ class ZebrisDataset:
             # Read the first line to check for metadata
             with open(file_path, 'r', encoding='utf-8-sig') as f:
                 first_line = f.readline().strip()
+                second_line = f.readline().strip()
 
-            # Specific handling for pressure matrix files
+            # Specific handling for patient and record info files
+            if '"type","' in first_line and '"patient and record info"' in second_line:
+                return self._read_patient_info_csv(file_path)
+
+            # Specific handling for parameters files
+            if '"type","' in first_line and 'parameter' in first_line.lower():
+                return self._read_parameters_csv(file_path)
+
+            # Rest of the existing detection logic remains the same
             if '"type","name"' in first_line:
                 # Read metadata row
                 metadata_df = pd.read_csv(file_path, nrows=1)
@@ -118,13 +135,7 @@ class ZebrisDataset:
                 return df
 
             # Existing methods for other file types
-            elif 'parameter values' in first_line or 'parameter' in first_line:
-                return self._read_parameters_csv(file_path)
-
-            elif 'patient and record info' in first_line:
-                return self._read_patient_info_csv(file_path)
-
-            elif 'signal"' in first_line or 'signal_2d' in first_line:
+            if 'signal"' in first_line or 'signal_2d' in first_line:
                 # Force curve or gait line files
                 with open(file_path, 'r', encoding='utf-8-sig') as f:
                     second_line = f.readline().strip()
@@ -135,16 +146,15 @@ class ZebrisDataset:
                 else:
                     return self._read_force_curve_csv(file_path)
 
-            else:
-                print(f"Unrecognized file type for {file_path}")
-                return pd.DataFrame()
+            # Fallback for unrecognized files
+            print(f"Unrecognized file type for {file_path}")
+            return pd.DataFrame()
 
         except Exception as e:
             print(f"Error reading {file_path}: {e}")
             return pd.DataFrame()
 
     def _read_patient_info_csv(self, file_path: Path) -> pd.DataFrame:
-
         """
         Read patient and record info CSV file.
         """
@@ -153,10 +163,16 @@ class ZebrisDataset:
             df = pd.read_csv(file_path,
                              quotechar='"',
                              skipinitialspace=True,
+                             encoding='utf-8-sig',
                              header=0)
 
-            # Remove the first 'type' column
-            df = df.iloc[:, 1:]
+            # Remove the first 'type' column if it exists
+            if 'type' in df.columns:
+                df = df.iloc[:, 1:]
+
+            # Add metadata attributes
+            df.attrs['type'] = 'patient and record info'
+            df.attrs['filename'] = file_path.stem
 
             if self.explain:
                 print(f"\nReading patient info file: {file_path.name}")
@@ -435,3 +451,22 @@ class ZebrisDataset:
             pd.DataFrame: DataFrame containing patient information
         """
         return self._processed_data['single_value_data']
+
+
+    def parameters_as_df(self) -> pd.DataFrame:
+        """
+        Extract parameters from the dataset.
+
+        Returns:
+            pd.DataFrame: DataFrame containing parameter values
+        """
+        # Find parameters CSV file
+        parameters_files = [f for f in self._raw_data if 'parameters' in f.name.lower()]
+
+        if not parameters_files:
+            raise ValueError("No parameters file found in the dataset.")
+
+        # Read the parameters file
+        parameters_df = self._read_parameters_csv(parameters_files[0])
+
+        return parameters_df
