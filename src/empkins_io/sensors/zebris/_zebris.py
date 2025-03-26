@@ -64,79 +64,205 @@ class ZebrisDataset:
         # Store processed data after initialization
         self._processed_data = self.separate_data(explain=self.explain)
 
-    def _read_csv_with_metadata(self, file_path: Path) -> pd.DataFrame:
+    def _read_parameters_csv(self, file_path: Path) -> pd.DataFrame:
         """
-        Method to read CSV files with parsing for Zebris datasets.
+        Read parameters CSV file with a single row of values.
         """
         try:
-            # Read the first two lines to determine file structure
-            with open(file_path, 'r', encoding='utf-8-sig') as f:
-                first_line = f.readline().strip().strip('"').split('","')
-                second_line = f.readline().strip().strip('"').split(',')
-
-            if self.explain:
-                print(f"\nReading file: {file_path.name}")
-                print(f"First line: {first_line}")
-                print(f"Second line: {second_line}")
-
-            # Determine file type
-            file_type = first_line[0].strip('"')
-
-            # Special handling for parameter files
-            if file_type == 'parameter values':
-                # Use first line as columns, remove the first column
-                columns = first_line[1:]
-
-                # Use second line as values, remove the first column
-                values = second_line[1:]
-
-                # Create DataFrame
-                df = pd.DataFrame([values], columns=columns)
-
-                # Convert to numeric
-                df = df.apply(pd.to_numeric, errors='coerce')
-
-                # Set file type and filename as attributes
-                df.attrs['type'] = file_type
-                df.attrs['filename'] = file_path.stem
-
-                if self.explain:
-                    print(f"Recognized as {file_type} file")
-                    print(f"Columns: {df.columns}")
-                    print(f"Shape: {df.shape}")
-
-                return df
-
-            # Existing code for other file types
-            # Read CSV, skipping the first two rows and using robust parsing
+            # Read the CSV with explicit handling of quotes
             df = pd.read_csv(file_path,
-                             encoding='utf-8-sig',
-                             header=None,  # No header
-                             skiprows=2,  # Skip metadata rows
-                             names=['time', 'value'])  # Simple initial column names
+                             quotechar='"',
+                             skipinitialspace=True,
+                             header=0)
 
-            # Clean and convert time column
-            df['time'] = pd.to_numeric(df['time'], errors='coerce')
-            df['value'] = pd.to_numeric(df['value'], errors='coerce')
+            # Remove the first 'type' column if it exists
+            if 'type' in df.columns:
+                df = df.iloc[:, 1:]
 
-            # Rename column based on file content
-            if len(first_line) > 1:
-                value_column_name = first_line[1].split(',')[0].strip('"')
-                df.rename(columns={'value': value_column_name}, inplace=True)
-
-            # Set file type and filename as attributes
-            df.attrs['type'] = file_type
+            df.attrs['type'] = 'parameter values'
             df.attrs['filename'] = file_path.stem
 
             if self.explain:
-                print(f"Recognized as {file_type} file")
-                print(f"Columns: {df.columns}")
+                print(f"\nReading parameters file: {file_path.name}")
+                print(f"Columns: {df.columns.tolist()}")
                 print(f"Shape: {df.shape}")
 
             return df
 
         except Exception as e:
+            print(f"Error reading parameters file {file_path}: {e}")
+            return pd.DataFrame()
+
+    def _read_csv_with_metadata(self, file_path: Path) -> pd.DataFrame:
+        """
+        Determine and read CSV file based on its content and structure.
+        """
+        try:
+            # Read the first line to check for metadata
+            with open(file_path, 'r', encoding='utf-8-sig') as f:
+                first_line = f.readline().strip()
+
+            # Specific handling for pressure matrix files
+            if '"type","name"' in first_line:
+                # Read metadata row
+                metadata_df = pd.read_csv(file_path, nrows=1)
+
+                # Read data rows, skipping the first two rows (metadata)
+                df = pd.read_csv(file_path, skiprows=2)
+
+                # Add metadata as attributes
+                df.attrs['type'] = metadata_df.iloc[0]['type']
+                df.attrs['name'] = metadata_df.iloc[0]['name']
+                df.attrs['filename'] = file_path.stem
+
+                return df
+
+            # Existing methods for other file types
+            elif 'parameter values' in first_line or 'parameter' in first_line:
+                return self._read_parameters_csv(file_path)
+
+            elif 'patient and record info' in first_line:
+                return self._read_patient_info_csv(file_path)
+
+            elif 'signal"' in first_line or 'signal_2d' in first_line:
+                # Force curve or gait line files
+                with open(file_path, 'r', encoding='utf-8-sig') as f:
+                    second_line = f.readline().strip()
+                    third_line = f.readline().strip()
+
+                if 'x' in second_line or 'x' in third_line:
+                    return self._read_gait_line_csv(file_path)
+                else:
+                    return self._read_force_curve_csv(file_path)
+
+            else:
+                print(f"Unrecognized file type for {file_path}")
+                return pd.DataFrame()
+
+        except Exception as e:
             print(f"Error reading {file_path}: {e}")
+            return pd.DataFrame()
+
+    def _read_patient_info_csv(self, file_path: Path) -> pd.DataFrame:
+
+        """
+        Read patient and record info CSV file.
+        """
+        try:
+            # Read the CSV with explicit handling of quotes
+            df = pd.read_csv(file_path,
+                             quotechar='"',
+                             skipinitialspace=True,
+                             header=0)
+
+            # Remove the first 'type' column
+            df = df.iloc[:, 1:]
+
+            if self.explain:
+                print(f"\nReading patient info file: {file_path.name}")
+                print(f"Columns: {df.columns.tolist()}")
+                print(f"Shape: {df.shape}")
+
+            return df
+
+        except Exception as e:
+            print(f"Error reading patient info file {file_path}: {e}")
+            return pd.DataFrame()
+
+    def _read_force_curve_csv(self, file_path: Path) -> pd.DataFrame:
+        """
+        Read force curve CSV files with multiple rows of time-series data.
+        """
+        try:
+            # Read metadata first
+            with open(file_path, 'r', encoding='utf-8-sig') as f:
+                metadata_type = f.readline().strip().split(',')[1].strip('"')
+                metadata_name = f.readline().strip().split(',')[1].strip('"')
+
+            # Read the actual data
+            df = pd.read_csv(file_path,
+                             skiprows=2,  # Skip metadata rows
+                             names=['time', 'value'])  # Ensure consistent column names
+
+            # Add metadata as attributes
+            df.attrs['type'] = metadata_type
+            df.attrs['name'] = metadata_name
+
+            if self.explain:
+                print(f"\nReading force curve file: {file_path.name}")
+                print(f"Metadata type: {metadata_type}")
+                print(f"Metadata name: {metadata_name}")
+                print(f"Columns: {df.columns.tolist()}")
+                print(f"Shape: {df.shape}")
+
+            return df
+
+        except Exception as e:
+            print(f"Error reading force curve file {file_path}: {e}")
+            return pd.DataFrame()
+
+    def _read_gait_line_csv(self, file_path: Path) -> pd.DataFrame:
+        """
+        Read gait line CSV files with multiple rows of 2D coordinate data.
+        """
+        try:
+            # Read metadata first
+            with open(file_path, 'r', encoding='utf-8-sig') as f:
+                metadata_type = f.readline().strip().split(',')[1].strip('"')
+                metadata_name = f.readline().strip().split(',')[1].strip('"')
+
+            # Read the actual data
+            df = pd.read_csv(file_path,
+                             skiprows=2,  # Skip metadata rows
+                             names=['time', 'x', 'y'])  # Ensure consistent column names
+
+            # Add metadata as attributes
+            df.attrs['type'] = metadata_type
+            df.attrs['name'] = metadata_name
+
+            if self.explain:
+                print(f"\nReading gait line file: {file_path.name}")
+                print(f"Metadata type: {metadata_type}")
+                print(f"Metadata name: {metadata_name}")
+                print(f"Columns: {df.columns.tolist()}")
+                print(f"Shape: {df.shape}")
+
+            return df
+
+        except Exception as e:
+            print(f"Error reading gait line file {file_path}: {e}")
+            return pd.DataFrame()
+
+    def _read_pressure_matrix_csv(self, file_path: Path) -> pd.DataFrame:
+        """
+        Read pressure matrix CSV files with multiple pressure cells.
+        """
+        try:
+            # Read metadata first
+            with open(file_path, 'r', encoding='utf-8-sig') as f:
+                metadata_type = f.readline().strip().split(',')[1].strip('"')
+                metadata_name = f.readline().strip().split(',')[1].strip('"')
+
+            # Read the actual data
+            df = pd.read_csv(file_path,
+                             skiprows=2,  # Skip metadata rows
+                             names=['time'] + [f'x{i + 1}' for i in range(54)])  # Dynamic column names
+
+            # Add metadata as attributes
+            df.attrs['type'] = metadata_type
+            df.attrs['name'] = metadata_name
+
+            if self.explain:
+                print(f"\nReading pressure matrix file: {file_path.name}")
+                print(f"Metadata type: {metadata_type}")
+                print(f"Metadata name: {metadata_name}")
+                print(f"Columns: {df.columns.tolist()}")
+                print(f"Shape: {df.shape}")
+
+            return df
+
+        except Exception as e:
+            print(f"Error reading pressure matrix file {file_path}: {e}")
             return pd.DataFrame()
 
     def separate_data(self, explain: bool = False) -> Dict[str, pd.DataFrame]:
@@ -280,14 +406,9 @@ class ZebrisDataset:
 
         return gait_df
 
-    def pressure_data_as_df(self, average: bool = True) -> pd.DataFrame:
+    def pressure_data_as_df(self) -> pd.DataFrame:
         """
         Extract pressure distribution data from the dataset.
-
-        Args:
-            average (bool, optional): If True, returns averaged pressure data.
-                                      If False, returns full pressure matrix.
-                                      Defaults to True.
 
         Returns:
             pd.DataFrame: DataFrame containing pressure distribution data
