@@ -568,10 +568,18 @@ class SyncedDataset:
     def _pad_signal(cls, data: pd.DataFrame, padlen: int, start: bool, fs: float) -> pd.DataFrame:
         if start:
             pad_width = ((padlen, 0), (0, 0))
-            constant_values = ((0, None), (None, None))
+            constant_values = ((0, 0), (0, 0))
         else:
             pad_width = ((0, padlen), (0, 0))
-            constant_values = ((None, 0), (None, None))
+            constant_values = ((0, 0), (0, 0))
+
+        # if start:
+        #    pad_width = ((padlen, 0), (0, 0))
+        #    constant_values = ((0, None), (None, None))
+        # else:
+        #    pad_width = ((0, padlen), (0, 0))
+        #    constant_values = ((None, 0), (None, None))
+
         data_pad = np.pad(data, pad_width=pad_width, mode="constant", constant_values=constant_values)
         data_pad = pd.DataFrame(data_pad, columns=data.columns)
 
