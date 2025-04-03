@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
-from empkins_io.utils._types import path_t
+from src.empkins_io.utils._types import path_t
 
 
 def load_data(file_path: path_t) -> pd.DataFrame:

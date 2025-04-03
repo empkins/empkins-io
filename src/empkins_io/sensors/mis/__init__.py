@@ -1,3 +1,3 @@
-from empkins_io.sensors.mis.mis import MisDataset
+from src.empkins_io.sensors.mis.mis import MisDataset
 
 __all__ = ["MisDataset"]
