@@ -39,13 +39,13 @@ class ZebrisDataset:
 
     def __init__(self, path: Union[str, Path], explain: bool = True):
         """
-        Initialize ZebrisDataset with a path to a folder or specific CSV file.
+        Initialize Zebris Dataset with a path to a folder or specific CSV file.
 
         Args:
-            path (str or Path): Path to data directory containing CSV files or a specific CSV file
+            path (str or Path): Path to a data directory containing CSV files or a specific CSV file
             explain (bool): Enable detailed logging
         """
-        path = Path(path)  # Convert to Path object
+        path = Path(path)  # Convert to a Path object
         self.path = path
         self.explain = explain
 
@@ -66,7 +66,7 @@ class ZebrisDataset:
 
     def _read_parameters_csv(self, file_path: Path) -> pd.DataFrame:
         """
-        Read parameters CSV file with robust handling.
+        Read parameters CSV file
         """
         try:
             # Read the CSV with explicit handling
@@ -103,7 +103,7 @@ class ZebrisDataset:
 
     def _read_csv_with_metadata(self, file_path: Path) -> pd.DataFrame:
         """
-        Determine and read CSV file based on its content and structure.
+        Determine and read a CSV file based on its content and structure.
         """
         try:
             # Read the first line to check for metadata
@@ -115,11 +115,10 @@ class ZebrisDataset:
             if '"type","' in first_line and '"patient and record info"' in second_line:
                 return self._read_patient_info_csv(file_path)
 
-            # Specific handling for parameters files
+            # Specific handling for parameter files
             if '"type","' in first_line and 'parameter' in first_line.lower():
                 return self._read_parameters_csv(file_path)
 
-            # Rest of the existing detection logic remains the same
             if '"type","name"' in first_line:
                 # Read metadata row
                 metadata_df = pd.read_csv(file_path, nrows=1)
@@ -146,7 +145,7 @@ class ZebrisDataset:
                 else:
                     return self._read_force_curve_csv(file_path)
 
-            # Fallback for unrecognized files
+            # unrecognized file
             print(f"Unrecognized file type for {file_path}")
             return pd.DataFrame()
 
@@ -156,7 +155,7 @@ class ZebrisDataset:
 
     def _read_patient_info_csv(self, file_path: Path) -> pd.DataFrame:
         """
-        Read patient and record info CSV file.
+        Read a patient and record info CSV file.
         """
         try:
             # Read the CSV with explicit handling of quotes
@@ -305,7 +304,7 @@ class ZebrisDataset:
                         print(f"Skipping empty DataFrame: {file_path}")
                     continue
 
-                # Determine file type from attributes
+                # Determine the file type from attributes
                 file_type = df.attrs.get('type', 'unknown')
                 filename = df.attrs.get('filename', file_path.stem)
 
@@ -460,13 +459,13 @@ class ZebrisDataset:
         Returns:
             pd.DataFrame: DataFrame containing parameter values
         """
-        # Find parameters CSV file
+        # Find parameter CSV file
         parameters_files = [f for f in self._raw_data if 'parameters' in f.name.lower()]
 
         if not parameters_files:
             raise ValueError("No parameters file found in the dataset.")
 
-        # Read the parameters file
+        # Read the parameter file
         parameters_df = self._read_parameters_csv(parameters_files[0])
 
         return parameters_df
