@@ -174,18 +174,18 @@ class ZebrisDataset:
                 first_line = f.readline().strip().lower()
                 second_line = f.readline().strip().lower()
                 third_line = f.readline().strip().lower()
+                fourth_line = f.readline().strip().lower()  # NEW: read fourth line
 
-            # Extract metadata
             metadata_type = first_line.split(',')[1].strip('"') if ',' in first_line else "unknown"
             metadata_name = second_line.split(',')[1].strip('"') if ',' in second_line else "unknown"
 
-            # Smart detection of header
-            if all(keyword in third_line for keyword in ["time", "x", "y"]):
-                skiprows = 2
+            # Now smart detect based on real header line
+            if all(keyword in fourth_line for keyword in ["time", "x", "y"]):
+                skiprows = 3
                 header = 0
                 names = None
             else:
-                skiprows = 2
+                skiprows = 3
                 header = None
                 names = ["time", "x", "y"]
 
@@ -303,20 +303,34 @@ class ZebrisDataset:
         return df[columns_to_extract].copy()
 
     def gait_line_data_as_df(self, side: str = 'both') -> pd.DataFrame:
-        df = self._processed_data['time_dependent_data']
+        """
+        Load gait-line data (Center of Pressure) for 'left', 'right' or 'both' sides.
+        """
+        gait_dfs = []
 
-        gait_columns = [col for col in df.columns if any(keyword in str(col).lower() for keyword in ['cop', 'center of pressure', 'x', 'y', 'position'])]
-        if not gait_columns:
-            gait_columns = df.columns.tolist()
+        # Search for matching gait-line files
+        for file_path in self._raw_data:
+            name = file_path.stem.lower()
+            if "gait-line" in name:
+                # Side filtering
+                if side == 'left' and not name.endswith("-l"):
+                    continue
+                if side == 'right' and not name.endswith("-r"):
+                    continue
+                # If side == 'both', take all
 
-        if side == 'left':
-            gait_columns = [col for col in gait_columns if any(marker in col.lower() for marker in ['l', 'links'])]
-        elif side == 'right':
-            gait_columns = [col for col in gait_columns if any(marker in col.lower() for marker in ['r', 'rechts'])]
+                # Read the file cleanly
+                df = self._read_gait_line_csv(file_path)
+                df['source'] = name  # add where it came from (optional)
+                gait_dfs.append(df)
 
-        columns_to_extract = ['time'] + gait_columns if 'time' in df.columns else gait_columns
+        if not gait_dfs:
+            raise ValueError(f"No gait-line data found for side='{side}'.")
 
-        return df[columns_to_extract].copy()
+        # Merge all matching gait-line files
+        df = pd.concat(gait_dfs, ignore_index=True)
+
+        return df.copy()
 
     def pressure_data_as_df(self) -> pd.DataFrame:
         df = self._processed_data['time_dependent_data']
