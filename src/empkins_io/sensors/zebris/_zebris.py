@@ -77,7 +77,6 @@ class ZebrisDataset:
             if 'type' in df.columns:
                 df = df.drop(columns=['type'])
 
-            # ✅ FIX: Tag the dataframe properly!
             df.attrs['type'] = 'parameter values'
             df.attrs['filename'] = file_path.stem
 
