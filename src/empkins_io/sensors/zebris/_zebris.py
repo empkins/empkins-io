@@ -286,17 +286,25 @@ class ZebrisDataset:
 
         return result
 
-    def force_data_as_df(self, side: str = 'both') -> pd.DataFrame:
+    def force_data_as_df(self, side: str = 'both', region: str = 'full') -> pd.DataFrame:
         df = self._processed_data['time_dependent_data']
 
-        force_columns = [col for col in df.columns if any(keyword in str(col).lower() for keyword in ['kraft', 'force', 'value'])]
+        force_columns = [col for col in df.columns if
+                         any(keyword in str(col).lower() for keyword in ['kraft', 'force', 'value'])]
         if not force_columns:
             raise ValueError("No force curve data found in the dataset.")
 
+        # Filter side
         if side == 'left':
             force_columns = [col for col in force_columns if any(marker in col.lower() for marker in ['l', 'links'])]
         elif side == 'right':
             force_columns = [col for col in force_columns if any(marker in col.lower() for marker in ['r', 'rechts'])]
+
+        # Filter region
+        if region == 'forefoot':
+            force_columns = [col for col in force_columns if 'vorfuß' in col.lower() or 'forefoot' in col.lower()]
+        elif region == 'backfoot':
+            force_columns = [col for col in force_columns if 'rückfuß' in col.lower() or 'backfoot' in col.lower()]
 
         columns_to_extract = ['time'] + force_columns if 'time' in df.columns else force_columns
 
@@ -305,29 +313,43 @@ class ZebrisDataset:
     def gait_line_data_as_df(self, side: str = 'both') -> pd.DataFrame:
         """
         Load gait-line data (Center of Pressure) for 'left', 'right' or 'both' sides.
+
+        Args:
+            side (str): 'left', 'right', or 'both' (default)
+
+        Returns:
+            pd.DataFrame: Gait line data with columns ['time', 'x', 'y', 'source']
         """
         gait_dfs = []
 
-        # Search for matching gait-line files
         for file_path in self._raw_data:
-            name = file_path.stem.lower()
+            name = file_path.stem.lower()  # Lowercase for safe matching
+
             if "gait-line" in name:
-                # Side filtering
+                # Side filtering: only include left or right files if requested
                 if side == 'left' and not name.endswith("-l"):
                     continue
                 if side == 'right' and not name.endswith("-r"):
                     continue
-                # If side == 'both', take all
+                # if side == 'both', accept all gait-line files
 
-                # Read the file cleanly
+                # Read the file
                 df = self._read_gait_line_csv(file_path)
-                df['source'] = name  # add where it came from (optional)
+
+                # Assign source correctly based on filename ending
+                if name.endswith("-l"):
+                    df['source'] = "left"
+                elif name.endswith("-r"):
+                    df['source'] = "right"
+                else:
+                    df['source'] = "both"
+
                 gait_dfs.append(df)
 
         if not gait_dfs:
             raise ValueError(f"No gait-line data found for side='{side}'.")
 
-        # Merge all matching gait-line files
+        # Combine all matching gait-line DataFrames
         df = pd.concat(gait_dfs, ignore_index=True)
 
         return df.copy()
