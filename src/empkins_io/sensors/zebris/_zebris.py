@@ -77,7 +77,10 @@ class ZebrisDataset:
             if '"type","' in first_line and ('parameter' in second_line or 'parameter' in first_line):
                 return self._read_parameters_csv(file_path)
 
-            if 'signal"' in first_line or 'signal_2d"' in first_line or 'signal_matrix' in first_line:
+            # --- New logic: smarter detection ---
+            if 'signal_2d' in second_line and 'cop' in second_line:
+                return self._read_gait_line_csv(file_path)
+            elif 'signal"' in first_line or 'signal_2d"' in first_line or 'signal_matrix' in first_line:
                 if 'x' in second_line or 'x' in third_line:
                     return self._read_gait_line_csv(file_path)
                 elif 'time' in second_line:
@@ -172,19 +175,19 @@ class ZebrisDataset:
                 second_line = f.readline().strip().lower()
                 third_line = f.readline().strip().lower()
 
-            # Extract metadata manually
+            # Extract metadata
             metadata_type = first_line.split(',')[1].strip('"') if ',' in first_line else "unknown"
             metadata_name = second_line.split(',')[1].strip('"') if ',' in second_line else "unknown"
 
-            # Check if third line contains "time,x,y" automatically
+            # Smart detection of header
             if all(keyword in third_line for keyword in ["time", "x", "y"]):
-                skiprows = 2  # Skip only metadata lines
-                header = 0  # Use the third line as header
+                skiprows = 2
+                header = 0
                 names = None
             else:
                 skiprows = 2
                 header = None
-                names = ["time", "x", "y"]  # fallback if third line is broken
+                names = ["time", "x", "y"]
 
             df = pd.read_csv(file_path, skiprows=skiprows, header=header, names=names)
 
@@ -266,8 +269,10 @@ class ZebrisDataset:
                     print(f"Error processing {file_path}: {e}")
 
         result = {
-            'time_dependent_data': pd.concat(list(time_dependent_dfs.values()), ignore_index=True) if time_dependent_dfs else pd.DataFrame(),
-            'single_value_data': pd.concat(list(single_value_dfs.values()), ignore_index=True) if single_value_dfs else pd.DataFrame()
+            'time_dependent_data': pd.concat(list(time_dependent_dfs.values()),
+                                             ignore_index=True) if time_dependent_dfs else pd.DataFrame(),
+            'single_value_data': pd.concat(list(single_value_dfs.values()),
+                                           ignore_index=True) if single_value_dfs else pd.DataFrame()
         }
 
         if explain:
