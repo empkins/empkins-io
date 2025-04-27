@@ -65,25 +65,21 @@ class ZebrisDataset:
         self._processed_data = self.separate_data(explain=self.explain)
 
     def _read_parameters_csv(self, file_path: Path) -> pd.DataFrame:
-        """
-        Read a parameters CSV file and return a DataFrame.
-        """
         try:
-            # 1) Load the CSV, keep the header row as column names
             df = pd.read_csv(
                 file_path,
                 quotechar='"',
                 skipinitialspace=True,
-                encoding='utf-8-sig',  # strip BOM if present
+                encoding='utf-8-sig',
                 header=0
             )
 
-            # 2) Drop the 'type' column (it just holds 'parameter values')
             if 'type' in df.columns:
-                df = df.drop(columns=['type'])  # :contentReference[oaicite:0]{index=0}
+                df = df.drop(columns=['type'])
 
-            # 3) (Optional) Rename the lone row index if you like:
-            #    e.g. df.index = [file_path.stem]
+            # ✅ FIX: Tag the dataframe properly!
+            df.attrs['type'] = 'parameter values'
+            df.attrs['filename'] = file_path.stem
 
             if self.explain:
                 print(f"\nReading parameters file: {file_path.name}")
@@ -96,16 +92,11 @@ class ZebrisDataset:
             print(f"Error reading parameters file {file_path}: {e}")
             return pd.DataFrame()
 
-        except Exception as e:
-            print(f"Error reading parameters file {file_path}: {e}")
-            return pd.DataFrame()
-
     def _read_csv_with_metadata(self, file_path: Path) -> pd.DataFrame:
         """
         Determine and read a CSV file based on its content and structure.
         """
         try:
-            # Read the first line to check for metadata
             with open(file_path, 'r', encoding='utf-8-sig') as f:
                 first_line = f.readline().strip()
                 second_line = f.readline().strip()
@@ -115,7 +106,7 @@ class ZebrisDataset:
                 return self._read_patient_info_csv(file_path)
 
             # Specific handling for parameter files
-            if '"type","' in first_line and 'parameter' in first_line.lower():
+            if '"type","' in first_line and ('parameter' in second_line.lower() or 'parameter' in first_line.lower()):
                 return self._read_parameters_csv(file_path)
 
             if '"type","name"' in first_line:
