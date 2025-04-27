@@ -323,20 +323,19 @@ class ZebrisDataset:
         gait_dfs = []
 
         for file_path in self._raw_data:
-            name = file_path.stem.lower()  # Lowercase for safe matching
+            name = file_path.stem.lower()
 
             if "gait-line" in name:
-                # Side filtering: only include left or right files if requested
+                # Side filtering
                 if side == 'left' and not name.endswith("-l"):
                     continue
                 if side == 'right' and not name.endswith("-r"):
                     continue
-                # if side == 'both', accept all gait-line files
 
                 # Read the file
                 df = self._read_gait_line_csv(file_path)
 
-                # Assign source correctly based on filename ending
+                # Correct and strict source labeling
                 if name.endswith("-l"):
                     df['source'] = "left"
                 elif name.endswith("-r"):
@@ -349,7 +348,6 @@ class ZebrisDataset:
         if not gait_dfs:
             raise ValueError(f"No gait-line data found for side='{side}'.")
 
-        # Combine all matching gait-line DataFrames
         df = pd.concat(gait_dfs, ignore_index=True)
 
         return df.copy()
