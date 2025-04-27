@@ -66,36 +66,35 @@ class ZebrisDataset:
 
     def _read_parameters_csv(self, file_path: Path) -> pd.DataFrame:
         """
-        Read parameters CSV file
+        Read a parameters CSV file and return a DataFrame.
         """
         try:
-            # Read the CSV with explicit handling
-            df = pd.read_csv(file_path,
-                             quotechar='"',
-                             skipinitialspace=True,
-                             encoding='utf-8-sig',
-                             header=0)  # Keep header=0 to use the first row as column names
+            # 1) Load the CSV, keep the header row as column names
+            df = pd.read_csv(
+                file_path,
+                quotechar='"',
+                skipinitialspace=True,
+                encoding='utf-8-sig',  # strip BOM if present
+                header=0
+            )
 
-            # Remove the first 'type' column
+            # 2) Drop the 'type' column (it just holds 'parameter values')
             if 'type' in df.columns:
-                df = df.drop(columns=['type'])
+                df = df.drop(columns=['type'])  # :contentReference[oaicite:0]{index=0}
 
-            # Transpose to make it more readable
-            df_transposed = df.transpose()
-            df_transposed.columns = ['Value']
-            df_transposed.index.name = 'Parameter'
-
-            # Add metadata attributes
-            df_transposed.attrs['type'] = 'parameter values'
-            df_transposed.attrs['filename'] = file_path.stem
+            # 3) (Optional) Rename the lone row index if you like:
+            #    e.g. df.index = [file_path.stem]
 
             if self.explain:
                 print(f"\nReading parameters file: {file_path.name}")
-                print(f"Number of parameters: {len(df_transposed)}")
-                print("\nFirst few parameters:")
-                print(df_transposed.head())
+                print(f"Columns (parameters): {list(df.columns)}")
+                print(f"Values:\n{df.iloc[0]}")
 
-            return df_transposed
+            return df
+
+        except Exception as e:
+            print(f"Error reading parameters file {file_path}: {e}")
+            return pd.DataFrame()
 
         except Exception as e:
             print(f"Error reading parameters file {file_path}: {e}")
