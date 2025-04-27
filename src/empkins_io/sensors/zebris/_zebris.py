@@ -93,53 +93,59 @@ class ZebrisDataset:
 
     def _read_csv_with_metadata(self, file_path: Path) -> pd.DataFrame:
         """
-        Determine and read a CSV file based on its content and structure.
+        Read a CSV file, intelligently detect its type, and return the appropriate DataFrame.
         """
         try:
             with open(file_path, 'r', encoding='utf-8-sig') as f:
                 first_line = f.readline().strip()
                 second_line = f.readline().strip()
+                third_line = f.readline().strip()
 
-            # Specific handling for patient and record info files
-            if '"type","' in first_line and '"patient and record info"' in second_line:
+            # Handle "patient info" files
+            if '"type","' in first_line and '"patient and record info"' in second_line.lower():
                 return self._read_patient_info_csv(file_path)
 
-            # Specific handling for parameter files
+            # Handle "parameters" files
             if '"type","' in first_line and ('parameter' in second_line.lower() or 'parameter' in first_line.lower()):
                 return self._read_parameters_csv(file_path)
 
-            if '"type","name"' in first_line:
-                # Read metadata row
-                metadata_df = pd.read_csv(file_path, nrows=1)
-
-                # Read data rows, skipping the first two rows (metadata)
-                df = pd.read_csv(file_path, skiprows=2)
-
-                # Add metadata as attributes
-                df.attrs['type'] = metadata_df.iloc[0]['type']
-                df.attrs['name'] = metadata_df.iloc[0]['name']
-                df.attrs['filename'] = file_path.stem
-
-                return df
-
-            # Existing methods for other file types
-            if 'signal"' in first_line or 'signal_2d' in first_line:
-                # Force curve or gait line files
-                with open(file_path, 'r', encoding='utf-8-sig') as f:
-                    second_line = f.readline().strip()
-                    third_line = f.readline().strip()
-
-                if 'x' in second_line or 'x' in third_line:
+            # Handle "signal" or "gait line" or "pressure matrix"
+            if 'signal"' in first_line.lower() or 'signal_2d"' in first_line.lower() or 'signal_matrix' in first_line.lower():
+                if 'x' in second_line.lower() or 'x' in third_line.lower():
                     return self._read_gait_line_csv(file_path)
-                else:
+                elif 'time' in second_line.lower():
                     return self._read_force_curve_csv(file_path)
+                else:
+                    return self._read_pressure_matrix_csv(file_path)
 
-            # unrecognized file
-            print(f"Unrecognized file type for {file_path}")
+            # Handle generic CSV with a "type, name" structure
+            if '"type","name"' in first_line.lower():
+                return self._read_generic_signal_csv(file_path)
+
+            # If no known structure matched
+            print(f"Unrecognized file type for {file_path.name}")
             return pd.DataFrame()
 
         except Exception as e:
-            print(f"Error reading {file_path}: {e}")
+            print(f"Error reading {file_path.name}: {e}")
+            return pd.DataFrame()
+
+    def _read_generic_signal_csv(self, file_path: Path) -> pd.DataFrame:
+        """
+        Read a generic 2-row metadata CSV, followed by the actual data.
+        """
+        try:
+            metadata_df = pd.read_csv(file_path, nrows=1)
+            df = pd.read_csv(file_path, skiprows=2)
+
+            df.attrs['type'] = metadata_df.iloc[0].get('type', 'unknown')
+            df.attrs['name'] = metadata_df.iloc[0].get('name', 'unknown')
+            df.attrs['filename'] = file_path.stem
+
+            return df
+
+        except Exception as e:
+            print(f"Error reading generic CSV {file_path.name}: {e}")
             return pd.DataFrame()
 
     def _read_patient_info_csv(self, file_path: Path) -> pd.DataFrame:
@@ -448,7 +454,7 @@ class ZebrisDataset:
         Returns:
             pd.DataFrame: DataFrame containing parameter values
         """
-        # Find parameter CSV file
+        # Find the parameter CSV file
         parameters_files = [f for f in self._raw_data if 'parameters' in f.name.lower()]
 
         if not parameters_files:
