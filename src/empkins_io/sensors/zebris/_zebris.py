@@ -166,7 +166,42 @@ class ZebrisDataset:
         return self._read_generic_data_file(file_path, names=['time', 'value'])
 
     def _read_gait_line_csv(self, file_path: Path) -> pd.DataFrame:
-        return self._read_generic_data_file(file_path, names=['time', 'x', 'y'])
+        try:
+            with open(file_path, 'r', encoding='utf-8-sig') as f:
+                first_line = f.readline().strip().lower()
+                second_line = f.readline().strip().lower()
+                third_line = f.readline().strip().lower()
+
+            # Extract metadata manually
+            metadata_type = first_line.split(',')[1].strip('"') if ',' in first_line else "unknown"
+            metadata_name = second_line.split(',')[1].strip('"') if ',' in second_line else "unknown"
+
+            # Check if third line contains "time,x,y" automatically
+            if all(keyword in third_line for keyword in ["time", "x", "y"]):
+                skiprows = 2  # Skip only metadata lines
+                header = 0  # Use the third line as header
+                names = None
+            else:
+                skiprows = 2
+                header = None
+                names = ["time", "x", "y"]  # fallback if third line is broken
+
+            df = pd.read_csv(file_path, skiprows=skiprows, header=header, names=names)
+
+            df.attrs['type'] = metadata_type
+            df.attrs['name'] = metadata_name
+            df.attrs['filename'] = file_path.stem
+
+            if self.explain:
+                print(f"\nReading {file_path.name} (type: {metadata_type})")
+                print(f"Detected shape: {df.shape}")
+                print(f"Columns: {list(df.columns)}")
+
+            return df
+
+        except Exception as e:
+            print(f"Error reading {file_path.name}: {e}")
+            return pd.DataFrame()
 
     def _read_pressure_matrix_csv(self, file_path: Path) -> pd.DataFrame:
         dynamic_names = ['time'] + [f'x{i + 1}' for i in range(54)]
