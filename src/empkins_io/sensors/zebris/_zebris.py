@@ -105,32 +105,37 @@ class ZebrisDataset:
                    returning an empty DataFrame in such cases.
         """
         try:
-            with open(file_path, 'r', encoding='utf-8-sig') as f:
-                first_line = f.readline().strip().lower()
-                second_line = f.readline().strip().lower()
-                third_line = f.readline().strip().lower()
-
-            if '"type","' in first_line and '"patient and record info"' in second_line:
+            # Special fallback by filename first
+            filename = file_path.stem.lower()
+            if "parameters" in filename:
+                return self._read_parameters_csv(file_path)
+            if "patient" in filename:
                 return self._read_patient_info_csv(file_path)
 
-            if '"type","' in first_line and ('parameter' in second_line or 'parameter' in first_line):
-                return self._read_parameters_csv(file_path)
+            # Read the first few lines manually
+            with open(file_path, 'r', encoding='utf-8-sig') as f:
+                lines = [next(f).strip().lower() for _ in range(4)]
 
-            # --- New logic: smarter detection ---
-            if 'signal_2d' in second_line and 'cop' in second_line:
-                return self._read_gait_line_csv(file_path)
-            elif 'signal"' in first_line or 'signal_2d"' in first_line or 'signal_matrix' in first_line:
-                if 'x' in second_line or 'x' in third_line:
-                    return self._read_gait_line_csv(file_path)
-                elif 'time' in second_line:
-                    return self._read_force_curve_csv(file_path)
+            # Parse metadata cleanly
+            if len(lines) >= 2 and "type" in lines[0] and "name" in lines[0]:
+                meta_parts = lines[1].split(",")
+                if len(meta_parts) >= 2:
+                    metadata_type = meta_parts[0].strip('"').strip().lower()
+                    metadata_name = meta_parts[1].strip('"').strip().lower()
                 else:
-                    return self._read_pressure_matrix_csv(file_path)
+                    metadata_type = "unknown"
+                    metadata_name = "unknown"
+            else:
+                metadata_type = "unknown"
+                metadata_name = "unknown"
 
-            if '"type","name"' in first_line:
+            # Now decide reader
+            if metadata_type == "signal_2d" and "gait line" in metadata_name:
+                return self._read_gait_line_csv(file_path)
+            elif metadata_type in ["signal", "signal_2d", "signal_matrix"]:
                 return self._read_generic_signal_csv(file_path)
 
-            print(f"Unrecognized file type for {file_path.name}")
+            print(f"Unrecognized file type for {file_path.name}: {metadata_type} / {metadata_name}")
             return pd.DataFrame()
 
         except Exception as e:
@@ -203,11 +208,6 @@ class ZebrisDataset:
             df.attrs['type'] = 'parameter values'
             df.attrs['filename'] = file_path.stem
 
-            if self.explain:
-                print(f"\nReading parameters file: {file_path.name}")
-                print(f"Columns (parameters): {list(df.columns)}")
-                print(f"Values:\n{df.iloc[0]}")
-
             return df
 
         except Exception as e:
@@ -256,11 +256,6 @@ class ZebrisDataset:
             df.attrs['type'] = 'patient and record info'
             df.attrs['filename'] = file_path.stem
 
-            if self.explain:
-                print(f"\nReading patient info file: {file_path.name}")
-                print(f"Columns: {df.columns.tolist()}")
-                print(f"Shape: {df.shape}")
-
             return df
 
         except Exception as e:
@@ -308,7 +303,7 @@ class ZebrisDataset:
             with open(file_path, 'r', encoding='utf-8-sig') as f:
                 first_line = f.readline().strip().lower()
                 second_line = f.readline().strip().lower()
-                third_line = f.readline().strip().lower() # empty line
+                third_line = f.readline().strip().lower()  # empty line
                 fourth_line = f.readline().strip().lower()
 
             metadata_type = first_line.split(',')[1].strip('"') if ',' in first_line else "unknown"
@@ -328,11 +323,6 @@ class ZebrisDataset:
             df.attrs['type'] = metadata_type
             df.attrs['name'] = metadata_name
             df.attrs['filename'] = file_path.stem
-
-            if self.explain:
-                print(f"\nReading {file_path.name} (type: {metadata_type})")
-                print(f"Detected shape: {df.shape}")
-                print(f"Columns: {list(df.columns)}")
 
             return df
 
@@ -402,10 +392,6 @@ class ZebrisDataset:
             df.attrs['name'] = metadata_name
             df.attrs['filename'] = file_path.stem
 
-            if self.explain:
-                print(f"\nReading {file_path.name} (type: {metadata_type})")
-                print(f"Shape: {df.shape}")
-
             return df
 
         except Exception as e:
@@ -436,9 +422,6 @@ class ZebrisDataset:
         single_value_dfs = {}
         processing_errors = []
 
-        if explain:
-            print(f"Processing {len(self._raw_data)} CSV files...")
-
         for file_path in self._raw_data:
             try:
                 df = self._read_csv_with_metadata(file_path)
@@ -451,8 +434,8 @@ class ZebrisDataset:
                 file_type = df.attrs.get('type', 'unknown')
                 filename = df.attrs.get('filename', file_path.stem)
 
-                if explain:
-                    print(f"Processing file: {filename} (Type: {file_type})")
+                # if explain:
+                # print(f"Processing file: {filename} (Type: {file_type})")
 
                 if file_type in ['signal', 'signal_2d', 'signal_matrix']:
                     time_dependent_dfs[filename] = df
@@ -487,10 +470,23 @@ class ZebrisDataset:
 
     def force_data_as_df(self) -> pd.DataFrame:
         """
-        Loads and structures force curve data into a single DataFrame with a MultiIndex.
+        Processes raw force curve data files into a consolidated DataFrame with appropriately
+        labeled and multi-level indexed columns.
 
-        Returns:
-            pd.DataFrame: A DataFrame with MultiIndex columns (channel, axis) and time as index.
+        The method reads force curve data files from the raw data list, classifies them into
+        channels ('backfoot', 'forefoot', or 'foot') and axes ('left', 'right', or 'both'),
+        merges them into a single DataFrame, and ensures proper formatting and cleaning.
+
+        Raises
+        ------
+        ValueError
+            If no valid force curve data files are found.
+
+        Returns
+        -------
+        pd.DataFrame
+            A consolidated DataFrame with multi-indexed columns for channel and axis,
+            indexed by time, containing all processed force curve data.
         """
         force_dfs = {}
 
@@ -522,7 +518,7 @@ class ZebrisDataset:
                     axis = "both"
 
                 df = df.set_index("time")
-                df.columns = pd.MultiIndex.from_tuples([(channel, axis)])  # <--- set columns here
+                df.columns = pd.MultiIndex.from_tuples([(channel, axis)])
                 force_dfs[(channel, axis)] = df
 
         if not force_dfs:
@@ -538,7 +534,14 @@ class ZebrisDataset:
         if foot_both_df is not None:
             merged = pd.concat([merged, foot_both_df], axis=1)
 
-        # Set index name
+        # Set MultiIndex column names
+        merged.columns.names = ["channel", "axis"]
+
+        # Sort columns for a clean layout
+        if not merged.empty:
+            merged = merged.sort_index(axis=1, level=["channel", "axis"], sort_remaining=True)
+
+        # Set index name correctly
         merged.index.name = "time"
 
         # Drop rows where all values are NaN
@@ -583,7 +586,7 @@ class ZebrisDataset:
             raise ValueError(f"No gait-line data found for side='{side}'.")
 
         # Concatenate all gait line DataFrames
-        df = pd.concat(gait_dfs, axis=1)#, ignore_index=True)
+        df = pd.concat(gait_dfs, axis=1)  # , ignore_index=True)
         df = df.set_index(df.columns[0])
         df.index.name = "time"
         df = df.drop(columns=[col for col in df.columns if "time" in col])
@@ -600,11 +603,138 @@ class ZebrisDataset:
 
         return df[pressure_columns].copy()
 
-    def patient_info_as_df(self) -> pd.DataFrame:
-        return self._processed_data['single_value_data']
+    """def patient_info_as_df(self) -> pd.DataFrame:
+        df = self._processed_data['single_value_data']
+
+        if df.empty:
+            raise ValueError("No patient info found.")
+        combined = df.iloc[0].combine_first(df.iloc[1])
+        combined_df = pd.DataFrame([combined])
+
+        return combined_df
 
     def parameters_as_df(self) -> pd.DataFrame:
         parameters_files = [f for f in self._raw_data if 'parameters' in f.name.lower()]
         if not parameters_files:
             raise ValueError("No parameters file found in the dataset.")
         return self._read_parameters_csv(parameters_files[0])
+        """
+
+    def patient_info_and_parameters_as_df(self) -> pd.DataFrame:
+        translation_dict = {
+            "vorfuß": "forefoot",
+            "rückfuß": "rearfoot",
+            "kraft": "force",
+            "gesamtkraft": "total force",
+            "fläche der 95 vertrauensellipse": "area of 95% confidence ellipse",
+            "länge der cop-spur": "cop path length",
+            "gemittelte geschwindigkeit": "average velocity",
+            "messdauer": "measurement duration",
+            "geschwindigkeit": "velocity",
+            "aufnahmedatum": "recording date",
+            "typ der aufnahme": "recording type",
+            "vorname": "first name",
+            "nachname": "last name",
+            "geburtsdatum": "date of birth",
+            "geschlecht": "gender",
+            "cop": "cop",
+        }
+
+        df = self._processed_data['single_value_data']
+        if df.empty:
+            raise ValueError("No patient info found.")
+
+        patient_row = df.iloc[0].combine_first(df.iloc[1])
+        patient_row = pd.DataFrame([patient_row])
+
+        parameters_files = [f for f in self._raw_data if 'parameters' in f.name.lower()]
+        if not parameters_files:
+            raise ValueError("No parameters file found.")
+
+        parameters_df = self._read_parameters_csv(parameters_files[0])
+
+        merged = patient_row.copy()
+        for col in parameters_df.columns:
+            if col not in merged.columns:
+                merged[col] = parameters_df.at[0, col]
+
+        merged = merged.dropna(axis=1, how='all')
+
+        multiindex_columns = []
+        units_to_remove = ["mm", "mm2", "mm/s", "sek", "%", "[", "]", "/", "²"]
+        seen_dimensions = {}
+
+        for col in merged.columns:
+            clean_col = col.lower()
+            for unit in units_to_remove:
+                clean_col = clean_col.replace(unit, "")
+
+            clean_col = (clean_col
+                         .replace(",", " ")
+                         .replace("  ", " ")
+                         .strip())
+
+            side = "both"
+            if "links" in clean_col:
+                side = "left"
+                clean_col = clean_col.replace("links", "").strip()
+            elif "rechts" in clean_col:
+                side = "right"
+                clean_col = clean_col.replace("rechts", "").strip()
+
+            dimension = "value"
+            if " x" in clean_col:
+                dimension = "x"
+                clean_col = clean_col.replace("x", "").strip()
+            elif " y" in clean_col:
+                dimension = "y"
+                clean_col = clean_col.replace("y", "").strip()
+
+            translated = clean_col
+            for german, english in translation_dict.items():
+                translated = translated.replace(german, english)
+
+            translated = " ".join(translated.split())
+
+            if "cop" in translated.lower() or "average velocity" in translated.lower():
+                category = "cop"
+                if "forefoot" in translated.lower():
+                    subgroup = "forefoot"
+                elif "rearfoot" in translated.lower():
+                    subgroup = "rearfoot"
+                else:
+                    subgroup = "total"
+            elif "force" in translated.lower():
+                category = "force"
+                if "forefoot" in translated.lower():
+                    subgroup = "forefoot"
+                elif "rearfoot" in translated.lower():
+                    subgroup = "rearfoot"
+                else:
+                    subgroup = "total"
+            else:
+                category = "measurement info"
+                subgroup = ""
+                dimension = translated.lower()
+
+            dimension = " ".join(dimension.split())
+
+            # Handle duplicate dimension names
+            key = (category, subgroup, side, dimension)
+            if key in seen_dimensions:
+                count = seen_dimensions[key] + 1
+                dimension = f"{dimension}_{count}"
+                key = (category, subgroup, side, dimension)
+                seen_dimensions[key] = count
+            else:
+                seen_dimensions[key] = 0
+
+            multiindex_columns.append((category, subgroup, side, dimension))
+
+        merged.columns = pd.MultiIndex.from_tuples(multiindex_columns, names=["category", "subgroup", "side", "dimension"])
+        merged = merged.sort_index(axis=1)
+
+        flattened_headers = ["-".join(map(str, col)).strip() for col in merged.columns]
+        print(flattened_headers)
+
+        return merged
