@@ -39,33 +39,32 @@ class ZebrisDataset:
 
     def __init__(self, path: Union[str, Path], explain: bool = True):
         """
-        Initialize an object to handle loading and processing of CSV files from a given path. The path
-        can be to a single CSV file or a directory containing multiple CSV files. If the `explain` parameter
-        is set to True, the initialization will print details about the found files and the processing.
+        Initializes an object that processes CSV files from a given file path or directory.
+        If the path represents a directory, it collects all CSV files within the directory.
+        If the path represents a single CSV file, it processes that file.
+        The initialization optionally prints explanations/logging about the discovered files.
 
-        Attributes
-        ----------
-        path: Path
-            The path to the CSV file or directory containing CSV files.
-        explain: bool
-            Specifies whether to print detailed information during initialization.
-        _raw_data: list[Path]
-            A list of Path objects representing the raw CSV files found in the directory or single file.
-        _processed_data: Any
-            Stores processed data derived from the raw CSV files after initialization.
-
-        Parameters
-        ----------
+        Attributes:
         path: Union[str, Path]
-            The path to a CSV file or directory containing CSV files.
-        explain: bool, default=True
-            Whether to print detailed information about the files and processing during initialization.
+            The path to a CSV file or a directory containing CSV files.
+        explain: bool
+            Flag indicating whether to print information about the discovered CSV files.
+        _raw_data: List[Path]
+            A list of paths to the discovered CSV files, sorted by name.
+        _processed_data: Any
+            Processed data resulting from the `separate_data` method.
 
-        Raises
-        ------
+        Parameters:
+        path: Union[str, Path]
+            A file path to a CSV file or a directory containing multiple CSV files. If a directory is
+            provided, all files with the ".csv" suffix are collected. If a single file is provided, it
+            must have a ".csv" suffix.
+        explain: bool, optional
+            If set to True, logs information about the discovered CSV files during initialization.
+
+        Raises:
         FileNotFoundError
-            Raised if the specified path is neither a CSV file nor a directory, or the file does not exist
-            in the provided path.
+            If the provided path is invalid, is not a CSV file, or is a directory containing no CSV files.
         """
         path = Path(path)  # Convert to a Path object
         self.path = path
@@ -292,7 +291,7 @@ class ZebrisDataset:
 
         Attributes:
             explain (bool): Determines whether additional information about the parser's actions
-                and the results is printed to the console.
+                and the results are printed to the console.
 
         Parameters:
             file_path (Path): The path to the CSV file to be read.
@@ -302,20 +301,19 @@ class ZebrisDataset:
             includes metadata attributes like `type`, `name`, and `filename` extracted from the CSV file.
 
         Raises:
-            Exception: Catches and handles any exception that occurs during file reading or CSV parsing,
+            Exception: Catches and handles any exception that occurs during file reading or CSV parsing
             and returns an empty DataFrame in such cases.
         """
         try:
             with open(file_path, 'r', encoding='utf-8-sig') as f:
                 first_line = f.readline().strip().lower()
                 second_line = f.readline().strip().lower()
-                third_line = f.readline().strip().lower()
-                fourth_line = f.readline().strip().lower()  # NEW: read fourth line
+                third_line = f.readline().strip().lower() # empty line
+                fourth_line = f.readline().strip().lower()
 
             metadata_type = first_line.split(',')[1].strip('"') if ',' in first_line else "unknown"
             metadata_name = second_line.split(',')[1].strip('"') if ',' in second_line else "unknown"
 
-            # Now smart detect based on real header line
             if all(keyword in fourth_line for keyword in ["time", "x", "y"]):
                 skiprows = 3
                 header = 0
@@ -487,47 +485,65 @@ class ZebrisDataset:
 
         return result
 
-    def force_data_as_df(self, side: str = 'both', region: str = 'full') -> pd.DataFrame:
+    def force_data_as_df(self) -> pd.DataFrame:
         """
-        Extracts specific force data from the processed dataset and returns it in the form of a pandas DataFrame.
-        The extracted data can be filtered based on the side (left, right, or both) and the region (forefoot, backfoot, or full).
-        If no relevant force curve data is found, an error is raised.
-
-        Args:
-            side (str): Specifies which side's force data to extract. Can be 'left', 'right', or 'both'.
-                Default is 'both'.
-            region (str): Specifies region-based filtering for force data. Can be 'forefoot', 'backfoot',
-                or 'full'. Default is 'full'.
+        Loads and structures force curve data into a single DataFrame with a MultiIndex.
 
         Returns:
-            pd.DataFrame: A new DataFrame object containing the filtered time-dependent force curve data.
-
-        Raises:
-            ValueError: If no force curve data is found in the dataset.
+            pd.DataFrame: A DataFrame with MultiIndex columns (channel, axis) and time as index.
         """
-        # TODO cut off nan values?
-        df = self._processed_data['time_dependent_data']
+        force_dfs = {}
 
-        force_columns = [col for col in df.columns if
-                         any(keyword in str(col).lower() for keyword in ['kraft', 'force', 'value'])]
-        if not force_columns:
-            raise ValueError("No force curve data found in the dataset.")
+        def smart_read_csv(file):
+            try:
+                df = pd.read_csv(file, skiprows=2, names=["time", "value"])
+            except Exception:
+                df = pd.read_csv(file)
+                df.columns = ["time", "value"]
+            return df
 
-        # Filter side
-        if side == 'left':
-            force_columns = [col for col in force_columns if any(marker in col.lower() for marker in ['l', 'links'])]
-        elif side == 'right':
-            force_columns = [col for col in force_columns if any(marker in col.lower() for marker in ['r', 'rechts'])]
+        for file_path in self._raw_data:
+            name = file_path.stem.lower()
+            if "force-curve" in name:
+                df = smart_read_csv(file_path)
 
-        # Filter region
-        if region == 'forefoot':
-            force_columns = [col for col in force_columns if 'vorfuß' in col.lower() or 'forefoot' in col.lower()]
-        elif region == 'backfoot':
-            force_columns = [col for col in force_columns if 'rückfuß' in col.lower() or 'backfoot' in col.lower()]
+                if "backfoot" in name:
+                    channel = "backfoot"
+                elif "forefoot" in name:
+                    channel = "forefoot"
+                else:
+                    channel = "foot"
 
-        columns_to_extract = ['time'] + force_columns if 'time' in df.columns else force_columns
+                if name.endswith("-l"):
+                    axis = "left"
+                elif name.endswith("-r"):
+                    axis = "right"
+                else:
+                    axis = "both"
 
-        return df[columns_to_extract].copy()
+                if axis != "both":
+                    df = df.set_index("time")
+                    force_dfs[(channel, axis)] = df
+
+        if not force_dfs:
+            raise ValueError("No force curve files found.")
+
+        # Concatenate all DataFrames side by side
+        merged = pd.concat(force_dfs, axis=1)
+
+        # Drop second unnecessary 'value' level if it exists
+        if isinstance(merged.columns, pd.MultiIndex) and merged.columns.nlevels == 3:
+            merged.columns = merged.columns.droplevel(2)
+
+        # Set index name and columns MultiIndex
+        merged.index.name = "time"
+        merged.columns = pd.MultiIndex.from_tuples(merged.columns, names=["channel", "axis"])
+
+        # Drop rows where all values are NaN
+        merged = merged.dropna(how="all")
+
+        return merged
+
 
     def gait_line_data_as_df(self, side: str = 'both') -> pd.DataFrame:
         """
