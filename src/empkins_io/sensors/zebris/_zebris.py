@@ -494,7 +494,7 @@ class ZebrisDataset:
         """
         force_dfs = {}
 
-        def smart_read_csv(file):
+        def read_force_csv(file):
             try:
                 df = pd.read_csv(file, skiprows=2, names=["time", "value"])
             except Exception:
@@ -505,7 +505,7 @@ class ZebrisDataset:
         for file_path in self._raw_data:
             name = file_path.stem.lower()
             if "force-curve" in name:
-                df = smart_read_csv(file_path)
+                df = read_force_csv(file_path)
 
                 if "backfoot" in name:
                     channel = "backfoot"
@@ -521,29 +521,30 @@ class ZebrisDataset:
                 else:
                     axis = "both"
 
-                if axis != "both":
-                    df = df.set_index("time")
-                    force_dfs[(channel, axis)] = df
+                df = df.set_index("time")
+                df.columns = pd.MultiIndex.from_tuples([(channel, axis)])  # <--- set columns here
+                force_dfs[(channel, axis)] = df
 
         if not force_dfs:
             raise ValueError("No force curve files found.")
 
+        # Separate foot_both_df
+        foot_both_df = force_dfs.pop(("foot", "both"), None)
+
         # Concatenate all DataFrames side by side
-        merged = pd.concat(force_dfs, axis=1)
+        merged = pd.concat(force_dfs.values(), axis=1)
 
-        # Drop second unnecessary 'value' level if it exists
-        if isinstance(merged.columns, pd.MultiIndex) and merged.columns.nlevels == 3:
-            merged.columns = merged.columns.droplevel(2)
+        # Add foot_both_df if available
+        if foot_both_df is not None:
+            merged = pd.concat([merged, foot_both_df], axis=1)
 
-        # Set index name and columns MultiIndex
+        # Set index name
         merged.index.name = "time"
-        merged.columns = pd.MultiIndex.from_tuples(merged.columns, names=["channel", "axis"])
 
         # Drop rows where all values are NaN
         merged = merged.dropna(how="all")
 
         return merged
-
 
     def gait_line_data_as_df(self, side: str = 'both') -> pd.DataFrame:
         """
