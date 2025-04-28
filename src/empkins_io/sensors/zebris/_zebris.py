@@ -1,8 +1,8 @@
+import logging
 from pathlib import Path
 from typing import Dict, Union
-
 import pandas as pd
-
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 class ZebrisDataset:
     """_sensor_dict = {
@@ -38,229 +38,86 @@ class ZebrisDataset:
     """
 
     def __init__(self, path: Union[str, Path], explain: bool = True):
-        """
-        Initializes an object that processes CSV files from a given file path or directory.
-        If the path represents a directory, it collects all CSV files within the directory.
-        If the path represents a single CSV file, it processes that file.
-        The initialization optionally prints explanations/logging about the discovered files.
-
-        Attributes:
-        path: Union[str, Path]
-            The path to a CSV file or a directory containing CSV files.
-        explain: bool
-            Flag indicating whether to print information about the discovered CSV files.
-        _raw_data: List[Path]
-            A list of paths to the discovered CSV files, sorted by name.
-        _processed_data: Any
-            Processed data resulting from the `separate_data` method.
-
-        Parameters:
-        path: Union[str, Path]
-            A file path to a CSV file or a directory containing multiple CSV files. If a directory is
-            provided, all files with the ".csv" suffix are collected. If a single file is provided, it
-            must have a ".csv" suffix.
-        explain: bool, optional
-            If set to True, logs information about the discovered CSV files during initialization.
-
-        Raises:
-        FileNotFoundError
-            If the provided path is invalid, is not a CSV file, or is a directory containing no CSV files.
-        """
-        path = Path(path)  # Convert to a Path object
-        self.path = path
+        self.path = Path(path)
         self.explain = explain
 
-        if path.is_dir():
-            self._raw_data = sorted(path.glob("*.csv"))
-        elif path.is_file() and path.suffix == ".csv":
-            self._raw_data = [path]
+        if self.path.is_dir():
+            self._raw_data = sorted(self.path.glob("*.csv"))
+        elif self.path.is_file() and self.path.suffix == ".csv":
+            self._raw_data = [self.path]
         else:
-            raise FileNotFoundError(f"Invalid path: '{path}'. Not a CSV file or directory.")
+            raise FileNotFoundError(f"Invalid path: '{self.path}'. Not a CSV file or directory.")
 
         if self.explain:
-            print(f"Found {len(self._raw_data)} CSV files")
+            logging.info(f"Found {len(self._raw_data)} CSV files")
             for file in self._raw_data:
-                print(f"  - {file.name}")
+                logging.info(f"  - {file.name}")
 
-        # Store processed data after initialization
         self._processed_data = self.separate_data(explain=self.explain)
 
-    def _read_csv_with_metadata(self, file_path: Path) -> pd.DataFrame:
-        """
-        Reads a CSV file and determines the appropriate parsing function based on the file's metadata.
-
-        This method inspects the initial lines of the CSV file to infer the kind of data it contains.
-        Depending on the detected metadata, it delegates parsing to a specific handler function.
-        If the file type cannot be recognized, an empty DataFrame is returned, and the issue is logged.
-
-        Parameters:
-        file_path (Path): The file path to the CSV file that needs to be parsed.
-
-        Returns:
-        pd.DataFrame: The parsed data as a pandas DataFrame. An empty DataFrame is returned if the file
-                      type is unrecognized or if an error occurs during parsing.
-
-        Raises:
-        Exception: Catches and logs unexpected errors encountered while accessing or reading the file,
-                   returning an empty DataFrame in such cases.
-        """
+    def _safe_read_csv(self, *args, **kwargs) -> pd.DataFrame:
         try:
-            # Special fallback by filename first
+            return pd.read_csv(*args, **kwargs)
+        except Exception as e:
+            logging.warning(f"Failed to read CSV: {args[0]} - {e}")
+            return pd.DataFrame()
+
+    def _read_csv_with_metadata(self, file_path: Path) -> pd.DataFrame:
+        try:
             filename = file_path.stem.lower()
             if "parameters" in filename:
                 return self._read_parameters_csv(file_path)
             if "patient" in filename:
                 return self._read_patient_info_csv(file_path)
 
-            # Read the first few lines manually
             with open(file_path, 'r', encoding='utf-8-sig') as f:
                 lines = [next(f).strip().lower() for _ in range(4)]
 
-            # Parse metadata cleanly
             if len(lines) >= 2 and "type" in lines[0] and "name" in lines[0]:
                 meta_parts = lines[1].split(",")
-                if len(meta_parts) >= 2:
-                    metadata_type = meta_parts[0].strip('"').strip().lower()
-                    metadata_name = meta_parts[1].strip('"').strip().lower()
-                else:
-                    metadata_type = "unknown"
-                    metadata_name = "unknown"
+                metadata_type = meta_parts[0].strip('"').strip().lower() if len(meta_parts) >= 2 else "unknown"
+                metadata_name = meta_parts[1].strip('"').strip().lower() if len(meta_parts) >= 2 else "unknown"
             else:
-                metadata_type = "unknown"
-                metadata_name = "unknown"
+                metadata_type = metadata_name = "unknown"
 
-            # Now decide reader
             if metadata_type == "signal_2d" and "gait line" in metadata_name:
                 return self._read_gait_line_csv(file_path)
             elif metadata_type in ["signal", "signal_2d", "signal_matrix"]:
                 return self._read_generic_signal_csv(file_path)
 
-            print(f"Unrecognized file type for {file_path.name}: {metadata_type} / {metadata_name}")
+            logging.warning(f"Unrecognized file type for {file_path.name}: {metadata_type} / {metadata_name}")
             return pd.DataFrame()
 
         except Exception as e:
-            print(f"Error reading {file_path.name}: {e}")
+            logging.warning(f"Error reading {file_path.name}: {e}")
             return pd.DataFrame()
 
     def _read_generic_signal_csv(self, file_path: Path) -> pd.DataFrame:
-        """
-        Read and parse a generic signal CSV file, extracting both data and metadata.
-
-        This method reads a CSV file containing signal data. The file is expected
-        to have a specific format: a metadata section in the first row and
-        actual data from the third row onwards. The metadata is stored as
-        attributes of the returned DataFrame, including the type, name, and
-        filename.
-
-        Parameters:
-            file_path (Path): Path to the CSV file to be loaded.
-
-        Returns:
-            pd.DataFrame: A DataFrame containing the parsed signal data. Attributes
-            of the DataFrame include metadata fields like 'type', 'name', and
-            'filename'.
-
-        Raises:
-            None
-        """
-        try:
-            metadata_df = pd.read_csv(file_path, nrows=1)
-            df = pd.read_csv(file_path, skiprows=2)
-
-            df.attrs['type'] = metadata_df.iloc[0].get('type', 'unknown')
-            df.attrs['name'] = metadata_df.iloc[0].get('name', 'unknown')
-            df.attrs['filename'] = file_path.stem
-
-            return df
-
-        except Exception as e:
-            print(f"Error reading generic CSV {file_path.name}: {e}")
-            return pd.DataFrame()
+        df = self._safe_read_csv(file_path, skiprows=2)
+        if not df.empty:
+            meta = self._safe_read_csv(file_path, nrows=1)
+            if not meta.empty:
+                df.attrs.update({
+                    'type': meta.iloc[0].get('type', 'unknown'),
+                    'name': meta.iloc[0].get('name', 'unknown'),
+                    'filename': file_path.stem
+                })
+        return df
 
     def _read_parameters_csv(self, file_path: Path) -> pd.DataFrame:
-        """
-        Reads a CSV file containing parameter values and processes its data into a pandas DataFrame.
-        The function removes the 'type' column if it exists, adds metadata as attributes to the resulting
-        DataFrame, and optionally prints details of the loaded data for explanation purposes.
+        df = self._safe_read_csv(file_path, quotechar='"', skipinitialspace=True, encoding='utf-8-sig', header=0)
+        if not df.empty and 'type' in df.columns:
+            df = df.drop(columns=['type'])
+        df.attrs.update({'type': 'parameter values', 'filename': file_path.stem})
+        return df
 
-        Arguments:
-        file_path (Path): The file path to the CSV file to be read.
-
-        Returns:
-        pd.DataFrame: A DataFrame containing the processed parameter values from the CSV file. The resulting
-        DataFrame also has additional attributes for 'type' and 'filename'.
-
-        Raises:
-        None explicitly, but any exceptions arising from reading the CSV file or manipulating
-        the DataFrame are printed as error messages.
-        """
-        try:
-            df = pd.read_csv(
-                file_path,
-                quotechar='"',
-                skipinitialspace=True,
-                encoding='utf-8-sig',
-                header=0
-            )
-            if 'type' in df.columns:
-                df = df.drop(columns=['type'])
-
-            df.attrs['type'] = 'parameter values'
-            df.attrs['filename'] = file_path.stem
-
-            return df
-
-        except Exception as e:
-            print(f"Error reading parameters file {file_path.name}: {e}")
-            return pd.DataFrame()
 
     def _read_patient_info_csv(self, file_path: Path) -> pd.DataFrame:
-        """
-        Reads a patient information CSV file into a DataFrame.
-
-        This method processes a specified CSV file containing patient and record
-        information. It adjusts the structure of the DataFrame by removing the "type"
-        column if it exists and assigns custom attributes to the resulting DataFrame.
-        The method can also provide additional explanations about the processed file
-        if enabled.
-
-        Parameters
-        ----------
-        file_path : Path
-            The file path to the CSV file being read.
-
-        Returns
-        -------
-        pd.DataFrame
-            A pandas DataFrame containing the processed patient and record
-            information.
-
-        Raises
-        ------
-        Exception
-            If there is an error reading the specified CSV file, it handles the
-            exception internally, prints an error message, and returns an empty
-            DataFrame.
-        """
-        try:
-            df = pd.read_csv(
-                file_path,
-                quotechar='"',
-                skipinitialspace=True,
-                encoding='utf-8-sig',
-                header=0
-            )
-            if 'type' in df.columns:
-                df = df.iloc[:, 1:]
-
-            df.attrs['type'] = 'patient and record info'
-            df.attrs['filename'] = file_path.stem
-
-            return df
-
-        except Exception as e:
-            print(f"Error reading patient info file {file_path.name}: {e}")
-            return pd.DataFrame()
+        df = self._safe_read_csv(file_path, quotechar='"', skipinitialspace=True, encoding='utf-8-sig', header=0)
+        if not df.empty and 'type' in df.columns:
+            df = df.iloc[:, 1:]
+        df.attrs.update({'type': 'patient and record info', 'filename': file_path.stem})
+        return df
 
     def _read_force_curve_csv(self, file_path: Path) -> pd.DataFrame:
         """
@@ -457,9 +314,6 @@ class ZebrisDataset:
         }
 
         if explain:
-            print("\n--- Processing Summary ---")
-            print(f"Time-Dependent Files: {len(time_dependent_dfs)}")
-            print(f"Single-Value Files: {len(single_value_dfs)}")
             if processing_errors:
                 print("\n--- Processing Errors ---")
                 for error in processing_errors:
@@ -467,128 +321,6 @@ class ZebrisDataset:
 
         return result
 
-    def force_data_as_df(self) -> pd.DataFrame:
-        force_dfs = {}
-
-        def read_force_csv(file):
-            try:
-                df = pd.read_csv(file, skiprows=2, names=["time", "value"])
-            except Exception:
-                df = pd.read_csv(file)
-                df.columns = ["time", "value"]
-            return df
-
-        for file_path in self._raw_data:
-            name = file_path.stem.lower()
-            if "force-curve" in name:
-                df = read_force_csv(file_path)
-
-                if "backfoot" in name:
-                    channel = "backfoot"
-                elif "forefoot" in name:
-                    channel = "forefoot"
-                else:
-                    channel = "foot"
-
-                if name.endswith("-l"):
-                    axis = "left"
-                elif name.endswith("-r"):
-                    axis = "right"
-                else:
-                    axis = "both"
-
-                df = df.set_index("time")
-                df.columns = pd.MultiIndex.from_tuples([(channel, axis)])
-                force_dfs[(channel, axis)] = df
-
-        if not force_dfs:
-            raise ValueError("No force curve files found.")
-
-        # Separate foot_both_df
-        foot_both_df = force_dfs.pop(("foot", "both"), None)
-
-        # Concatenate all DataFrames side by side
-        merged = pd.concat(force_dfs.values(), axis=1)
-
-        # Add foot_both_df if available
-        if foot_both_df is not None:
-            merged = pd.concat([merged, foot_both_df], axis=1)
-
-        # Set MultiIndex column names
-        merged.columns.names = ["channel", "axis"]
-
-        # Sort columns for a clean layout
-        if not merged.empty:
-            merged = merged.sort_index(axis=1, level=["channel", "axis"], sort_remaining=True)
-
-        # Set index name correctly
-        merged.index.name = "time"
-
-        # Drop rows where all values are NaN
-        merged = merged.dropna(how="all")
-
-        return merged
-
-    """def gait_line_data_as_df(self, side: str = 'both') -> pd.DataFrame:
-        for file_path in self._raw_data:
-            name = file_path.stem.lower()
-
-            if "gait-line" in name:
-                # Side filtering
-                if side == 'left' and not name.endswith("-l"):
-                    continue
-                if side == 'right' and not name.endswith("-r"):
-                    continue
-
-                # Read the file
-                df = self._read_gait_line_csv(file_path)
-
-                # Correct and strict source labeling
-                if name == "gait-line-l":
-                    gait_dfs["left"] = df
-                elif name == "gait-line-r":
-                    gait_dfs["right"] = df
-                elif name == "gait-line":
-                    gait_dfs["both"] = df
-
-        if not gait_dfs:
-            raise ValueError(f"No gait-line data found for side='{side}'.")
-
-        # Concatenate all gait line DataFrames
-        df = pd.concat(gait_dfs, axis=1)  # , ignore_index=True)
-        df = df.set_index(df.columns[0])
-        df.index.name = "time"
-        df = df.drop(columns=[col for col in df.columns if "time" in col])
-        df.columns = df.columns.set_names(["channel", "axis"])
-        df = df.dropna(axis=0, how="all")
-        return df
-
-    def pressure_data_as_df(self) -> pd.DataFrame:
-        df = self._processed_data['time_dependent_data']
-        pressure_columns = [col for col in df.columns if col != 'time']
-
-        if not pressure_columns:
-            raise ValueError("No pressure distribution data found in the dataset.")
-
-        return df[pressure_columns].copy()
-        """
-
-    """def patient_info_as_df(self) -> pd.DataFrame:
-        df = self._processed_data['single_value_data']
-
-        if df.empty:
-            raise ValueError("No patient info found.")
-        combined = df.iloc[0].combine_first(df.iloc[1])
-        combined_df = pd.DataFrame([combined])
-
-        return combined_df
-
-    def parameters_as_df(self) -> pd.DataFrame:
-        parameters_files = [f for f in self._raw_data if 'parameters' in f.name.lower()]
-        if not parameters_files:
-            raise ValueError("No parameters file found in the dataset.")
-        return self._read_parameters_csv(parameters_files[0])
-        """
 
     def patient_info_and_parameters_as_df(self) -> pd.DataFrame:
         """
@@ -727,8 +459,6 @@ class ZebrisDataset:
         merged.columns = pd.MultiIndex.from_tuples(multiindex_columns, names=["category", "subgroup", "side", "dimension"])
         merged = merged.sort_index(axis=1)
 
-        flattened_headers = ["-".join(map(str, col)).strip() for col in merged.columns]
-        print(flattened_headers)
 
         return merged
 
