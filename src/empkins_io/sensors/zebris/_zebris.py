@@ -539,7 +539,7 @@ class ZebrisDataset:
         Returns:
             pd.DataFrame: Gait line data with columns ['time', 'x', 'y', 'source']
         """
-        gait_dfs = []
+        gait_dfs = {}
 
         for file_path in self._raw_data:
             name = file_path.stem.lower()
@@ -556,20 +556,23 @@ class ZebrisDataset:
 
                 # Correct and strict source labeling
                 if name == "gait-line-l":
-                    df['source'] = "left"
+                    gait_dfs["left"] = df
                 elif name == "gait-line-r":
-                    df['source'] = "right"
-                else:
-                    df['source'] = "both"
-
-                gait_dfs.append(df)
+                    gait_dfs["right"] = df
+                elif name == "gait-line":
+                    gait_dfs["both"] = df
 
         if not gait_dfs:
             raise ValueError(f"No gait-line data found for side='{side}'.")
 
-        df = pd.concat(gait_dfs, ignore_index=True)
-
-        return df.copy()
+        # Concatenate all gait line DataFrames
+        df = pd.concat(gait_dfs, axis=1)#, ignore_index=True)
+        df = df.set_index(df.columns[0])
+        df.index.name = "time"
+        df = df.drop(columns=[col for col in df.columns if "time" in col])
+        df.columns = df.columns.set_names(["channel", "axis"])
+        df = df.dropna(axis=0, how="all")
+        return df
 
     def pressure_data_as_df(self) -> pd.DataFrame:
         df = self._processed_data['time_dependent_data']
