@@ -399,7 +399,6 @@ class ZebrisDataset:
             return pd.DataFrame()
 
     def separate_data(self, explain: bool = False) -> Dict[str, pd.DataFrame]:
-        # TODO
         """
         Processes raw data files to separate them into time-dependent data and single-value data. This method
         parses and categorizes a collection of CSV files based on their metadata attributes, organizing them
@@ -469,25 +468,6 @@ class ZebrisDataset:
         return result
 
     def force_data_as_df(self) -> pd.DataFrame:
-        """
-        Processes raw force curve data files into a consolidated DataFrame with appropriately
-        labeled and multi-level indexed columns.
-
-        The method reads force curve data files from the raw data list, classifies them into
-        channels ('backfoot', 'forefoot', or 'foot') and axes ('left', 'right', or 'both'),
-        merges them into a single DataFrame, and ensures proper formatting and cleaning.
-
-        Raises
-        ------
-        ValueError
-            If no valid force curve data files are found.
-
-        Returns
-        -------
-        pd.DataFrame
-            A consolidated DataFrame with multi-indexed columns for channel and axis,
-            indexed by time, containing all processed force curve data.
-        """
         force_dfs = {}
 
         def read_force_csv(file):
@@ -549,18 +529,7 @@ class ZebrisDataset:
 
         return merged
 
-    def gait_line_data_as_df(self, side: str = 'both') -> pd.DataFrame:
-        """
-        Load gait-line data (Center of Pressure) for 'left', 'right' or 'both' sides.
-
-        Args:
-            side (str): 'left', 'right', or 'both' (default)
-
-        Returns:
-            pd.DataFrame: Gait line data with columns ['time', 'x', 'y', 'source']
-        """
-        gait_dfs = {}
-
+    """def gait_line_data_as_df(self, side: str = 'both') -> pd.DataFrame:
         for file_path in self._raw_data:
             name = file_path.stem.lower()
 
@@ -602,6 +571,7 @@ class ZebrisDataset:
             raise ValueError("No pressure distribution data found in the dataset.")
 
         return df[pressure_columns].copy()
+        """
 
     """def patient_info_as_df(self) -> pd.DataFrame:
         df = self._processed_data['single_value_data']
@@ -621,6 +591,29 @@ class ZebrisDataset:
         """
 
     def patient_info_and_parameters_as_df(self) -> pd.DataFrame:
+        """
+        Creates and returns a DataFrame containing merged and translated patient information
+        and corresponding parameters.
+
+        This method processes single-value patient data and additional parameter files, merging
+        them into a single DataFrame. The method translates German column headers into English
+        using a predefined dictionary. It also categorizes and re-indexes the columns into a
+        hierarchical multi-index structure based on attributes such as category, subgroup, side,
+        and dimension. Duplicate dimensions are handled by appending a unique identifier to avoid
+        conflicts.
+
+        The method assumes the existence of previously loaded data in the `self._processed_data`
+        and `self._raw_data` attributes and requires at least one parameters file that contains
+        relevant data.
+
+        Raises:
+            ValueError: If either single-value patient data does not exist or no parameters
+            file is available in the provided data.
+
+        Returns:
+            pd.DataFrame: A multi-indexed DataFrame containing processed patient information and
+            parameters, sorted by the multi-index keys.
+        """
         translation_dict = {
             "vorfuß": "forefoot",
             "rückfuß": "rearfoot",
@@ -738,3 +731,84 @@ class ZebrisDataset:
         print(flattened_headers)
 
         return merged
+
+    def time_dependent_data_as_df(self) -> pd.DataFrame:
+        """
+        Merge force-curve and gait-line data into one MultiIndex DataFrame,
+        using the dataset's loaded CSV files.
+        """
+        dfs = []
+
+        for file in self._raw_data:
+            filename = file.stem.lower()
+
+            # Decide type
+            if "gait-line" in filename:
+                type_ = "gait"
+            elif "force-curve" in filename:
+                type_ = "force"
+            else:
+                continue
+
+            # Decide channel
+            if "backfoot" in filename:
+                channel = "backfoot"
+            elif "forefoot" in filename:
+                channel = "forefoot"
+            elif "gait-line-l" in filename:
+                channel = "left"
+            elif "gait-line-r" in filename:
+                channel = "right"
+            else:
+                channel = "both"
+
+            # Decide axis
+            if filename.endswith("-l"):
+                axis = "left"
+            elif filename.endswith("-r"):
+                axis = "right"
+            else:
+                axis = "both"
+
+            # Load and process the CSV
+            if type_ == "gait":
+                df = pd.read_csv(file, skiprows=3)
+                df.columns = [col.strip().lower() for col in df.columns]
+
+                if "time" not in df.columns:
+                    raise ValueError(f"No 'time' column found in {file.name}")
+
+                df = df.set_index("time")
+                df.index = pd.to_numeric(df.index, errors="coerce")
+                df = df.dropna()
+
+                for coord in ["x", "y"]:
+                    if coord in df.columns:
+                        sub_df = df[[coord]].copy()
+                        sub_df.columns = pd.MultiIndex.from_tuples([(type_, channel, coord)])
+                        dfs.append(sub_df)
+            else:  # force curve
+                df = pd.read_csv(file, skiprows=2)
+                df.columns = [col.strip().lower() for col in df.columns]
+
+                if "time" not in df.columns:
+                    raise ValueError(f"No 'time' column found in {file.name}")
+
+                df = df.set_index("time")
+                df.index = pd.to_numeric(df.index, errors="coerce")
+                df = df.dropna()
+
+                sub_df = df[["value"]].copy()
+                sub_df.columns = pd.MultiIndex.from_tuples([(type_, channel, axis)])
+                dfs.append(sub_df)
+
+        if not dfs:
+            raise ValueError("No valid gait-line or force-curve data found.")
+
+        merged = pd.concat(dfs, axis=1)
+        merged.index.name = "time"
+        merged = merged.sort_index()
+        merged = merged.sort_index(axis=1)
+
+        return merged
+
