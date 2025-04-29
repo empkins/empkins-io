@@ -41,6 +41,30 @@ class ZebrisDataset:
     """
 
     def __init__(self, path: Union[str, Path], explain: bool = True):
+        """
+        Initializes an object that processes CSV files from a given file path or directory.
+
+        The constructor verifies whether the provided path is valid. If a directory is
+        provided, it searches for all CSV files within the directory. If it is a single
+        file, it checks whether it is a valid CSV file. The object allows optional
+        logging to indicate the number of files identified. The data are prepared for
+        further processing or analysis.
+
+        Attributes:
+            path (Path): The path to the CSV file or directory containing CSV files.
+            explain (bool): Determines whether to log processing details.
+            _raw_data (List[Path]): A list of valid CSV file paths found in the path.
+            _processed_data (Any): Placeholder for data after processing (implementation dependent).
+
+        Parameters:
+            path (Union[str, Path]): The file path or directory containing CSV files.
+            explain (bool): Optional; Defaults to True. If set to True, logs details
+                            about the files located and data processing.
+
+        Raises:
+            FileNotFoundError: Raised if the provided path is invalid, i.e., not pointing
+                               to a valid CSV file or directory.
+        """
         self.path = Path(path)
         self.explain = explain
 
@@ -58,7 +82,7 @@ class ZebrisDataset:
 
         self._processed_data = self.separate_data(explain=self.explain)
 
-    def _safe_read_csv(self, *args, **kwargs) -> pd.DataFrame:
+    def _read_zebris_csv(self, *args, **kwargs) -> pd.DataFrame:
         try:
             return pd.read_csv(*args, **kwargs)
         except Exception as e:
@@ -96,9 +120,9 @@ class ZebrisDataset:
             return pd.DataFrame()
 
     def _read_generic_signal_csv(self, file_path: Path) -> pd.DataFrame:
-        df = self._safe_read_csv(file_path, skiprows=2)
+        df = self._read_zebris_csv(file_path, skiprows=2)
         if not df.empty:
-            meta = self._safe_read_csv(file_path, nrows=1)
+            meta = self._read_zebris_csv(file_path, nrows=1)
             if not meta.empty:
                 df.attrs.update({
                     'type': meta.iloc[0].get('type', 'unknown'),
@@ -108,14 +132,14 @@ class ZebrisDataset:
         return df
 
     def _read_parameters_csv(self, file_path: Path) -> pd.DataFrame:
-        df = self._safe_read_csv(file_path, quotechar='"', skipinitialspace=True, encoding='utf-8-sig', header=0)
+        df = self._read_zebris_csv(file_path, quotechar='"', skipinitialspace=True, encoding='utf-8-sig', header=0)
         if not df.empty and 'type' in df.columns:
             df = df.drop(columns=['type'])
         df.attrs.update({'type': 'parameter values', 'filename': file_path.stem})
         return df
 
     def _read_patient_info_csv(self, file_path: Path) -> pd.DataFrame:
-        df = self._safe_read_csv(file_path, quotechar='"', skipinitialspace=True, encoding='utf-8-sig', header=0)
+        df = self._read_zebris_csv(file_path, quotechar='"', skipinitialspace=True, encoding='utf-8-sig', header=0)
         if not df.empty and 'type' in df.columns:
             df = df.iloc[:, 1:]
         df.attrs.update({'type': 'patient and record info', 'filename': file_path.stem})
