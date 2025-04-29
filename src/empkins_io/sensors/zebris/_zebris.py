@@ -1,8 +1,11 @@
 import logging
 from pathlib import Path
 from typing import Dict, Union
+
 import pandas as pd
+
 logging.basicConfig(level=logging.INFO, format="%(message)s")
+
 
 class ZebrisDataset:
     """_sensor_dict = {
@@ -110,7 +113,6 @@ class ZebrisDataset:
             df = df.drop(columns=['type'])
         df.attrs.update({'type': 'parameter values', 'filename': file_path.stem})
         return df
-
 
     def _read_patient_info_csv(self, file_path: Path) -> pd.DataFrame:
         df = self._safe_read_csv(file_path, quotechar='"', skipinitialspace=True, encoding='utf-8-sig', header=0)
@@ -321,7 +323,6 @@ class ZebrisDataset:
 
         return result
 
-
     def patient_info_and_parameters_as_df(self) -> pd.DataFrame:
         """
         Creates and returns a DataFrame containing merged and translated patient information
@@ -351,6 +352,7 @@ class ZebrisDataset:
             "rückfuß": "rearfoot",
             "kraft": "force",
             "gesamtkraft": "total force",
+            "gesamt": "total",
             "fläche der 95 vertrauensellipse": "area of 95% confidence ellipse",
             "länge der cop-spur": "cop path length",
             "gemittelte geschwindigkeit": "average velocity",
@@ -387,85 +389,97 @@ class ZebrisDataset:
 
         multiindex_columns = []
         units_to_remove = ["mm", "mm2", "mm/s", "sek", "%", "[", "]", "/", "²"]
-        seen_dimensions = {}
 
         for col in merged.columns:
-            clean_col = col.lower()
+            original_col = col.lower()
+
+            # Detect side
+            if "links" in original_col or "l," in original_col or " l" in original_col:
+                side = "left"
+            elif "rechts" in original_col or "r," in original_col or " r" in original_col:
+                side = "right"
+            else:
+                side = "both"
+
+            # clean column
+            clean_col = original_col
             for unit in units_to_remove:
                 clean_col = clean_col.replace(unit, "")
+            clean_col = clean_col.replace(",", " ").replace("  ", " ").strip()
 
-            clean_col = (clean_col
-                         .replace(",", " ")
-                         .replace("  ", " ")
-                         .strip())
+            # Detect category
+            if "cop" in clean_col:
+                category = "cop"
+            elif "kraft" in clean_col:
+                category = "force"
+            else:
+                category = "measurement info"
 
-            side = "both"
-            if "links" in clean_col:
-                side = "left"
-                clean_col = clean_col.replace("links", "").strip()
-            elif "rechts" in clean_col:
-                side = "right"
-                clean_col = clean_col.replace("rechts", "").strip()
+            # Detect subgroup
+            if "forefoot" in clean_col or "vorfuß" in clean_col:
+                subgroup = "forefoot"
+            elif "rearfoot" in clean_col or "rückfuß" in clean_col:
+                subgroup = "rearfoot"
+            elif "total" in clean_col or "gesamt" in clean_col:
+                subgroup = "total"
+            else:
+                subgroup = ""
 
-            dimension = "value"
-            if " x" in clean_col:
-                dimension = "x"
-                clean_col = clean_col.replace("x", "").strip()
-            elif " y" in clean_col:
-                dimension = "y"
-                clean_col = clean_col.replace("y", "").strip()
-
+            # Translate
             translated = clean_col
             for german, english in translation_dict.items():
                 translated = translated.replace(german, english)
-
             translated = " ".join(translated.split())
 
-            if "cop" in translated.lower() or "average velocity" in translated.lower():
-                category = "cop"
-                if "forefoot" in translated.lower():
-                    subgroup = "forefoot"
-                elif "rearfoot" in translated.lower():
-                    subgroup = "rearfoot"
-                else:
-                    subgroup = "total"
-            elif "force" in translated.lower():
-                category = "force"
-                if "forefoot" in translated.lower():
-                    subgroup = "forefoot"
-                elif "rearfoot" in translated.lower():
-                    subgroup = "rearfoot"
-                else:
-                    subgroup = "total"
-            else:
-                category = "measurement info"
-                subgroup = ""
+            # Detect dimension
+            if category == "measurement info":
                 dimension = translated.lower()
-
-            dimension = " ".join(dimension.split())
-
-            # Handle duplicate dimension names
-            key = (category, subgroup, side, dimension)
-            if key in seen_dimensions:
-                count = seen_dimensions[key] + 1
-                dimension = f"{dimension}_{count}"
-                key = (category, subgroup, side, dimension)
-                seen_dimensions[key] = count
             else:
-                seen_dimensions[key] = 0
+                if " x" in clean_col:
+                    dimension = "x"
+                elif " y" in clean_col:
+                    dimension = "y"
+                elif "spur" in clean_col or "trajectory" in clean_col:
+                    dimension = "path length"
+                elif any(k in clean_col for k in ["kraft", "force", "gesamt"]):
+                    dimension = "percent"
+                elif "messdauer" in clean_col:
+                    dimension = "duration"
+                else:
+                    dimension = "value"
 
             multiindex_columns.append((category, subgroup, side, dimension))
 
-        merged.columns = pd.MultiIndex.from_tuples(multiindex_columns, names=["category", "subgroup", "side", "dimension"])
+        merged.columns = pd.MultiIndex.from_tuples(multiindex_columns,
+                                                   names=["category", "subgroup", "side", "dimension"])
         merged = merged.sort_index(axis=1)
-
 
         return merged
 
     def time_dependent_data_as_df(self) -> pd.DataFrame:
+        # TODO remove 0 values at the end of fore- & backfoot force data?
         """
-        Merge force-curve and gait-line data into one MultiIndex DataFrame,
-        using the dataset's loaded CSV files.
+        Generates a consolidated pandas DataFrame containing time-dependent data from raw CSV files.
+
+        This method processes multiple raw data files, extracts relevant features, and organizes them into a formatted DataFrame.
+        Each file is identified as containing either gait-line or force-curve data, and additional metadata such as channel and axis
+        is determined based on the filename. Files not containing recognizable formats or required time columns are skipped or raise errors.
+
+        Raises errors if no valid files are provided or if required columns are missing. Ensures that the final DataFrame is
+        sorted by time index and column metadata.
+
+        Returns
+        -------
+        pd.DataFrame
+            A pandas DataFrame containing time-dependent data, with multi-index column labels structured as
+            (type, channel, axis/coordinate). The DataFrame is indexed by the time column.
+
+        Raises
+        ------
+        ValueError
+            If no valid gait-line or force-curve data is found among the processed files.
+        ValueError
+            If the CSV file being processed does not include a 'time' column.
         """
         dfs = []
 
@@ -541,4 +555,3 @@ class ZebrisDataset:
         merged = merged.sort_index(axis=1)
 
         return merged
-
