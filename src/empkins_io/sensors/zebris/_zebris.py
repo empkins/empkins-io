@@ -83,6 +83,18 @@ class ZebrisDataset:
         self._processed_data = self.separate_data(explain=self.explain)
 
     def _read_zebris_csv(self, *args, **kwargs) -> pd.DataFrame:
+        """
+        Reads a Zebris CSV file and returns its content as a pandas DataFrame. If the
+        file cannot be read, a warning is logged, and an empty DataFrame is returned.
+
+        Args:
+            *args: Positional arguments passed to pandas.read_csv.
+            **kwargs: Keyword arguments passed to pandas.read_csv.
+
+        Returns:
+            pd.DataFrame: The content of the Zebris CSV file or an empty DataFrame if
+            an error occurs.
+        """
         try:
             return pd.read_csv(*args, **kwargs)
         except Exception as e:
@@ -90,6 +102,33 @@ class ZebrisDataset:
             return pd.DataFrame()
 
     def _read_csv_with_metadata(self, file_path: Path) -> pd.DataFrame:
+        """
+        Reads a CSV file with potential metadata and processes it accordingly.
+
+        This method identifies the type of data in the CSV file based on its filename
+        or the metadata present in its first few lines. Depending on the identified
+        type, it delegates the processing to the appropriate handler method. If the file
+        cannot be recognized or processed, it returns an empty pandas DataFrame.
+
+        Attributes
+        ----------
+        None
+
+        Parameters
+        ----------
+        file_path : Path
+            The path to the CSV file that needs to be read and processed.
+
+        Returns
+        -------
+        pd.DataFrame
+            A pandas DataFrame containing the processed data. If the file type is
+            unrecognized or reading fails, an empty DataFrame is returned.
+
+        Raises
+        ------
+        This method does not re-raise exceptions; instead, it logs them as warnings.
+        """
         try:
             filename = file_path.stem.lower()
             if "parameters" in filename:
@@ -110,7 +149,7 @@ class ZebrisDataset:
             if metadata_type == "signal_2d" and "gait line" in metadata_name:
                 return self._read_gait_line_csv(file_path)
             elif metadata_type in ["signal", "signal_2d", "signal_matrix"]:
-                return self._read_generic_signal_csv(file_path)
+                return self._process_zebris_csv(file_path)
 
             logging.warning(f"Unrecognized file type for {file_path.name}: {metadata_type} / {metadata_name}")
             return pd.DataFrame()
@@ -119,7 +158,31 @@ class ZebrisDataset:
             logging.warning(f"Error reading {file_path.name}: {e}")
             return pd.DataFrame()
 
-    def _read_generic_signal_csv(self, file_path: Path) -> pd.DataFrame:
+    def _process_zebris_csv(self, file_path: Path) -> pd.DataFrame:
+        """
+        Processes a Zebris CSV file and retrieves its data and metadata.
+
+        This method reads a CSV file, parses the primary data from it, and extracts
+        metadata such as type and name based on the file's content. The extracted
+        metadata is stored as attributes of the returned DataFrame.
+
+        Parameters:
+        file_path : Path
+            Path to the Zebris CSV file to be processed.
+
+        Returns:
+        pd.DataFrame
+            A DataFrame containing the parsed data from the file.
+
+        Attributes:
+            type : str
+                Indicates the type of the Zebris data retrieved from the file, extracted
+                from the metadata.
+            name : str
+                Describes the name of the Zebris data, extracted from the file's metadata.
+            filename : str
+                The stem (name without extension) of the CSV file provided in the path.
+        """
         df = self._read_zebris_csv(file_path, skiprows=2)
         if not df.empty:
             meta = self._read_zebris_csv(file_path, nrows=1)
@@ -132,6 +195,22 @@ class ZebrisDataset:
         return df
 
     def _read_parameters_csv(self, file_path: Path) -> pd.DataFrame:
+        """
+        Reads and processes a parameters CSV file.
+
+        This method reads a CSV file containing parameter data, removes the 'type'
+        column if it exists, and then returns the resulting DataFrame with updated
+        attributes for metadata.
+
+        Arguments:
+            file_path (Path): Path to the parameters CSV file.
+
+        Returns:
+            pd.DataFrame: The processed DataFrame with parameter data.
+
+        Raises:
+            None
+        """
         df = self._read_zebris_csv(file_path, quotechar='"', skipinitialspace=True, encoding='utf-8-sig', header=0)
         if not df.empty and 'type' in df.columns:
             df = df.drop(columns=['type'])
@@ -139,6 +218,18 @@ class ZebrisDataset:
         return df
 
     def _read_patient_info_csv(self, file_path: Path) -> pd.DataFrame:
+        """
+        Reads patient information from a CSV file and processes the data into a pandas DataFrame. This method
+        utilizes an internal helper function to handle the CSV reading with specific parameters and then
+        performs additional processing to clean and structure the data.
+
+        Parameters:
+        file_path (Path): The path to the CSV file containing patient information data.
+
+        Returns:
+        pd.DataFrame: A DataFrame containing structured patient information data. The DataFrame includes
+                      additional metadata in its `attrs` attribute, such as the type of data and the filename.
+        """
         df = self._read_zebris_csv(file_path, quotechar='"', skipinitialspace=True, encoding='utf-8-sig', header=0)
         if not df.empty and 'type' in df.columns:
             df = df.iloc[:, 1:]
@@ -147,40 +238,39 @@ class ZebrisDataset:
 
     def _read_force_curve_csv(self, file_path: Path) -> pd.DataFrame:
         """
-        Reads force curve data from a CSV file.
+        Reads a force curve data CSV file and converts it into a pandas DataFrame.
 
-        This method reads a force curve CSV file and loads its contents into a Pandas DataFrame.
-        It uses the `_read_generic_data_file` method internally to process the file.
+        This method specifically reads a CSV file containing force curve data,
+        identified by the given file path, and maps its content into a pandas
+        DataFrame with predefined column names. The method relies on a generic
+        data reading helper function for file processing.
 
-        Args:
-            file_path (Path): The path to the CSV file containing the force curve data.
+        Parameters:
+            file_path (Path): The path to the CSV file containing the force
+                curve data.
 
         Returns:
-            pd.DataFrame: A DataFrame containing the force curve data with columns 'time' and 'value'.
+            pd.DataFrame: A pandas DataFrame containing the processed force
+            curve data with column names 'time' and 'value'.
         """
         return self._read_generic_data_file(file_path, names=['time', 'value'])
 
     def _read_gait_line_csv(self, file_path: Path) -> pd.DataFrame:
         """
-        Reads and parses a CSV file containing gait line data and returns the data as a pandas DataFrame.
-        This method reads metadata from the file and uses a smart detection mechanism to identify
-        the appropriate header and row structure for the data. Metadata such as type and name are
-        extracted from the first two lines of the file and stored as attributes in the resulting DataFrame.
+        Parses gait data from a CSV file and returns it as a pandas DataFrame. The function reads file metadata
+        from the first and second lines of the file, including type and name, and validates the structure of the
+        data against expected column names. Metadata is attached as attributes to the resulting DataFrame.
 
-        Attributes:
-            explain (bool): Determines whether additional information about the parser's actions
-                and the results are printed to the console.
-
-        Parameters:
-            file_path (Path): The path to the CSV file to be read.
+        Arguments:
+        file_path (Path): The path to the CSV file to be read.
 
         Returns:
-            pd.DataFrame: A pandas DataFrame containing the parsed gait line data. The DataFrame
-            includes metadata attributes like `type`, `name`, and `filename` extracted from the CSV file.
+        pd.DataFrame: A DataFrame object containing the parsed data from the CSV file.
+        Metadata attributes 'type', 'name', and 'filename' are also attached to the DataFrame.
 
         Raises:
-            Exception: Catches and handles any exception that occurs during file reading or CSV parsing
-            and returns an empty DataFrame in such cases.
+        Exception: Handles any exceptions that occur while reading the file or processing its contents and
+        returns an empty DataFrame in the event of an error.
         """
         try:
             with open(file_path, 'r', encoding='utf-8-sig') as f:
@@ -215,54 +305,61 @@ class ZebrisDataset:
 
     def _read_pressure_matrix_csv(self, file_path: Path) -> pd.DataFrame:
         """
-        Reads a pressure matrix data file in CSV format and returns it as a DataFrame.
+        Reads a pressure matrix CSV file and returns its data as a pandas DataFrame.
 
-        This method processes a CSV file containing pressure matrix data. It generates
-        column names dynamically before proceeding to read the file using a generic
-        data file reader method.
+        The file is expected to have pressure sensor readings. If a 'time' column exists
+        (typically just zeros or NaNs), it will be dropped automatically.
+        Column names are dynamically assigned as x1, x2, ..., xN.
 
-        Args:
-            file_path (Path): The path to the CSV file to read.
+        Parameters:
+        file_path: Path
+            The path to the CSV file containing pressure matrix data.
 
         Returns:
-            pd.DataFrame: A DataFrame containing the pressure matrix data with
-            dynamically generated column names.
+        pd.DataFrame
+            A pandas DataFrame containing pressure sensor data.
         """
-        dynamic_names = ['time'] + [f'x{i + 1}' for i in range(54)]
-        return self._read_generic_data_file(file_path, names=dynamic_names)
+        try:
+            # Skip metadata
+            df = pd.read_csv(file_path, skiprows=2)
+            if 'time' in df.columns:
+                df = df.drop(columns=['time'])
+            df.columns = [f'x{i + 1}' for i in range(df.shape[1])]
+            # Save metadata
+            df.attrs.update({
+                'type': 'pressure matrix',
+                'filename': file_path.stem
+            })
+
+            return df
+
+        except Exception as e:
+            print(f"Error reading pressure matrix {file_path.name}: {e}")
+            return pd.DataFrame()
 
     def _read_generic_data_file(self, file_path: Path, names: list) -> pd.DataFrame:
         """
-        Reads a generic data file, extracts metadata, and loads the data into a
-        pandas DataFrame with predefined column names. Supports optional output
-        of metadata and DataFrame shape for debugging.
+        Reads a generic data file and converts it into a pandas DataFrame with
+        additional metadata attributes extracted from the first two rows of the file.
 
-        Parameters
-        ----------
-        file_path : Path
+        Attributes from the file include type and name, which are stored in the
+        DataFrame's attributes. The file's stem name is also added to the attributes.
+
+        Parameters:
+        file_path: Path
             The path to the data file to be read.
-        names : list
-            A list of column names to assign to the loaded DataFrame.
+        names: list
+            A list of column names to use for the resulting DataFrame.
 
-        Returns
-        -------
+        Returns:
         pd.DataFrame
-            Loaded data with its associated metadata stored in attributes. Returns
-            an empty DataFrame if there is an exception during the file reading process.
+            A pandas DataFrame object containing the data from the file, with the
+            metadata extracted as attributes. Returns an empty DataFrame if an
+            error occurs during reading.
 
-        Attributes
-        ----------
-        type : str
-            Extracted type metadata from the file, stored in the DataFrame's attributes.
-        name : str
-            Extracted name metadata from the file, stored in the DataFrame's attributes.
-        filename : str
-            The stem of the file name (without extension), stored in the DataFrame's attributes.
-
-        Raises
-        ------
+        Raises:
         Exception
-            Logs an error message if reading the file fails and returns an empty DataFrame.
+            If there is an issue while reading the file or processing its contents.
         """
         try:
             with open(file_path, 'r', encoding='utf-8-sig') as f:
@@ -579,3 +676,27 @@ class ZebrisDataset:
         merged = merged.sort_index(axis=1)
 
         return merged
+
+    def pressure_data_as_df(self) -> pd.DataFrame:
+        """
+        Reads pressure matrix data from available files and combines them into a single
+        DataFrame. This method only processes files that include the term "pressure" in
+        their file name (case-insensitive). The resulting data from all matching files
+        is concatenated for unified access.
+
+        Raises:
+            ValueError: If no files containing pressure matrix data are found.
+
+        Returns:
+            pd.DataFrame: A combined DataFrame containing data from all applicable
+            pressure matrix files.
+        """
+        pressure_files = [f for f in self._raw_data if "pressure" in f.name.lower()]
+
+        if not pressure_files:
+            raise ValueError("No pressure matrix files found.")
+
+        pressure_dfs = [self._read_pressure_matrix_csv(f) for f in pressure_files]
+
+        combined = pd.concat(pressure_dfs, ignore_index=True)
+        return combined
