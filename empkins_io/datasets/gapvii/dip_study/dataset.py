@@ -17,7 +17,8 @@ from empkins_io.datasets.gapvii.dip_study.helper import (
     _load_tfm_data,
     _load_b2b_data,
     _load_start_end_times,
-    _load_empatica_data
+    _load_empatica_data,
+    _load_avro_data
 )
 
 
@@ -36,6 +37,7 @@ class DipStudyDataset(Dataset):
     use_cache: bool
 
     _EMPATICA = ["eda", "temperature", "respiratory-rate", "pulse-rate", "wearing-detection"]
+    _AVRO = ["eda", "bvp"]
     _PHASES = ["rest_1", "cpt", "rest_2", "straw", "rest_3"]
     _SAMPLING_RATES: Dict[str, int] = {
         "radar": 8000000 / 4096 / 2,
@@ -148,6 +150,25 @@ class DipStudyDataset(Dataset):
         return _load_general_information(base_path=self.base_path, column="straw_duration")
     
     @property
+    def subject(self) -> str:
+        if self.is_single(["subject"]):
+            return self.index["subject"][0]
+        return None
+    
+    @property
+    def date(self) -> str:
+        try:
+            if self.is_single(["subject"]):
+                return _load_general_information(base_path=self.base_path, column="date")[self.index["subject"][0]]
+
+            return _load_general_information(base_path=self.base_path, column="date")
+        except KeyError:
+            # Handle the KeyError, e.g., return a default value or log an error
+            print(f"Date was not found in empkins_dip_study.xlsx for subject {self.index['subject'][0]}")
+            print("Please check its protocol file and run fill_dates() method.")
+            return self.DEF_DATE  # or handle the error as needed
+    
+    @property
     def start_end_times(self):
         if self.is_single(["subject"]):
             return _load_start_end_times(self.base_path, self.index["subject"][0])
@@ -186,23 +207,20 @@ class DipStudyDataset(Dataset):
         )
 
     @property
-    def subject(self) -> str:
+    def avro_data(self):
+        # Check if data is requested for a single participant and a single condition
+        if self.is_single(None):
+            return #TODO
+        
+        # Check if data is requested for a single participant
         if self.is_single(["subject"]):
-            return self.index["subject"][0]
-        return None
-    
-    @property
-    def date(self) -> str:
-        try:
-            if self.is_single(["subject"]):
-                return _load_general_information(base_path=self.base_path, column="date")[self.index["subject"][0]]
-
-            return _load_general_information(base_path=self.base_path, column="date")
-        except KeyError:
-            # Handle the KeyError, e.g., return a default value or log an error
-            print(f"Date was not found in empkins_dip_study.xlsx for subject {self.index['subject'][0]}")
-            print("Please check its protocol file and run fill_dates() method.")
-            return self.DEF_DATE  # or handle the error as needed
+            participant_id = self.index["subject"][0]
+            data, fs = _load_avro_data(self.base_path, participant_id, self.date, self.empatica_lr, self.start_end_times, self._AVRO)
+            self._SAMPLING_RATES.update(fs)
+            return data
+        raise ValueError(
+            "AVRO Empatica data can only be accessed for a single participant and for all phases!"
+        )
 
     @property
     def tfm_raw_data(self) -> Dict[str, Dict[str, np.ndarray]]:
@@ -223,7 +241,7 @@ class DipStudyDataset(Dataset):
         if self.is_single(["subject"]):
             participant_id = self.index["subject"][0]
             data, fs = self._get_tfm_data(participant_id, "all")
-            self._SAMPLING_RATES.update(fs)     
+            self._SAMPLING_RATES.update(fs)   
             return data
 
         raise ValueError(

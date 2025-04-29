@@ -8,6 +8,7 @@ from pandas import DataFrame
 from empkins_io.utils._types import path_t
 from empkins_io.sensors.emrad import EmradDataset
 from empkins_io.sensors.tfm import TfmLoader
+from empkins_io.sensors.empatica import EmpaticaDataset
 
 import pandas as pd
 import numpy as np
@@ -27,6 +28,13 @@ PHASE_MAPPING = {
         "Ende Atmung": "end_straw",
 }
 
+# Define folder names for left and right devices
+FOLDER_LEFT = "LEFT1-3YK33141NH"
+FOLDER_RIGHT = "RIGHT-3YK34142G6"
+
+# Define prefix for Empatica data files
+PREFIX_LEFT = "1-1-LEFT1"
+PREFIX_RIGHT = "1-1-RIGHT"
 
 def _build_data_path(base_path: path_t, participant_id: str) -> Path:
     data_path = base_path.joinpath(f"data_per_subject/{participant_id}")
@@ -170,10 +178,10 @@ def _load_empatica_data(base_path: path_t, participant_id: str, date: str, empat
     folder_date = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}"
 
     # Determine LEFT or RIGHT device usage
-    device_side = "LEFT1-3YK33141NH" if empatica_lr == "L" else "RIGHT-3YK34142G6"
+    device_side = FOLDER_LEFT if empatica_lr == "L" else FOLDER_RIGHT
 
     # Determine the filename based on the device side, date, and signal type
-    file_prefix = "1-1-LEFT1" if empatica_lr == "L" else "1-1-RIGHT"
+    file_prefix = PREFIX_LEFT if empatica_lr == "L" else PREFIX_RIGHT
 
     for signal in signal_type:
         # Determine the filename based on the device side, date, and signal type
@@ -203,3 +211,49 @@ def _load_empatica_data(base_path: path_t, participant_id: str, date: str, empat
         data[signal] = df
         
     return data
+
+def _load_avro_data(base_path: path_t, participant_id: str, date: str, empatica_lr: str, start_end_times: tuple[datetime.datetime, datetime.datetime], signal_type: list[str]):
+    data = {signal: [] for signal in signal_type}
+   
+    # Convert date from "dd.mm.yyyy" to "yyyy-mm-dd" for folder matching
+    date_parts = date.split(".")
+    folder_date = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}"
+
+    # Determine LEFT or RIGHT device usage
+    device_side = FOLDER_LEFT if empatica_lr == "L" else FOLDER_RIGHT
+
+    # Determine the filename based on the device side, date, and signal type
+    file_prefix = PREFIX_LEFT if empatica_lr == "L" else PREFIX_RIGHT
+
+    # Build the path to the Empatica data directory for the given participant
+    final_path = base_path.joinpath(f"Empatica/{folder_date}/{device_side}/raw_data/v6/")
+
+    # Sampling rates
+    loader = EmpaticaDataset(
+        path=final_path
+    )
+    fs = loader._sampling_rates_hz
+
+    # List all avro files in the directory
+    avro_files = sorted(final_path.glob("*.avro")) 
+
+    # Iterate over each avro file
+    for file in avro_files:
+        # Load the Empatica data from the specified avro file
+        for signal in signal_type:
+            try:
+                # Load the Empatica data from the specified CSV file
+                sub_loader = EmpaticaDataset(path=file)
+                df = sub_loader.data_as_df(signal)
+                data[signal].append(df)
+            except Exception as e:
+                print(f"Skipping {signal} in {file.name} due to error: {e}")
+
+    # Concatenate all chunks per signal
+    for signal in data:
+        if data[signal]:  # Only if there is some data
+            data[signal] = pd.concat(data[signal])
+        else:
+            data[signal] = pd.DataFrame()  # Or None, depending on your design
+    
+    return data, fs
