@@ -65,17 +65,27 @@ class ZebrisDataset:
         read_raw_pressure_data: bool = False,
     ) -> Self:
         """
-        Creates a ZebrisDataset instance from a folder containing CSV files.
+        Creates an instance of the class using data stored in a specified folder containing CSV files.
 
-        Parameters
-        ----------
-        folder_path : path_t
-            Path to the folder containing CSV files.
+        The method performs data parsing by reading and optionally processing metadata,
+        stance averages, and raw pressure data from the specified folder path. It ensures
+        that the provided path is valid and points to a directory before proceeding with
+        the data extraction.
 
-        Returns
-        -------
-        ZebrisDataset
-            An instance of ZebrisDataset with the data loaded from the specified folder.
+        Arguments:
+            folder_path (path_t): The folder path from which to read data. It can be provided
+                                  as a string or any object supported by Pathlib for file representation.
+            read_metadata (bool): Flag indicating whether to include metadata parsing. Defaults to False.
+            read_stance_average (bool): Flag indicating whether to include parsing of stance average data.
+                                        Defaults to False.
+            read_raw_pressure_data (bool): Flag indicating whether to include processing of raw pressure
+                                           data. Defaults to False.
+
+        Returns:
+            Self: A new instance of the class initialized with the parsed data.
+
+        Raises:
+            FileNotFoundError: If the folder path does not exist or is not a directory.
         """
         # ensure pathlib
         folder_path = Path(folder_path)
@@ -89,28 +99,15 @@ class ZebrisDataset:
 
     def __init__(self, data_dict: dict[str, pd.DataFrame]):
         """
-        Initializes an object that processes CSV files from a given file path or directory.
-
-        The constructor verifies whether the provided path is valid. If a directory is
-        provided, it searches for all CSV files within the directory. If it is a single
-        file, it checks whether it is a valid CSV file. The object allows optional
-        logging to indicate the number of files identified. The data are prepared for
-        further processing or analysis.
+        A class initializer that dynamically sets attributes from a dictionary with DataFrame values.
 
         Attributes:
-            path (Path): The path to the CSV file or directory containing CSV files.
-            explain (bool): Determines whether to log processing details.
-            _raw_data (List[Path]): A list of valid CSV file paths found in the path.
-            _processed_data (Any): Placeholder for data after processing (implementation dependent).
+        data_dict (dict[str, pd.DataFrame]): A dictionary where keys are attribute names
+        and values are pandas DataFrame objects.
 
-        Parameters:
-            path (Union[str, Path]): The file path or directory containing CSV files.
-            explain (bool): Optional; Defaults to True. If set to True, logs details
-                            about the files located and data processing.
-
-        Raises:
-            FileNotFoundError: Raised if the provided path is invalid, i.e., not pointing
-                               to a valid CSV file or directory.
+        Args:
+        data_dict (dict[str, pd.DataFrame]): Dictionary containing attribute names and their
+        corresponding pandas DataFrame values.
         """
 
         for key, val in data_dict.items():
@@ -125,25 +122,24 @@ class ZebrisDataset:
         read_raw_pressure_data: bool = False,
     ) -> dict[str, pd.DataFrame]:
         """
-        Processes raw data files to separate them into time-dependent data and single-value data. This method
-        parses and categorizes a collection of CSV files based on their metadata attributes, organizing them
-        into two separate groups. The method supports optional verbose output for debugging and
-        error handling during processing.
+        Parses a list of file paths to extract and process specific data types, including time
+        series data, aggregated data, metadata, and stance average data. Supports optional
+        reading of metadata and stance average data based on the provided arguments. Raises an
+        exception if raw pressure data is requested as it is not implemented.
 
-        Parameters
-        ----------
-        file_list : list of Path
-            A list of file paths to the CSV files to be processed. The files should contain
-            Zebris data with appropriate metadata attributes.
-        verbose : bool, optional
-            If True, detailed logs are printed during processing. Default is False.
+        Args:
+            file_list (Sequence[Path]): A sequence of file paths to be processed.
+            read_metadata (bool, optional): Whether to read patient metadata files. Defaults to False.
+            read_stance_average (bool, optional): Whether to read stance average files. Defaults to False.
+            read_raw_pressure_data (bool, optional): Whether to read raw pressure data. Defaults to False.
 
-        Returns
-        -------
-        Dict[str, pd.DataFrame]
-            A dictionary containing two keys:
-            - 'time_dependent_data': DataFrame combining all time-dependent data.
-            - 'single_value_data': DataFrame combining all single-value data.
+        Returns:
+            dict[str, pd.DataFrame]: A dictionary containing processed data categories as
+            DataFrame objects. Keys include "data", "aggregated_data", "metadata", and
+            "stance_average_data" depending on the data processed.
+
+        Raises:
+            NotImplementedError: If read_raw_pressure_data is set to True as it is not currently implemented.
         """
         return_dict = {}
         time_series_data = []
@@ -180,7 +176,27 @@ class ZebrisDataset:
     def data_as_df(
         self, *, channel: Optional[str_t] = None, foot: Optional[str_t] = None, foot_region: Optional[str_t] = None
     ) -> pd.DataFrame:
-        """Returns the data as a pandas DataFrame."""
+        """
+        Transforms the internal data structure to a pandas DataFrame, allowing optional filtering by specific channels,
+        feet, or foot regions. Filters are applied if their respective parameters are provided.
+
+        Parameters
+        ----------
+        channel : Optional[str_t]
+            A single channel name or a list of channel names to filter the data. If provided,
+            the data will be filtered to include only the specified channels.
+        foot : Optional[str_t]
+            A single foot name or a list of foot names to filter the data. If provided, the data
+            will be filtered to include only the specified feet.
+        foot_region : Optional[str_t]
+            A single foot region name or a list of foot region names to filter the data. If provided,
+            the data will be filtered to include only the specified foot regions.
+
+        Returns
+        -------
+        pd.DataFrame
+            A pandas DataFrame object containing the filtered or unfiltered data.
+        """
         if isinstance(channel, str):
             channel = [channel]
         if isinstance(foot, str):
