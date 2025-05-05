@@ -9,7 +9,7 @@ from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 from biopsykit.utils.array_handling import downsample
 from scipy.io import loadmat
 
-from src.empkins_io.utils._types import path_t
+from empkins_io.utils._types import path_t
 
 __all__ = ["MisDataset"]
 
