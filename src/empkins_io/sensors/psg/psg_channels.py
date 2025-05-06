@@ -157,7 +157,7 @@ PSG_GROUP_MAPPING_MESA: Dict[PSG_GROUP, Sequence[PSG_CHANNELS_MESA]] = {
         "EEG3_Off",
     ],  # Fz, Cz  # Cz, Oz  # C4, M1
     "ECG": [
-        "EKG" "EKG_Off",
+        "EKGEKG_Off",
         "HR",
         "DHR",
     ],
@@ -261,8 +261,7 @@ def get_full_PSG(system: PSG_SYSTEM) -> Sequence[str]:
         raise ValueError(f"Invalid 'system'! Expected one of {get_args(PSG_SYSTEM)}, got {system}.")
     if system == "mesa":
         return get_args(PSG_CHANNELS_MESA)
-    else:
-        return get_args(PSG_CHANNELS_SOMNO)
+    return get_args(PSG_CHANNELS_SOMNO)
 
 
 def get_psg_channels_by_group(
@@ -288,7 +287,6 @@ def get_psg_channels_by_group(
         raise ValueError(f"Invalid 'body_part_group'! Expected one of {get_args(PSG_GROUP)}, got {PSG_GROUP}.")
     if system == "mesa":
         return PSG_GROUP_MAPPING_MESA[psg_channel_group]
-    elif system == "somno":
+    if system == "somno":
         return PSG_GROUP_MAPPING_SOMNO[psg_channel_group]
-    else:
-        return PSG_GROUP_MAPPING_PD_SLEEP_LAB[psg_channel_group]
+    return PSG_GROUP_MAPPING_PD_SLEEP_LAB[psg_channel_group]

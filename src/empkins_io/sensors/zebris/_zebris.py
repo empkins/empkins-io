@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Dict, Union, Sequence, Optional
+from typing import Optional, Sequence
 
 import pandas as pd
 from typing_extensions import Self
@@ -97,22 +97,24 @@ class ZebrisDataset:
         logging to indicate the number of files identified. The data are prepared for
         further processing or analysis.
 
-        Attributes:
+        Attributes
+        ----------
             path (Path): The path to the CSV file or directory containing CSV files.
             explain (bool): Determines whether to log processing details.
             _raw_data (List[Path]): A list of valid CSV file paths found in the path.
             _processed_data (Any): Placeholder for data after processing (implementation dependent).
 
-        Parameters:
+        Parameters
+        ----------
             path (Union[str, Path]): The file path or directory containing CSV files.
             explain (bool): Optional; Defaults to True. If set to True, logs details
                             about the files located and data processing.
 
-        Raises:
+        Raises
+        ------
             FileNotFoundError: Raised if the provided path is invalid, i.e., not pointing
                                to a valid CSV file or directory.
         """
-
         for key, val in data_dict.items():
             setattr(self, key, val)
 

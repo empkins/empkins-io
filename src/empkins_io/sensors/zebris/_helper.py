@@ -15,11 +15,13 @@ def _read_gait_line_csv(file_path: path_t) -> pd.DataFrame:
     Arguments:
     file_path (Path): The path to the CSV file to be read.
 
-    Returns:
+    Returns
+    -------
     pd.DataFrame: A DataFrame object containing the parsed data from the CSV file.
     Metadata attributes 'type', 'name', and 'filename' are also attached to the DataFrame.
 
-    Raises:
+    Raises
+    ------
     Exception: Handles any exceptions that occur while reading the file or processing its contents and
     returns an empty DataFrame in the event of an error.
     """
@@ -50,11 +52,13 @@ def _read_force_curve_csv(file_path: path_t) -> pd.DataFrame:
     DataFrame with predefined column names. The method relies on a generic
     data reading helper function for file processing.
 
-    Parameters:
+    Parameters
+    ----------
         file_path (Path): The path to the CSV file containing the force
             curve data.
 
-    Returns:
+    Returns
+    -------
         pd.DataFrame: A pandas DataFrame containing the processed force
         curve data with column names 'time' and 'value'.
     """
@@ -98,11 +102,13 @@ def _read_pressure_matrix_csv(file_path: path_t) -> pd.DataFrame:
     (typically just zeros or NaNs), it will be dropped automatically.
     Column names are dynamically assigned as x1, x2, ..., xN.
 
-    Parameters:
+    Parameters
+    ----------
     file_path: Path
         The path to the CSV file containing pressure matrix data.
 
-    Returns:
+    Returns
+    -------
     pd.DataFrame
         A pandas DataFrame containing pressure sensor data.
     """
@@ -134,10 +140,12 @@ def _read_parameters_csv(file_path: path_t) -> pd.DataFrame:
     Arguments:
         file_path (Path): Path to the parameters CSV file.
 
-    Returns:
+    Returns
+    -------
         pd.DataFrame: The processed DataFrame with parameter data.
 
-    Raises:
+    Raises
+    ------
         None
     """
     file_path = Path(file_path)
@@ -226,10 +234,12 @@ def _read_patient_info_csv(file_path: path_t) -> pd.DataFrame:
     utilizes an internal helper function to handle the CSV reading with specific parameters and then
     performs additional processing to clean and structure the data.
 
-    Parameters:
+    Parameters
+    ----------
     file_path (Path): The path to the CSV file containing patient information data.
 
-    Returns:
+    Returns
+    -------
     pd.DataFrame: A DataFrame containing structured patient information data. The DataFrame includes
                   additional metadata in its `attrs` attribute, such as the type of data and the filename.
     """
