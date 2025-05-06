@@ -56,7 +56,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
 
         sampling_rate = _raw_data.frameRate
         self.num_frames = len(_raw_data.acceleration)
-        self._index = np.float_(_raw_data.time) / 1000
+        self._index = np.float64(_raw_data.time) / 1000
         self._tz = tz
 
         self._parse_start_time(_raw_data)

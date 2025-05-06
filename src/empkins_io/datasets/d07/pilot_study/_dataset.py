@@ -8,6 +8,7 @@ from tpcp import Dataset
 
 __all__ = ["D07PilotStudyDataset"]
 
+from empkins_io.sensors.motion_capture.motion_capture_formats import mvnx
 from empkins_io.utils._types import path_t
 
 
@@ -80,3 +81,11 @@ class D07PilotStudyDataset(Dataset):
 
         p_id = self.index["participant"][0]
         # TODO continue
+        file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/mocap/processed/{p_id}-002.mvnx")
+
+        mvnx_data = mvnx.MvnxData(file_path, verbose=True)
+        data = mvnx_data.data
+        data.index = pd.to_timedelta(data.index, unit="s")
+        data.index += mvnx_data.start
+        data.index.name = "time"
+        return data
