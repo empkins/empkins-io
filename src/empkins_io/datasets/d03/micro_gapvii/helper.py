@@ -1,4 +1,5 @@
 import ast
+import json
 import pathlib
 import tarfile
 from pathlib import Path
@@ -11,7 +12,6 @@ from biopsykit.io.nilspod import _handle_counter_inconsistencies_session
 from nilspodlib.exceptions import InvalidInputFileError, SessionValidationError, SynchronisationError
 from pandas import DataFrame
 from tpcp import Dataset
-import json
 
 from empkins_io.datasets.d03.micro_gapvii._custom_synced_session import CustomSyncedSession
 from empkins_io.sensors.emrad import EmradDataset
@@ -20,6 +20,7 @@ from empkins_io.utils.exceptions import (
     NilsPodDataLoadException,
     NilsPodDataNotFoundException,
     SamplingRateMismatchException,
+    TimelogNotFoundException,
 )
 
 
@@ -86,6 +87,7 @@ def _load_timelog(
     timelog = timelog.iloc[:, timelog.columns.get_level_values(0) == phase]
     return timelog
 
+
 def _load_timelog_video(base_path: path_t, participant_id: str, condition: str) -> pd.DataFrame:
     timelog_dir_path = _build_data_path(base_path, participant_id=participant_id, condition=condition).joinpath(
         "timelog/cleaned"
@@ -98,6 +100,7 @@ def _load_timelog_video(base_path: path_t, participant_id: str, condition: str) 
         f"No cleaned timelog file was found for {participant_id}! "
         "Run the 'notebooks/clean_timelog.ipynb' notebook first!"
     )
+
 
 def _load_nilspod_session(base_path: path_t, participant_id: str, condition: str) -> Tuple[pd.DataFrame, float]:
     data_path = _build_data_path(base_path, participant_id=participant_id, condition=condition)

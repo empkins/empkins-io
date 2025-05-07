@@ -1,6 +1,5 @@
 import pandas as pd
 from numpy.linalg import norm
-import numpy as np
 
 
 def find_peak_around_timestamp(time_stamp: pd.Timestamp, series: pd.Series, roi_minutes: float = 1.0):
@@ -53,13 +52,17 @@ def get_xsens_start_and_end(xsens_sync_data: pd.DataFrame, timelog: pd.DataFrame
     xsens_end = find_peak_around_timestamp(second_timestamp, sync_signal)
     return xsens_start, xsens_end
 
-def get_biopac_start(biopac_data:pd.DataFrame, timelog:pd.DataFrame):
+
+def get_biopac_start(biopac_data: pd.DataFrame, timelog: pd.DataFrame):
     biopac_signal = biopac_data["sync"]
     first_timestamp = timelog.Prep.start.iloc[0]
     biopac_start = find_peak_around_timestamp(first_timestamp, biopac_signal)
     return biopac_start
 
-def sync_biopac_with_nilspod(biopac_data:pd.DataFrame, xsens_sync_data: pd.DataFrame, timelog:pd.DataFrame, phase_fine=False):
+
+def sync_biopac_with_nilspod(
+    biopac_data: pd.DataFrame, xsens_sync_data: pd.DataFrame, timelog: pd.DataFrame, phase_fine=False
+):
     # get timestamp of nilspod peak
     xsens_start, _ = get_xsens_start_and_end(xsens_sync_data, timelog, phase_fine=phase_fine)
     # get timestamp of biopac peak
@@ -73,4 +76,3 @@ def sync_biopac_with_nilspod(biopac_data:pd.DataFrame, xsens_sync_data: pd.DataF
     if xsens_start != get_biopac_start(biopac_sync, timelog):
         raise Warning("Biopac and nilspod have different peak timestamps after synchronization.")
     return biopac_sync
-

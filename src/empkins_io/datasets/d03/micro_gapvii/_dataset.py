@@ -33,7 +33,6 @@ from empkins_io.datasets.d03.micro_gapvii.helper import (
     load_opendbm_facial_tremor_data,
     load_opendbm_movement_data,
     load_speaker_diarization,
-    _construct_timelog_path
 )
 from empkins_io.utils._types import path_t
 
@@ -68,7 +67,7 @@ class MicroBaseDataset(Dataset):
         "sternum": "157e",  # sternum
         "sync": "9e02",  # sync with mocap (MASTER)
         "board_broken": "b012",
-        "board": "3d73"
+        "board": "3d73",
         # sync with video (clapper board)
     }
 
@@ -399,25 +398,6 @@ class MicroBaseDataset(Dataset):
         )
 
     @property
-    def timelog(self) -> pd.DataFrame:
-        if self.is_single(None):
-            participant_id = self.index["subject"][0]
-            condition = self.index["condition"][0]
-            phase = self.index["phase"][0]
-            return self._get_timelog(participant_id, condition, phase)
-
-        if self.is_single(["subject", "condition"]):
-            if not self._all_phases_selected():
-                raise ValueError("Timelog can only be accessed for all phases or one specific phase!")
-
-            participant_id = self.index["subject"][0]
-            condition = self.index["condition"][0]
-            return self._get_timelog(participant_id, condition, "all")
-
-        # TODO allow for multiple participants and conditions in the future (return as concatenated dataframe)
-        raise ValueError("Timelog can only be accessed for a single participant and a single condition at once!")
-
-    @property
     def timelog_video(self) -> pd.DataFrame:
         if self.is_single(["subject", "condition"]):
             if not self._all_phases_selected():
@@ -455,12 +435,11 @@ class MicroBaseDataset(Dataset):
     @cached_property
     def nilspod(self) -> pd.DataFrame:
         if self.is_single(None):
-            participant_id = self.index["subject"][0]
-            condition = self.index["condition"][0]
-            self.index["phase"][0]
-
+            # participant_id = self.index["subject"][0]
+            # condition = self.index["condition"][0]
+            # phase = self.index["phase"][0]
             # TODO: load nilspod data for phase
-            return None
+            raise NotImplementedError("Loading nilspod data for a specific phase is not implemented yet!")
         if self.is_single(["subject", "condition"]):
             if not self._all_phases_selected():
                 raise ValueError("NilsPod data can only be accessed for all phases or one specific phase!")
@@ -572,37 +551,35 @@ class MicroBaseDataset(Dataset):
         timelog = _load_timelog(self.base_path, participant_id, condition, phase, self.phase_fine)
         return self._validate_timelog_timestamps(timelog)
 
-    def _get_timelog_path(self,participant_id: str, condition: str, phase: str):
-        return _construct_timelog_path(self.base_path, participant_id, condition)
-
     def _get_timelog_video(self, participant_id: str, condition: str) -> pd.DataFrame:
         return _load_timelog_video(self.base_path, participant_id, condition)
 
     def _all_phases_selected(self) -> bool:
         # check if all phases are selected
-        all_phases_fine = self.phase_fine and (len(self.index["phase"]) == len(self.PHASE_FINE))
-        all_phases_coarse = not self.phase_fine and (len(self.index["phase"]) == len(self.PHASE_COARSE))
+        all_phases_fine = self.phase_fine and (len(self.index["phase"]) == len(self.PHASES_FINE))
+        all_phases_coarse = not self.phase_fine and (len(self.index["phase"]) == len(self.PHASES_COARSE))
         return all_phases_fine or all_phases_coarse
 
     def _validate_timelog_timestamps(self, timelog):
         timelog = timelog.stack().T.reset_index()
         # Define the order of the phases
-        phase_order = self.PHASE_FINE
+        phase_order = self.PHASES_FINE
         # Convert 'phase' to a categorical type with the defined order
-        timelog['phase'] = pd.Categorical(timelog['phase'], categories=phase_order, ordered=True)
+        timelog["phase"] = pd.Categorical(timelog["phase"], categories=phase_order, ordered=True)
         # Sort the DataFrame by the 'phase' column
-        timelog = timelog.sort_values('phase')
+        timelog = timelog.sort_values("phase")
 
         # Shift the 'start' column to get the 'next_start' value for each phase
-        timelog[('time','next_start')] = timelog[('time','start')].shift(-1)
+        timelog[("time", "next_start")] = timelog[("time", "start")].shift(-1)
 
         # Where the 'end' of the current phase is greater than the 'next_start', adjust the 'end'
-        timelog.loc[timelog[('time','end')] > timelog[('time','next_start')], ('time','end')] = timelog[('time','next_start')] - pd.Timedelta(seconds=3)
+        timelog.loc[timelog[("time", "end")] > timelog[("time", "next_start")], ("time", "end")] = timelog[
+            ("time", "next_start")
+        ] - pd.Timedelta(seconds=3)
         timelog = timelog.set_index("phase")
-        timelog = timelog[[("time","start"),("time","end")]].stack().T
+        timelog = timelog[[("time", "start"), ("time", "end")]].stack().T
 
         return timelog
-
 
     # def _get_opendbm_facial_data(self, subject_id: str, condition: str) -> pd.DataFrame:
     #     if self.use_cache:
