@@ -29,8 +29,8 @@ lint.select = [
     "T10",
     # flake8-errmsg
     "EM",
-    # flake8-implicit-str-concat
-    "ISC",
+#    # flake8-implicit-str-concat
+#    "ISC",
     # flake8-pytest-style
     "PT",
     # flake8-return
