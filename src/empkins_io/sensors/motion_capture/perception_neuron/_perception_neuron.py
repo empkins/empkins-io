@@ -104,7 +104,7 @@ class PerceptionNeuronDataset:
 
         Returns
         -------
-        :class:`~empkins_io.sensors.motion_capture.perception_neuron.perception_neuron.PerceptionNeuronDataset`
+        :class:`~empkins_io.sensors.motion_capture.perception_neuron._perception_neuron.PerceptionNeuronDataset`
             Perception Neuron Dataset
 
         """

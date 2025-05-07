@@ -87,6 +87,6 @@ class D07PilotStudyDataset(Dataset):
         mvnx_data = mvnx.MvnxData(file_path, verbose=True)
         data = mvnx_data.data
         data.index = pd.to_timedelta(data.index, unit="s")
-        data.index += mvnx_data.start
+        data.index += mvnx_data.start_time
         data.index.name = "time"
         return data

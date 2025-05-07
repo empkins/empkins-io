@@ -7,6 +7,12 @@ __all__ = [
     "TimelogNotFoundError",
     "NilsPodDataNotFoundError",
     "HeartRateDataNotFoundError",
+    "NilsPodDataLoadError",
+    "SamplingRateMismatchError",
+    "SyncDataNotFoundError",
+    "OpenposeDataNotFoundError",
+    "CleanedOpenposeDataNotFoundError",
+    "TimestampDataNotFoundError",
 ]
 
 

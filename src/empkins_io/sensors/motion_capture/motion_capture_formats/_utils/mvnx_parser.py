@@ -166,9 +166,9 @@ class _MvnxParser:
         self.build = self.root[0].attrib["build"]
         self.comment = self.root[1].text
         self.label = self.root[2].attrib["label"]
-        self.frameRate = self.root[2].attrib["frameRate"]
-        self.segmentCount = self.root[2].attrib["segmentCount"]
-        self.recordingDate = self.root[2].attrib["recDateMSecsSinceEpoch"]
+        self.frameRate = float(self.root[2].attrib["frameRate"])
+        self.segmentCount = int(self.root[2].attrib["segmentCount"])
+        self.recordingDate = int(self.root[2].attrib["recDateMSecsSinceEpoch"])
         self.configuration = self.root[2].attrib["configuration"]
         self.userScenario = self.root[2].attrib["userScenario"]
         self.securityCode = self.root[3].attrib["code"]

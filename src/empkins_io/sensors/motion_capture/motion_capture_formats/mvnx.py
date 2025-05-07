@@ -18,7 +18,7 @@ _RAD_TO_DEG = 57.29578
 class MvnxData(_BaseMotionCaptureDataFormat):
     """Class for handling data from mvnx files."""
 
-    start: datetime = None
+    start_time: datetime = None
     num_frames: int = 0
     sampling_rate_hz: float = 0.0
     segments: list[str] = None
@@ -40,9 +40,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
     _foot_contacts: tuple[str] = ("heel", "toe")
     _tz: str = None
 
-    def __init__(
-        self, file_path: path_t, load_sensor_data: bool = False, tz: str = "Europe/Berlin", *, verbose: bool = True
-    ):
+    def __init__(self, file_path: path_t, load_sensor_data: bool = False, *, verbose: bool = True):
         file_path = Path(file_path)
         _assert_file_extension(file_path, [".mvnx", ".gz"])
         check_file_exists(file_path)
@@ -57,9 +55,8 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         sampling_rate = _raw_data.frameRate
         self.num_frames = len(_raw_data.acceleration)
         self._index = np.float64(_raw_data.time) / 1000
-        self._tz = tz
 
-        self._parse_start_time(_raw_data)
+        self.start_time = self._parse_start_time(_raw_data)
 
         self.joints = list(_raw_data.joints)
         self.sensors = _raw_data.sensors
@@ -77,9 +74,8 @@ class MvnxData(_BaseMotionCaptureDataFormat):
 
     def _parse_start_time(self, _raw_data: _MvnxParser):
         locale.setlocale(locale.LC_TIME, "en_US.UTF-8")
-
-        start_time = pd.to_datetime(_raw_data.recordingDate, unit="ms").tz_localize("UTC").tz_convert(self._tz)
-        self.start = start_time.to_pydatetime()
+        return pd.to_datetime(_raw_data.recordingDate, unit="ms")
+        # self.start = start_time.to_pydatetime()
 
         # try:  # english date format
         #     self.start = datetime.strptime(_raw_data.recordingDate, "%a %b %d %H:%M:%S.%f %Y")

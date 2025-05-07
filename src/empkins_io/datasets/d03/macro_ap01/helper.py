@@ -7,6 +7,7 @@ from biopsykit.io.nilspod import _handle_counter_inconsistencies_session
 from empkins_io.datasets.d03._utils.dataset_utils import get_uncleaned_openpose_data
 from empkins_io.datasets.d03.macro_ap01._custom_synced_session import CustomSyncedSession
 from empkins_io.sensors.motion_capture.motion_capture_formats import mvnx
+from empkins_io.sensors.motion_capture.xsens import XSensDataset
 from empkins_io.utils._types import path_t, str_t
 from empkins_io.utils.exceptions import NilsPodDataNotFoundError
 
@@ -58,9 +59,10 @@ def _load_tsst_mocap_data(
     if not mocap_file.exists():
         raise FileNotFoundError(f"File '{mocap_file}' not found!")
 
-    mvnx_data = mvnx.MvnxData(mocap_file, verbose=verbose)
+    data = XSensDataset.from_mvnx_file(mocap_file, verbose=verbose)
+    data = data.data_as_df(index="local_datetime")
 
-    return mvnx_data.data, mvnx_data.start
+    return data
 
 
 def _load_gait_mocap_data(
@@ -97,7 +99,6 @@ def _load_gait_mocap_data(
 
 def _get_times_for_mocap(
     timelog: pd.DataFrame,
-    start_time: datetime,
     phase: str_t | None = "total",
 ) -> pd.DataFrame:
     if phase == "total":
@@ -109,8 +110,7 @@ def _get_times_for_mocap(
             phase = [phase]
         timelog = timelog.loc[:, phase]
 
-    timelog = (timelog - start_time).apply(lambda x: x.dt.total_seconds())
-    timelog = timelog.T["time"].unstack("start_end")
+    timelog = timelog.T["time"].unstack("start_end").reindex(["start", "end"], level="start_end", axis=1)
     return timelog
 
 

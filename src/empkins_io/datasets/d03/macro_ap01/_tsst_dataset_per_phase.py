@@ -31,6 +31,7 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
         exclude_without_openpose: bool = False,
         exclude_with_arm_errors: bool = False,
         exclude_without_prep: bool = False,
+        exclude_without_gait_tests: bool = False,
         use_cache: bool = True,
         verbose: bool = True,
     ):
@@ -44,6 +45,7 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
             exclude_without_openpose=exclude_without_openpose,
             exclude_with_arm_errors=exclude_with_arm_errors,
             exclude_without_prep=exclude_without_prep,
+            exclude_without_gait_tests=exclude_without_gait_tests,
             verbose=verbose,
         )
 
@@ -76,9 +78,9 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
     def _get_mocap_data_per_phase(
         self, subject_id: str, condition: str, phase: str_t, *, verbose: bool = True
     ) -> pd.DataFrame | dict[str, pd.DataFrame]:
-        data, start = self._get_mocap_data(subject_id, condition, verbose=verbose)
+        data = self._get_mocap_data(subject_id, condition, verbose=verbose)
         timelog = self.timelog_test
-        times = _get_times_for_mocap(timelog, start, phase)
+        times = _get_times_for_mocap(timelog, phase)
 
         if isinstance(phase, str):
             return data.loc[times.loc[phase, "start"] : times.loc[phase, "end"]]

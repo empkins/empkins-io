@@ -44,7 +44,7 @@ def get_claps_from_board_and_timelog(board_data: pd.DataFrame, timelog: pd.DataF
 
 def get_xsens_start_and_end(xsens_sync_data: pd.DataFrame, timelog: pd.DataFrame, phase_fine=False):
     sync_signal = xsens_sync_data["analog_1"]
-    first_timestamp = timelog.Prep.start.iloc[0]
+    first_timestamp = timelog.Prep.start_time.iloc[0]
     second_timestamp = timelog.Math.end.iloc[0] if not phase_fine else timelog.Math_2.end.iloc[0]
     if second_timestamp - first_timestamp > pd.Timedelta(25, "min"):
         # TODO does this need more advanced error handling?
@@ -57,7 +57,7 @@ def get_xsens_start_and_end(xsens_sync_data: pd.DataFrame, timelog: pd.DataFrame
 
 def get_biopac_start(biopac_data: pd.DataFrame, timelog: pd.DataFrame):
     biopac_signal = biopac_data["sync"]
-    first_timestamp = timelog.Prep.start.iloc[0]
+    first_timestamp = timelog.Prep.start_time.iloc[0]
     biopac_start = find_peak_around_timestamp(first_timestamp, biopac_signal)
     return biopac_start
 
