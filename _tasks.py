@@ -10,9 +10,8 @@ HERE = Path(__file__).parent
 def task_docs():
     """Build the html docs using Sphinx."""
     if platform.system() == "Windows":
-        return subprocess.run([HERE / "docs/make.bat", "html"])
-    else:
-        return subprocess.run(["make", "-C", HERE / "docs", "html"])
+        return subprocess.run([HERE / "docs/make.bat", "html"], check=False)
+    return subprocess.run(["make", "-C", HERE / "docs", "html"], check=False)
 
 
 def update_version_strings(file_path, new_version):
@@ -25,7 +24,7 @@ def update_version_strings(file_path, new_version):
         f.write(
             re.sub(
                 version_regex,
-                lambda match: '{}{}"'.format(match.group(1), new_version),
+                lambda match: f'{match.group(1)}{new_version}"',
                 content,
             )
         )

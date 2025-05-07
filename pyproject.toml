@@ -1,41 +1,40 @@
-[tool.poetry]
+[project]
 name = "empkins-io"
-version = "0.1.0"
+version = "0.1.1"
 description = "A Python package to load and convert data from EmpkinS sensors."
-authors = ["Robert Richer <robert.richer@fau.de>"]
+authors = [{ name = "Robert Richer", email = "robert.richer@fau.de" }]
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "pyquaternion>=0.9.9,<0.10",
+    "biopsykit",
+    "h5py>=3.5.0,<4",
+    "tpcp>=2",
+    "resampy>=0.4.2,<0.5",
+    "avro>=1.11.3,<2",
+    "fastavro>=1.4.0,<2",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.8,<3.11"
-numpy = ">=1.19,<1.25"
-pandas = "^1.2.0"
-scipy = "^1.7.0"
-matplotlib = "^3"
-seaborn = "^0.11.1"
-statsmodels = "^0"
-pyquaternion = "^0.9.9"
-biopsykit = {git="https://github.com/mad-lab-fau/BioPsyKit.git", branch="main", extras=["jupyter"]}
-h5py = "^3.5.0"
-tpcp = "^0.13"
-resampy = "^0.4.2"
-# opencv is optional, but required for some functions
-opencv-python = {version="^4.8", optional=true}
+[project.optional-dependencies]
+opencv = ["opencv-python~=4.8"]
 
-[tool.poetry.extras]
-opencv = ["opencv-python"]
+[dependency-groups]
+dev = [
+    "black>=24.8.0,<25",
+    "ruff>=0.6.3,<0.7",
+    "ipykernel>=6.29.5,<7",
+    "ipympl>=0.9.6,<0.10",
+]
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^5.2"
-black = { version="^22", extras=["jupyter", "d"] }
-ruff = "^0.0.261"
-poethepoet = "^0.11.0"
+[tool.uv.sources]
+biopsykit = { git = "https://github.com/mad-lab-fau/BioPsyKit.git", branch = "main" }
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.black]
 line-length = 120
-target-version = ['py38']
+target-version = ['py310']
 exclude = '''
 (
   /(
@@ -67,11 +66,11 @@ _isort = "isort **/*.py"
 _isort_check = "isort **/*.py --check-only"
 
 # Reformat all files using black and sort import
-_format_black = "black ."
-_format_ruff = "ruff . --fix-only"
-format = { sequence = ["_format_black", "_format_ruff"], help = "Format all files." }
-lint = { cmd = "ruff empkins_io --fix", help = "Lint all files with ruff." }
-_lint_ci = "ruff empkins_io --format=github"
+_format = "ruff format ."
+_auto_fix = "ruff check . --fix-only --show-fixes --exit-zero"
+format = ["_auto_fix", "_format"]
+lint = { cmd = "ruff check src --fix", help = "Lint all files with ruff." }
+_lint_ci = "ruff check src --format=github"
 _check_black = "black . --check"
 ci_check = { sequence = ["_check_black", "_lint_ci"], help = "Check all potential format and linting issues." }
 test = {cmd = "pytest --cov=empkins_io --cov-report=xml", help = "Run Pytest with coverage." }
