@@ -29,7 +29,7 @@ class VADAS_Dataset(Dataset):
             "_".join(file.name.split("_")[:2]) for file in self.base_path.joinpath("Sensordaten Luca").glob("*")
         ]
 
-        subject_ids = sorted(list(set(subject_ids)))
+        subject_ids = sorted(set(subject_ids))
 
         index_cols = ["subject", "day", "test"]
         index = product(subject_ids, self.DAYS, self.TEST)
@@ -68,7 +68,7 @@ class VADAS_Dataset(Dataset):
         if not self.is_single("subject") or not self.is_single("day"):
             raise ValueError("Dataset is not single-subject/day dataset!")
         timelog = pd.read_csv(self.base_path.joinpath("timelog_cleaned.csv"))
-        timelog.set_index(["subject", "day"], inplace=True)
+        timelog = timelog.set_index(["subject", "day"])
         start_nilspod = timelog.loc[(self.subject, self.day), "start_nilspod"]
         date = timelog.loc[(self.subject, self.day), "date"].split(",")[0]
         return pd.to_datetime(date + "2024 " + str(start_nilspod), format="%d.%m.%Y %H:%M:%S")
@@ -78,7 +78,7 @@ class VADAS_Dataset(Dataset):
         if not self.is_single("subject") or not self.is_single("day"):
             raise ValueError("Dataset is not single-subject/day dataset!")
         timelog = pd.read_csv(self.base_path.joinpath("timelog_cleaned.csv"))
-        timelog.set_index(["subject", "day"], inplace=True)
+        timelog = timelog.set_index(["subject", "day"])
         start_nilspod = timelog.loc[(self.subject, self.day), "start_cpt"]
         date = timelog.loc[(self.subject, self.day), "date"].split(",")[0]
         return pd.to_datetime(date + "2024 " + str(start_nilspod), format="%d.%m.%Y %H:%M:%S")
