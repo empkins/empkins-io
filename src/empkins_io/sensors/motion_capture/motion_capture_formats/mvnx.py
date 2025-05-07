@@ -160,7 +160,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         return sensor_data
 
     def _parse_df_for_value(self, name: Union[str, List[str]], data: np.ndarray, format: str) -> pd.DataFrame:
-        if format not in self._types.keys():
+        if format not in self._types:
             raise ValueError(f"Expected on of {self._types.keys()}, got {format} instead.")
 
         axis = self._quat if name == "ori" else self._xyz
@@ -190,7 +190,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         return data
 
     def _parse_foot_contacts(self, data: np.ndarray, type: str) -> pd.DataFrame:
-        if type not in self._types.keys():
+        if type not in self._types:
             raise ValueError(f"Expected on of {self._types.keys()}, got {type} instead.")
 
         axis = self._footContacts

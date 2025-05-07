@@ -196,6 +196,7 @@ class PerceptionNeuronDataset:
             raise ValueError(
                 f"More than one bvh file found in {path}. Please make sure only one bvh file is in the folder!"
             )
+        return None
 
     @classmethod
     def _load_calc_data(cls, path: path_t) -> CalcData:
@@ -206,6 +207,7 @@ class PerceptionNeuronDataset:
             raise ValueError(
                 f"More than one calc file found in {path}. Please make sure only one calc file is in the folder!"
             )
+        return None
 
     @classmethod
     def _load_center_mass_data(cls, path: path_t) -> CenterOfMassData:
@@ -217,6 +219,7 @@ class PerceptionNeuronDataset:
                 f"More than one center of mass file found in {path}. "
                 f"Please make sure only one center of mass file is in the folder!"
             )
+        return None
 
     def _add_index(self, data: pd.DataFrame, index: str) -> pd.DataFrame:
         index_names = {

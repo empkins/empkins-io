@@ -84,7 +84,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
             words = re.split("\\s+", line)
             instruction = words[0]
 
-            if instruction == "JOINT" or instruction == "ROOT":
+            if instruction in ("JOINT", "ROOT"):
                 parent = joint_stack[-1] if instruction == "JOINT" else None
                 joint = BvhJoint(words[1], parent)
                 joint_dict[joint.name] = joint
@@ -96,7 +96,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
             elif instruction == "CHANNELS":
                 channels = [re.findall(r"(\w)(position|rotation)", channel)[0] for channel in words[2:]]
                 channels = [(val[1][0:3], val[0].lower()) for val in channels]
-                channel_dict = dict.fromkeys(np.unique([ch[0] for ch in channels]), [])
+                channel_dict = {key: [] for key in np.unique([ch[0] for ch in channels])}
                 channel_dict = {key: val + [ch[1] for ch in channels if key in ch] for key, val in channel_dict.items()}
                 joint_stack[-1].channels = channel_dict
             elif instruction == "OFFSET":

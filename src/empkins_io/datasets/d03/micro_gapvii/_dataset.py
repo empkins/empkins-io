@@ -421,7 +421,7 @@ class MicroBaseDataset(Dataset):
         if self.is_single(None):
             participant_id = self.index["subject"][0]
             condition = self.index["condition"][0]
-            phase = self.index["phase"][0]
+            self.index["phase"][0]
 
             # TODO: load nilspod data for phase
             return None

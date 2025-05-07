@@ -60,7 +60,7 @@ class BaseDataset(Dataset):
             calc_biopac_timelog_shift: Optional[bool] (flag indicating whether to calculate and use the time shift between the
                 BIOPAC event marker and the start of the sync timelog entry to correct start and end times)
             trigger_data_extraction: Optional[bool] (flag indicating whether to trigger the data extraction from the
-                BIOPAC and radar data)
+                BIOPAC and radar data).
 
         Returns
         -------
@@ -91,7 +91,7 @@ class BaseDataset(Dataset):
         This shift is necessary to synchronize the BIOPAC data with the timelog.
         Args:
         Returns:
-            bp_tl_shift: pd.Timedelta
+            bp_tl_shift: pd.Timedelta.
         """
         if not self.is_single(["subject"]):
             raise ValueError(
@@ -111,7 +111,7 @@ class BaseDataset(Dataset):
         Args:
         Returns:
             biopac_data: pd.DataFrame
-            sampling_rate: float
+            sampling_rate: float.
         """
         if not self.is_single(["subject"]):
             raise ValueError("BIOPAC data can only be accessed for one single participant at once")
@@ -128,7 +128,7 @@ class BaseDataset(Dataset):
         Args:
         Returns:
             radar_data: pd.DataFrame
-            sampling_rate: float
+            sampling_rate: float.
         """
         if not self.is_single(["subject"]):
             raise ValueError("Radar data can only be accessed for one single participant at once")
@@ -145,7 +145,7 @@ class BaseDataset(Dataset):
         Args:
         Returns:
             biopac_data: pd.DataFrame
-            sampling_rate: float
+            sampling_rate: float.
         """
         if not self.is_single(["subject"]):
             raise ValueError("BIOPAC data can only be accessed for one single participant at once")
@@ -162,7 +162,7 @@ class BaseDataset(Dataset):
         Args:
         Returns:
             radar_data: pd.DataFrame
-            sampling_rate: float
+            sampling_rate: float.
         """
         if not self.is_single(["subject"]):
             raise ValueError("Radar data can only be accessed for one single participant at once")
@@ -179,7 +179,7 @@ class BaseDataset(Dataset):
         Args:
         Returns:
             biopac_data: pd.DataFrame
-            sampling_rate: float
+            sampling_rate: float.
         """
         if not self.is_single(None):
             raise ValueError("BIOPAC data can only be accessed for one single location at once")
@@ -196,7 +196,7 @@ class BaseDataset(Dataset):
         Args:
         Returns:
             radar_data: pd.DataFrame
-            sampling_rate: float
+            sampling_rate: float.
         """
         if not self.is_single(None):
             raise ValueError("Radar data can only be accessed for one single location at once")
@@ -212,7 +212,7 @@ class BaseDataset(Dataset):
         Return the timelog data for the currently selected dataset, if only one participant is selected
         Args:
         Returns:
-            timelog: pd.DataFrame
+            timelog: pd.DataFrame.
         """
         if not self.is_single(["subject"]):
             raise ValueError("Timelog can only be accessed for one single participant at once")
@@ -227,7 +227,7 @@ class BaseDataset(Dataset):
         Returns the all timelog entries for the current participant
         Args:
         Returns:
-            timelog: pd.DataFrame
+            timelog: pd.DataFrame.
         """
         if not self.is_single(["subject"]):
             raise ValueError("Timelog can only be accessed for one single participant at once")
@@ -240,7 +240,7 @@ class BaseDataset(Dataset):
         Returns the study protocol information for the current participant
         Args:
         Returns:
-            protocol: pd.DataFrame
+            protocol: pd.DataFrame.
         """
         if not self.is_single(["subject"]):
             raise ValueError("Protocol Information can only be accessed for one single participant at once")
@@ -254,7 +254,7 @@ class BaseDataset(Dataset):
         measurements at the aorta where the breath holding is performed.
         Args:
         Returns:
-            apnea_seg: Dict
+            apnea_seg: Dict.
         """
         if not self.is_single(["subject"]):
             raise ValueError("Apnea Segmentation can only be accessed for one single participant at once")
@@ -268,7 +268,7 @@ class BaseDataset(Dataset):
         Returns the path to the timelog file for the current participant
         Args:
         Returns:
-            timelog_path: Path
+            timelog_path: Path.
         """
         if not self.is_single(["subject"]):
             raise ValueError("Timelog path can only be accessed for one single participant at once")
@@ -282,7 +282,7 @@ class BaseDataset(Dataset):
         Returns the path to the protocol file for the current participant
         Args:
         Returns:
-            protocol_path: Path
+            protocol_path: Path.
         """
         if not self.is_single(["subject"]):
             raise ValueError("Protocol path can only be accessed for one single participant at once")
@@ -296,7 +296,7 @@ class BaseDataset(Dataset):
         Returns the visual heart sound segmentation for the current participant
         Args:
         Returns:
-            visual_seg: pd.DataFrame
+            visual_seg: pd.DataFrame.
         """
         if not self.is_single(["subject"]):
             raise ValueError("Visual Inspection Segmentation can only be accessed for one single participant at once")
@@ -313,7 +313,7 @@ class BaseDataset(Dataset):
         Returns the BIOPAC flipping information for the current participant
         Args:
         Returns:
-            flipping_data: pd.DataFrame
+            flipping_data: pd.DataFrame.
         """
         flipping_data = self._get_flipping("biopac")
         if self.is_single(["subject"]):
@@ -327,7 +327,7 @@ class BaseDataset(Dataset):
         Returns the radar flipping information for the current participant
         Args:
         Returns:
-            flipping_data: pd.DataFrame
+            flipping_data: pd.DataFrame.
         """
         flipping_data = self._get_flipping("emrad")
         if self.is_single(["subject"]):
@@ -342,7 +342,7 @@ class BaseDataset(Dataset):
         Args:
             data: pd.DataFrame (data frame containing the data to be saved)
             file_name: str (name of the file to be saved)
-            sub_dir: Optional[str] (path to subdirectory in "data_per_location", e.g., "ensemble_averaging/all")
+            sub_dir: Optional[str] (path to subdirectory in "data_per_location", e.g., "ensemble_averaging/all").
 
         Returns
         -------
@@ -367,7 +367,7 @@ class BaseDataset(Dataset):
         Load a dataframe from a file in the "data_per_location" sub-folder for the respective participant.
         Args:
             file_name: str (name of the file to be loaded)
-            sub_dir: Optional[str] (path to subdirectory in "data_per_location", e.g., "ensemble_averaging/all")
+            sub_dir: Optional[str] (path to subdirectory in "data_per_location", e.g., "ensemble_averaging/all").
 
         Returns
         -------

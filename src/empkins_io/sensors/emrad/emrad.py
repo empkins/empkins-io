@@ -175,7 +175,7 @@ class EmradDataset:
         _assert_file_extension(path, (".h5", ".hd5"))
 
         file: h5py.File = h5py.File(path, mode="r")
-        if "Radar" not in file.keys():
+        if "Radar" not in file:
             raise InvalidFileFormatError(
                 f"Invalid file format! Expected HDF5 file with 'Radar' as key. Got {list(file.keys())}."
             )

@@ -198,10 +198,10 @@ def _read_parameters_csv(file_path: path_t) -> pd.DataFrame:
         if "cop" in col:
             # if "cop" is the first element, it's from the total foot
             if "cop" in col[0]:
-                col = ["total"] + col
+                col = ["total", *col]
             # if the last element is NOT "left" or "right", it's from the total foot => add this as the last element
             if col[-1] not in ["left", "right"]:
-                col = col + ["both"]
+                col = [*col, "both"]
             col = [col[1], col[-1], col[0], col[2]]
             col[0] = "average_cop"
         # handle force
@@ -277,7 +277,7 @@ def _read_stance_average_csv(file_path: path_t) -> pd.DataFrame:
     data = pd.read_csv(file_path, skiprows=2)
     data = data.drop(columns="time")
     data.index.name = "y"
-    data.columns = [i for i in range(data.shape[1])]
+    data.columns = list(range(data.shape[1]))
     data.columns.name = "x"
 
     return data

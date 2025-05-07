@@ -2,8 +2,8 @@ from itertools import product
 from typing import Optional, Sequence
 
 import pandas as pd
-from biopsykit.utils.file_handling import get_subject_dirs
 from biopsykit.io import load_atimelogger_file
+from biopsykit.utils.file_handling import get_subject_dirs
 from tpcp import Dataset
 
 __all__ = ["D07PilotStudyDataset"]
@@ -67,7 +67,7 @@ class D07PilotStudyDataset(Dataset):
             raise ValueError("Time logs can only be accessed for a single participant!")
 
         p_id = self.index["participant"][0]
-        phases = self.index["phase"].unique()
+        self.index["phase"].unique()
         file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/timelogs/cleaned/{p_id}_timelog.csv")
 
         data = load_atimelogger_file(file_path)

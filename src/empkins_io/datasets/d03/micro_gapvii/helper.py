@@ -48,7 +48,7 @@ def _load_biopac_data(
             f"Biopac sampling rates are not the same for every channel! Found sampling rates: {sampling_rates}"
         )
 
-    fs = list(sampling_rates)[0]
+    fs = next(iter(sampling_rates))
     return biopac_df, fs
 
 

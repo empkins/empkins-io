@@ -206,7 +206,7 @@ class SyncedDataset:
                 )
         dict_lags = {}
 
-        sync_params["sampling_rate"] = list(sampling_rates)[0]
+        sync_params["sampling_rate"] = next(iter(sampling_rates))
 
         sync_channel_primary = "Sync_Out"
 
@@ -301,7 +301,7 @@ class SyncedDataset:
                     "common sampling rate using `SyncedDataset.resample_datasets()`."
                 )
 
-        sync_params["sampling_rate"] = list(sampling_rates)[0]
+        sync_params["sampling_rate"] = next(iter(sampling_rates))
         sync_channel_primary = self.datasets[primary]["sync_channel"]
 
         fs = sync_params["sampling_rate"]
@@ -504,14 +504,14 @@ class SyncedDataset:
         return lag_samples
 
     def _check_valid_index(self, data: pd.DataFrame):
-        index_type = list({type(dataset["data"].index) for dataset in self.datasets.values()})[0]
+        index_type = next(iter({type(dataset["data"].index) for dataset in self.datasets.values()}))
         new_index_type = type(data.index)
         if index_type != new_index_type:
             raise ValidationError(
                 f"Indices of all added datasets must be of the same type. Got {[index_type, new_index_type]}."
             )
         # check that the index names of the datasets are the same
-        index_name = list({dataset["data"].index.name for dataset in self.datasets.values()})[0]
+        index_name = next(iter({dataset["data"].index.name for dataset in self.datasets.values()}))
         new_index_name = data.index.name
         if index_name != new_index_name:
             raise ValidationError(

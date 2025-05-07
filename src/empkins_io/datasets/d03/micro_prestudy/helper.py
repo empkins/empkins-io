@@ -248,7 +248,7 @@ def _load_and_split_data(
 
     if len(dict_data) == 1:
         # "squeeze" dictionary if it only contains one entry
-        return list(dict_data.values())[0]
+        return next(iter(dict_data.values()))
     return dict_data
 
 
@@ -364,7 +364,7 @@ def load_annotations(annotation_file: path_t, artifact: Optional[str_t] = None) 
 def _find_study_part_file(path: path_t, study_part: str, file_ending: str):
     files = list(path.glob(file_ending))
     try:
-        file = [f for f in files if study_part in Path(f).stem.lower()][0]
+        file = next(f for f in files if study_part in Path(f).stem.lower())
     except IndexError:
         raise ValueError(f"No corresponding file for study part '{study_part}' in folder {path}!")
     return file

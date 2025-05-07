@@ -89,7 +89,7 @@ class EmpaticaDataset:
         prev_last_timestamp = None
         sampling_frequencies = []
 
-        start_time_unix = self._raw_data[list(self._raw_data.keys())[0]]["rawData"][sensor]["timestampStart"]
+        start_time_unix = self._raw_data[next(iter(self._raw_data.keys()))]["rawData"][sensor]["timestampStart"]
 
         for file in self._raw_data:
             sensor_dict = self._raw_data[file]["rawData"][sensor]
@@ -107,7 +107,7 @@ class EmpaticaDataset:
 
             out[file] = df
         out_df = pd.concat(out).droplevel(0)
-        out_df.reset_index(inplace=True, drop=True)
+        out_df = out_df.reset_index(drop=True)
 
         return self._add_index(
             out_df,

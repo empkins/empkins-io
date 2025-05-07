@@ -1,3 +1,4 @@
+import contextlib
 import json
 from functools import cached_property, lru_cache
 from pathlib import Path
@@ -108,10 +109,8 @@ class MacroStudyTsstDataset(MacroBaseDataset):
             def object_hook(self, obj):
                 if type(obj) is dict:
                     for key, data in obj.items():
-                        try:
+                        with contextlib.suppress(Exception):
                             obj[key] = pd.to_timedelta(data)
-                        except:
-                            pass
                     return obj
                 try:
                     return pd.to_timedelta(obj)

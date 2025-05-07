@@ -1,7 +1,7 @@
 line-length = 120
 target-version = "py38"
 
-select = [
+lint.select = [
     # pyflakes
     "F",
     # pycodestyle
@@ -60,7 +60,7 @@ select = [
     "RUF"
 ]
 
-ignore = [
+lint.ignore = [
     # No explicit stacklevel keyword argument found in logging calls
     "B028",
     # controversial
@@ -94,8 +94,7 @@ ignore = [
     "PD013"
 ]
 
-
-exclude = [
+lint.exclude = [
     "doc/sphinxext/*.py",
     "doc/build/*.py",
     "doc/temp/*.py",
@@ -104,12 +103,12 @@ exclude = [
     "examples"
 ]
 
-[pylint]
+[lint.pylint]
 max-args = 10
 
-[pydocstyle]
+[lint.pydocstyle]
 convention = "numpy"
 
-[pyupgrade]
+[lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.
 keep-runtime-typing = true

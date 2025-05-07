@@ -88,7 +88,7 @@ class _BaseMotionCaptureProcessor(ABC):
         data: pd.DataFrame,
         drift_data: pd.DataFrame,
         body_parts: Sequence[str],
-        filter_params: Dict[str, Any] = None,
+        filter_params: Optional[Dict[str, Any]] = None,
     ) -> pd.DataFrame:
         data_before = data.loc[:, body_parts]
         sos = ss.butter(

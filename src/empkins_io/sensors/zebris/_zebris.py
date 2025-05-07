@@ -47,7 +47,7 @@ class ZebrisDataset:
         "total time": ["values"],  # parameters.csv
         "Area of the 95% confidence ellipse": ["values"],  # parameters.csv [mm2]
         "average velocity": ["values"],  # parameters.csv [mm/s]
-    }
+    }.
     """
 
     data: pd.DataFrame

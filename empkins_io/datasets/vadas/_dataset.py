@@ -1,4 +1,3 @@
-from functools import lru_cache
 from itertools import product
 from typing import Optional, Sequence, Tuple
 
@@ -10,7 +9,6 @@ from empkins_io.utils._types import path_t
 
 
 class VADAS_Dataset(Dataset):
-
     ECG_SAMPLING_RATE = 256
 
     DAYS = ["U1", "U2"]
@@ -28,8 +26,7 @@ class VADAS_Dataset(Dataset):
 
     def create_index(self):
         subject_ids = [
-            "_".join(file.name.split("_")[:2])
-            for file in self.base_path.joinpath("Sensordaten Luca").glob("*")
+            "_".join(file.name.split("_")[:2]) for file in self.base_path.joinpath("Sensordaten Luca").glob("*")
         ]
 
         subject_ids = sorted(list(set(subject_ids)))
@@ -74,9 +71,7 @@ class VADAS_Dataset(Dataset):
         timelog.set_index(["subject", "day"], inplace=True)
         start_nilspod = timelog.loc[(self.subject, self.day), "start_nilspod"]
         date = timelog.loc[(self.subject, self.day), "date"].split(",")[0]
-        return pd.to_datetime(
-            date + "2024 " + str(start_nilspod), format="%d.%m.%Y %H:%M:%S"
-        )
+        return pd.to_datetime(date + "2024 " + str(start_nilspod), format="%d.%m.%Y %H:%M:%S")
 
     @property
     def start_time_cpt(self) -> pd.Timestamp:
@@ -86,18 +81,10 @@ class VADAS_Dataset(Dataset):
         timelog.set_index(["subject", "day"], inplace=True)
         start_nilspod = timelog.loc[(self.subject, self.day), "start_cpt"]
         date = timelog.loc[(self.subject, self.day), "date"].split(",")[0]
-        return pd.to_datetime(
-            date + "2024 " + str(start_nilspod), format="%d.%m.%Y %H:%M:%S"
-        )
+        return pd.to_datetime(date + "2024 " + str(start_nilspod), format="%d.%m.%Y %H:%M:%S")
 
-    def _load_nilspod_session(
-        self, subject_id: str, day: str
-    ) -> Tuple[pd.DataFrame, float]:
-        nilspod_files = sorted(
-            self.base_path.joinpath("Sensordaten Luca").glob(
-                f"{subject_id}_{day}_*.bin"
-            )
-        )
+    def _load_nilspod_session(self, subject_id: str, day: str) -> Tuple[pd.DataFrame, float]:
+        nilspod_files = sorted(self.base_path.joinpath("Sensordaten Luca").glob(f"{subject_id}_{day}_*.bin"))
 
         if len(nilspod_files) == 0:
             raise ValueError("No NilsPod file found!")

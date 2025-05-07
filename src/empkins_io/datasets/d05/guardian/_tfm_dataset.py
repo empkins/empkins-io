@@ -101,7 +101,7 @@ class GuardianTiltTableDataset(Dataset):
             data["description"] = data["description"].apply(lambda s: ast.literal_eval(s))
 
             if self.is_single(None):
-                rows = data[data["description"].apply(lambda x: phases[0] in x.keys())]
+                rows = data[data["description"].apply(lambda x: phases[0] in x)]
                 start = rows["time"].iloc[0]
                 end = rows["time"].iloc[1]
                 tfm_data = tfm_data[phases[0]]
@@ -221,6 +221,6 @@ class GuardianTiltTableDataset(Dataset):
             return None
         data = pd.read_csv(annotations_path)[["pos", "description"]]
         data["description"] = data["description"].apply(lambda s: ast.literal_eval(s))
-        rows = data[data["description"].apply(lambda x: phase in x.keys())]
+        rows = data[data["description"].apply(lambda x: phase in x)]
         rows = rows.reset_index()
         return rows

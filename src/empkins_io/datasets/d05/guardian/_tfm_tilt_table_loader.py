@@ -110,7 +110,7 @@ class TFMTiltTableLoader:
 
                 new_data[recording_key][ecg_key] = recording_value
 
-        for key2, value2 in new_data.items():
+        for key2, _value2 in new_data.items():
             new_data[key2] = pd.concat(
                 [
                     pd.Series(new_data[key2]["ecg_1"]),
