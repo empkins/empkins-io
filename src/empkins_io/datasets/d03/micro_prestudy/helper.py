@@ -1,7 +1,7 @@
+from collections.abc import Sequence
 from datetime import datetime, time, timedelta
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Optional, Sequence, Tuple, Union
 
 import pandas as pd
 from biopsykit.io import load_pandas_dict_excel, load_time_log
@@ -41,7 +41,7 @@ __all__ = [
 MAX_SHIFT = 5
 
 
-def build_data_path(base_path: path_t, subject_id: str, condition: Optional[str] = None) -> Path:
+def build_data_path(base_path: path_t, subject_id: str, condition: str | None = None) -> Path:
     if condition is None:
         path = Path(base_path).joinpath(f"data_per_subject/{subject_id}")
     else:
@@ -66,11 +66,11 @@ def load_ecg_data(
     subject_id: str,
     condition: str,
     study_part: str,
-    phase: Optional[str_t] = None,
-    subphase: Optional[str_t] = None,
-    artifact: Optional[str_t] = None,
-    use_cache: Optional[bool] = True,
-) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    phase: str_t | None = None,
+    subphase: str_t | None = None,
+    artifact: str_t | None = None,
+    use_cache: bool | None = True,
+) -> pd.DataFrame | dict[str, pd.DataFrame]:
     file_path = build_data_path(base_path, subject_id, condition)
     file_path = file_path.joinpath("ecg/raw")
     ecg_files = sorted(file_path.glob("*.bin"))
@@ -91,11 +91,11 @@ def load_ecg_hr(
     subject_id: str,
     condition: str,
     study_part: str,
-    phase: Optional[str_t] = None,
-    subphase: Optional[str_t] = None,
-    artifact: Optional[str_t] = None,
-    use_cache: Optional[bool] = True,
-) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    phase: str_t | None = None,
+    subphase: str_t | None = None,
+    artifact: str_t | None = None,
+    use_cache: bool | None = True,
+) -> pd.DataFrame | dict[str, pd.DataFrame]:
     file_path = build_data_path(base_path, subject_id, condition)
     file_path = file_path.joinpath("ecg/processed")
     ecg_file = _find_study_part_file(file_path, study_part, "*.csv")
@@ -115,11 +115,11 @@ def load_mis_data(
     subject_id: str,
     condition: str,
     study_part: str,
-    phase: Optional[str_t] = None,
-    subphase: Optional[str_t] = None,
-    artifact: Optional[str_t] = None,
-    use_cache: Optional[bool] = True,
-) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    phase: str_t | None = None,
+    subphase: str_t | None = None,
+    artifact: str_t | None = None,
+    use_cache: bool | None = True,
+) -> pd.DataFrame | dict[str, pd.DataFrame]:
     file_path = build_data_path(base_path, subject_id, condition)
     file_path = file_path.joinpath("radar/processed")
     file_path = sorted(file_path.glob("*.xlsx"))[0]
@@ -138,11 +138,11 @@ def load_hr_synced(
     subject_id: str,
     condition: str,
     study_part: str,
-    phase: Optional[str_t] = None,
-    subphase: Optional[str_t] = None,
-    artifact: Optional[str_t] = None,
-    use_cache: Optional[bool] = True,
-) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    phase: str_t | None = None,
+    subphase: str_t | None = None,
+    artifact: str_t | None = None,
+    use_cache: bool | None = True,
+) -> pd.DataFrame | dict[str, pd.DataFrame]:
     file_path = build_data_path(base_path, subject_id, condition)
     file_path = file_path.joinpath("hr_synced")
     file_path = sorted(file_path.glob("*.xlsx"))[0]
@@ -160,10 +160,10 @@ def load_emotion_data(
     subject_id: str,
     condition: str,
     study_part: str,
-    phase: Optional[str_t] = None,
-    subphase: Optional[str_t] = None,
-    use_cache: Optional[bool] = True,
-) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    phase: str_t | None = None,
+    subphase: str_t | None = None,
+    use_cache: bool | None = True,
+) -> pd.DataFrame | dict[str, pd.DataFrame]:
     file_path = build_data_path(base_path, subject_id, condition)
     file_path = file_path.joinpath(
         f"video/processed/emotion_data_{subject_id}_{condition}_{STUDY_PART_DICT_VIDEO[study_part]}.csv"
@@ -181,10 +181,10 @@ def load_dominant_emotion_data(
     subject_id: str,
     condition: str,
     study_part: str,
-    phase: Optional[str_t] = None,
-    subphase: Optional[str_t] = None,
-    use_cache: Optional[bool] = True,
-) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    phase: str_t | None = None,
+    subphase: str_t | None = None,
+    use_cache: bool | None = True,
+) -> pd.DataFrame | dict[str, pd.DataFrame]:
     file_path = build_data_path(base_path, subject_id, condition)
     file_path = file_path.joinpath(
         f"video/processed/dominant_emotion_{subject_id}_{condition}_{STUDY_PART_DICT_VIDEO[study_part]}.csv"
@@ -202,11 +202,11 @@ def _load_and_split_data(
     timelog: pd.DataFrame,
     annotations: pd.DataFrame,
     study_part: str_t,
-    phase: Optional[str_t] = None,
-    subphase: Optional[str_t] = None,
-    artifact: Optional[str_t] = None,
-    sync_interval: Optional[Tuple[time, time]] = None,
-) -> Union[Sequence[pd.DataFrame], pd.DataFrame, Dict[str, Union[pd.DataFrame, Sequence[pd.DataFrame]]]]:
+    phase: str_t | None = None,
+    subphase: str_t | None = None,
+    artifact: str_t | None = None,
+    sync_interval: tuple[time, time] | None = None,
+) -> Sequence[pd.DataFrame] | pd.DataFrame | dict[str, pd.DataFrame | Sequence[pd.DataFrame]]:
     dict_data = {}
     if annotations is not None and annotations.empty:
         # no annotations of this type exist for these specs -> return empty dataframe
@@ -218,11 +218,7 @@ def _load_and_split_data(
             # first phase until the end of the last phase
             if artifact is None:
                 # return Dataframe without further splitting
-                if study_part == "pre":
-                    # edge case because pre contains total and baseline
-                    end_time_idx = 1
-                else:
-                    end_time_idx = -1
+                end_time_idx = 1 if study_part == "pre" else -1
                 return data.between_time(timelog.iloc[0, 0], timelog.iloc[0, end_time_idx])
             relevant_data, relevant_annotations = _cut_data_to_timelog(data, annotations, timelog, study_part)
             return extract_annotated_data(relevant_data, relevant_annotations, sync_interval)
@@ -252,7 +248,7 @@ def _load_and_split_data(
     return dict_data
 
 
-def _get_annotation_start_and_end(annotations: pd.DataFrame) -> Tuple[pd.Series, pd.Series]:
+def _get_annotation_start_and_end(annotations: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
     start = annotations["start_time"].str.split(" ", expand=True).iloc[:, 1]
     end = annotations["end_time"].str.split(" ", expand=True).iloc[:, 1]
     return start, end
@@ -260,14 +256,10 @@ def _get_annotation_start_and_end(annotations: pd.DataFrame) -> Tuple[pd.Series,
 
 def _cut_data_to_timelog(
     data: pd.DataFrame, annotations: pd.DataFrame, timelog: pd.DataFrame, study_part: str_t
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     # split data and annotations into lists of relevant parts
     start, end = _get_annotation_start_and_end(annotations)
-    if study_part == "pre":
-        # edge case because pre contains total and baseline
-        end_time_idx = 1
-    else:
-        end_time_idx = -1
+    end_time_idx = 1 if study_part == "pre" else -1
     timelog_start = timelog.iloc[0, 0]
     timelog_end = timelog.iloc[0, end_time_idx]
     # exclude all annotations without overlap with timelog interval
@@ -282,10 +274,10 @@ def load_timelog_file(
     base_path: path_t,
     subject_id: str,
     condition: str,
-    study_part: Optional[str_t] = None,
-    phase: Optional[str_t] = None,
-    subphase: Optional[str_t] = None,
-    use_cache: Optional[bool] = True,
+    study_part: str_t | None = None,
+    phase: str_t | None = None,
+    subphase: str_t | None = None,
+    use_cache: bool | None = True,
 ):
     if isinstance(phase, str):
         phase = [phase]
@@ -312,9 +304,9 @@ def load_annotation_file(
     base_path: path_t,
     subject_id: str,
     condition: str,
-    study_part: Optional[str_t] = None,
-    artifact: Optional[str_t] = None,
-    use_cache: Optional[bool] = True,
+    study_part: str_t | None = None,
+    artifact: str_t | None = None,
+    use_cache: bool | None = True,
 ):
     file_path = build_data_path(base_path, subject_id, condition)
     file_path = file_path.joinpath("annotations")
@@ -323,13 +315,13 @@ def load_annotation_file(
     return annotations
 
 
-def load_annotations(annotation_file: path_t, artifact: Optional[str_t] = None) -> Union[pd.DataFrame, None]:
+def load_annotations(annotation_file: path_t, artifact: str_t | None = None) -> pd.DataFrame | None:
     annot_data = pd.read_csv(annotation_file)
     annot_data = annot_data[["start_time", "end_time", "description"]]
     annot_data = annot_data.sort_values(by=["start_time"])
     if artifact:
         if artifact == "clean":
-            last_end = annot_data["end_time"].values[-1]
+            last_end = annot_data["end_time"].to_numpy()[-1]
             date = last_end.split(" ")[0]
             annot_data["start_time_shifted"] = annot_data["end_time"].shift(1, fill_value=f"{date} {time.min}")
             annot_data["end_time"] = annot_data["start_time"]
@@ -365,13 +357,13 @@ def _find_study_part_file(path: path_t, study_part: str, file_ending: str):
     files = list(path.glob(file_ending))
     try:
         file = next(f for f in files if study_part in Path(f).stem.lower())
-    except IndexError:
-        raise ValueError(f"No corresponding file for study part '{study_part}' in folder {path}!")
+    except IndexError as e:
+        raise ValueError(f"No corresponding file for study part '{study_part}' in folder {path}!") from e
     return file
 
 
 def extract_annotated_data(
-    data: pd.DataFrame, annotations: pd.DataFrame, sync_interval: Optional[Tuple[time, time]] = None
+    data: pd.DataFrame, annotations: pd.DataFrame, sync_interval: tuple[time, time] | None = None
 ) -> Sequence[pd.DataFrame]:
     if sync_interval:
         # cut to synced interval that was considered for labeling

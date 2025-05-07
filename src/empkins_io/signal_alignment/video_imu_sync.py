@@ -12,7 +12,7 @@ def find_peak_around_timestamp(time_stamp: pd.Timestamp, series: pd.Series, roi_
 
 
 def get_claps_from_board_and_timelog(board_data: pd.DataFrame, timelog: pd.DataFrame, phase_fine=False):
-    """Returns the timestamps of the norm maximum in the timespan 1min before and after the (f)TSST beginning and end, each.
+    """Returns the timestamps of the norm maximum in the timespan 1min before and after the (f-)TSST beginning and end.
 
     Parameters
     ----------
@@ -20,6 +20,8 @@ def get_claps_from_board_and_timelog(board_data: pd.DataFrame, timelog: pd.DataF
         contains the gyro data from the "board" NilsPod
     timelog: pd.DataFrame
         (f)TSST timelog, as returned e.g. by MacroBaseDataset.timelog_test
+    phase_fine: bool, optional
+        ``True`` to use the fine phases, ``False`` to use the coarse phases. Default is ``False``.
 
     Returns
     -------

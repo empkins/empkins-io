@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from itertools import product
-from typing import Dict, Optional, Sequence, Tuple
+from typing import ClassVar
 
 import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
@@ -12,7 +13,7 @@ class RadarCardiaStudyDataset(BaseDataset):
     exclude_ecg_seg_failed: bool
     exclude_ecg_corrupted: bool
 
-    BIOPAC_CHANNEL_MAPPING: Dict[str, str] = {
+    BIOPAC_CHANNEL_MAPPING: ClassVar[dict[str, str]] = {
         "ecg": "ecg",
         "icg": "icg_der",
         "ppg": "ppg",
@@ -20,9 +21,9 @@ class RadarCardiaStudyDataset(BaseDataset):
         "sync": "sync",
     }
 
-    SUBJECTS_ECG_SEG_FAILED: Tuple[str] = ("VP_04",)
+    SUBJECTS_ECG_SEG_FAILED: tuple[str] = ("VP_04",)
 
-    SUBJECT_ECG_CORRUPTED: Tuple[Tuple] = (
+    SUBJECT_ECG_CORRUPTED: tuple[tuple] = (
         ("VP_17", "baseline", "normal"),
         ("VP_17", "temporalis", "normal"),
     )
@@ -30,13 +31,13 @@ class RadarCardiaStudyDataset(BaseDataset):
     def __init__(
         self,
         base_path: path_t,
-        groupby_cols: Optional[Sequence[str]] = None,
-        subset_index: Optional[Sequence[str]] = None,
-        use_cache: Optional[bool] = False,
-        calc_biopac_timelog_shift: Optional[bool] = True,
-        trigger_data_extraction: Optional[bool] = False,
-        exclude_ecg_seg_failed: Optional[bool] = True,
-        exclude_ecg_corrupted: Optional[bool] = True,
+        groupby_cols: Sequence[str] | None = None,
+        subset_index: Sequence[str] | None = None,
+        use_cache: bool | None = False,
+        calc_biopac_timelog_shift: bool | None = True,
+        trigger_data_extraction: bool | None = False,
+        exclude_ecg_seg_failed: bool | None = True,
+        exclude_ecg_corrupted: bool | None = True,
     ):
         self.exclude_ecg_seg_failed = exclude_ecg_seg_failed
         self.exclude_ecg_corrupted = exclude_ecg_corrupted

@@ -5,7 +5,7 @@ import re
 import sys
 from io import StringIO
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -22,12 +22,12 @@ class BvhData(_BaseMotionCaptureDataFormat):
     """Class for handling data from bvh files."""
 
     root: "BvhJoint" = None
-    joints: Dict[str, "BvhJoint"] = {}
+    joints: ClassVar[dict[str, "BvhJoint"]] = {}
     num_frames: int = 0
     sampling_rate_hz: float = 0.0
     data_global: pd.DataFrame = None
 
-    def __init__(self, file_path: path_t, system: Optional[MOTION_CAPTURE_SYSTEM] = "perception_neuron"):
+    def __init__(self, file_path: path_t, system: MOTION_CAPTURE_SYSTEM | None = "perception_neuron"):
         """Create new ``BvhData`` instance.
 
         Parameters
@@ -52,7 +52,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
             with gzip.open(file_path, "rb") as f:
                 _raw_data_str = f.read().decode("utf8")
         else:
-            with open(file_path) as f:
+            with file_path.open() as f:
                 _raw_data_str = f.read()
 
         hierarchy_str, motion_str = _raw_data_str.split("MOTION")
@@ -132,16 +132,16 @@ class BvhData(_BaseMotionCaptureDataFormat):
         frame_data_joint = frame_data[joint.name]
         frame_data_joint = frame_data_joint["pos"]
         index_offset += 3
-        return frame_data_joint.values, index_offset
+        return frame_data_joint.to_numpy(), index_offset
 
     def _extract_rotation(self, joint: "BvhJoint", frame_data: pd.Series, index_offset: int):
         frame_data_joint = frame_data[joint.name]
         frame_data_joint = frame_data_joint["rot"]
         local_rotation = frame_data_joint.reindex(sorted(joint.channels["rot"]))
-        local_rotation = local_rotation.values
+        local_rotation = local_rotation.to_numpy()
 
         local_rotation = np.deg2rad(local_rotation)
-        M_rotation = np.eye(3)
+        matrix_rotation = np.eye(3)
         for channel in list(joint.channels["rot"]):
             if channel == "x":
                 euler_rot = np.array([local_rotation[0], 0.0, 0.0])
@@ -150,11 +150,11 @@ class BvhData(_BaseMotionCaptureDataFormat):
             elif channel == "z":
                 euler_rot = np.array([0.0, 0.0, local_rotation[2]])
             else:
-                raise Exception(f"Unknown channel {channel}")
-            M_channel = Rotation.from_rotvec(euler_rot).as_matrix()
-            M_rotation = M_rotation.dot(M_channel)
+                raise ValueError(f"Unknown channel {channel}")
+            matrix_channel = Rotation.from_rotvec(euler_rot).as_matrix()
+            matrix_rotation = matrix_rotation.dot(matrix_channel)
 
-        return M_rotation, index_offset
+        return matrix_rotation, index_offset
 
     def _recursive_apply_frame(
         self,
@@ -163,7 +163,7 @@ class BvhData(_BaseMotionCaptureDataFormat):
         index_offset: int,
         pos: np.ndarray,
         rot: np.ndarray,
-        M_parent: np.ndarray,
+        matrix_parent: np.ndarray,
         pos_parent: np.ndarray,
     ):
         if joint.position_animated():
@@ -173,25 +173,25 @@ class BvhData(_BaseMotionCaptureDataFormat):
 
         if len(joint.channels) == 0:
             joint_index = list(self.joints.values()).index(joint)
-            pos[joint_index] = pos_parent + M_parent.dot(joint.offset)
-            rot[joint_index] = Rotation.from_matrix(M_parent).as_euler("xyz")
+            pos[joint_index] = pos_parent + matrix_parent.dot(joint.offset)
+            rot[joint_index] = Rotation.from_matrix(matrix_parent).as_euler("xyz")
             return index_offset
 
         if joint.rotation_animated():
-            M_rotation, index_offset = self._extract_rotation(joint, frame_data, index_offset)
+            matrix_rotation, index_offset = self._extract_rotation(joint, frame_data, index_offset)
         else:
-            M_rotation = np.eye(3)
-        M = M_parent.dot(M_rotation)
+            matrix_rotation = np.eye(3)
+        matrix_new = matrix_parent.dot(matrix_rotation)
 
-        position = pos_parent + M_parent.dot(joint.offset) + position
-        rotation = np.rad2deg(Rotation.from_matrix(M).as_euler("xyz"))
+        position = pos_parent + matrix_parent.dot(joint.offset) + position
+        rotation = np.rad2deg(Rotation.from_matrix(matrix_new).as_euler("xyz"))
 
         joint_index = list(self.joints.values()).index(joint)
         pos[joint_index] = position
         rot[joint_index] = rotation
 
         for c in joint.children:
-            index_offset = self._recursive_apply_frame(c, frame_data, index_offset, pos, rot, M, position)
+            index_offset = self._recursive_apply_frame(c, frame_data, index_offset, pos, rot, matrix_new, position)
 
         return index_offset
 
@@ -199,8 +199,8 @@ class BvhData(_BaseMotionCaptureDataFormat):
         pos = np.empty((len(self.joints), 3))
         rot = np.empty((len(self.joints), 3))
         frame_data = self.data.iloc[frame_index, :]
-        M_parent = np.eye(3, 3)
-        self._recursive_apply_frame(self.root, frame_data, 0, pos, rot, M_parent, np.zeros(3))
+        matrix_parent = np.eye(3, 3)
+        self._recursive_apply_frame(self.root, frame_data, 0, pos, rot, matrix_parent, np.zeros(3))
 
         pos = pd.DataFrame(pos, columns=self.root.channels["pos"])
         rot = pd.DataFrame(rot, columns=self.root.channels["rot"])
@@ -270,10 +270,10 @@ class BvhData(_BaseMotionCaptureDataFormat):
         file_path = Path(file_path)
         _assert_file_extension(file_path, ".bvh")
 
-        with open(file_path, "w") as fp:
+        with file_path.open("w") as fp:
             self._write_bvh_fp(fp)
 
-    def _write_bvh_fp(self, fp, encode: Optional[bool] = False):
+    def _write_bvh_fp(self, fp, encode: bool | None = False):
         data_out = self.data.groupby(["body_part", "channel"], sort=False, group_keys=False, axis=1).apply(
             lambda df: self._reindex_axis(df)
         )
@@ -326,8 +326,8 @@ class BvhJoint:
         self.name: str = name
         self.parent: BvhJoint = parent
         self.offset: np.ndarray = np.zeros(3)
-        self.channels: Dict[str, List[str]] = {}
-        self.children: List[BvhJoint] = []
+        self.channels: dict[str, list[str]] = {}
+        self.children: list[BvhJoint] = []
 
     def add_child(self, child: "BvhJoint"):
         self.children.append(child)

@@ -1,7 +1,7 @@
 import datetime
 import re
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -35,7 +35,7 @@ class MisDataset:
     _sampling_rate_hz: int
     _radar_data: pd.DataFrame
 
-    def __init__(self, radar_data: pd.DataFrame, start_time: int, sampling_rate_hz: int, tz: Optional[str] = None):
+    def __init__(self, radar_data: pd.DataFrame, start_time: int, sampling_rate_hz: int, tz: str | None = None):
         """Get new Dataset instance.
 
         .. note::
@@ -110,7 +110,7 @@ class MisDataset:
     def from_mat_file(
         cls,
         path: path_t,
-        tz: Optional[str] = "Europe/Berlin",
+        tz: str | None = "Europe/Berlin",
     ):
         """Create a new Dataset from a valid .mat file.
 
@@ -174,7 +174,7 @@ class MisDataset:
 
     def data_as_df(
         self,
-        index: Optional[str] = None,
+        index: str | None = None,
     ) -> pd.DataFrame:
         """Export the dataset into a pandas DataFrame.
 
@@ -198,7 +198,7 @@ class MisDataset:
         data = self._add_index(data, index, self.sampling_rate_hz)
         return data
 
-    def heart_rate(self, index: Optional[str] = None) -> pd.DataFrame:
+    def heart_rate(self, index: str | None = None) -> pd.DataFrame:
         """Return the heart rate extracted from the MIS data as pandas DataFrame.
 
         Parameters
@@ -237,7 +237,7 @@ class MisDataset:
 
         return hr_radar_raw
 
-    def respiration(self, fs_out: int, index: Optional[str] = None) -> pd.DataFrame:
+    def respiration(self, fs_out: int, index: str | None = None) -> pd.DataFrame:
         """Return the respiration signal extracted from the MIS data as pandas DataFrame.
 
         Parameters

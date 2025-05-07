@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from functools import lru_cache
-from typing import Optional, Sequence
+from typing import ClassVar
 
 import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
@@ -11,19 +12,19 @@ from empkins_io.utils._types import path_t
 _cached_load_ecg_data = lru_cache(maxsize=4)(_load_ecg_data)
 
 
-class VRSR_Dataset(Dataset):
-    MISSING_DATA = {}
+class VrsrDataset(Dataset):
+    MISSING_DATA: ClassVar[dict] = {}
 
     ECG_SAMPLING_RATE = 256
 
     def __init__(
         self,
         base_path: path_t,
-        groupby_cols: Optional[Sequence[str]] = None,
-        subset_index: Optional[Sequence[str]] = None,
-        exclude_without_mocap: Optional[bool] = True,
-        exclude_missing_data: Optional[bool] = False,
-        use_cache: Optional[bool] = True,
+        groupby_cols: Sequence[str] | None = None,
+        subset_index: Sequence[str] | None = None,
+        exclude_without_mocap: bool | None = True,
+        exclude_missing_data: bool | None = False,
+        use_cache: bool | None = True,
     ):
         # ensure pathlib
         self.base_path = base_path

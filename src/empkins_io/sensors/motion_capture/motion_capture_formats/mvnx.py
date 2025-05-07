@@ -2,7 +2,7 @@ import gzip
 import locale
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -21,23 +21,23 @@ class MvnxData(_BaseMotionCaptureDataFormat):
     start: datetime = None
     num_frames: int = 0
     sampling_rate_hz: float = 0.0
-    segments: List[str] = None
-    joints: List[str] = None
-    sensors: List[str] = None
-    center_mass: List[str] = ["CenterMass"]
+    segments: list[str] = None
+    joints: list[str] = None
+    sensors: list[str] = None
+    center_mass: ClassVar[list[str]] = ["CenterMass"]
     data: pd.DataFrame = None
     sensor_data: pd.DataFrame = None
     joint_data: pd.DataFrame = None
     _index: float = None
-    _types: Dict[str, str] = {
+    _types: ClassVar[dict[str, str]] = {
         "segment": "body_part",
         "joint": "body_part",
         "sensor": "body_part",
         "center_mass": "body_part",
     }
-    _quat: Tuple[str] = ("q0", "q1", "q2", "q3")
-    _xyz: Tuple[str] = ("x", "y", "z")
-    _footContacts: Tuple[str] = ("heel", "toe")
+    _quat: tuple[str] = ("q0", "q1", "q2", "q3")
+    _xyz: tuple[str] = ("x", "y", "z")
+    _foot_contacts: tuple[str] = ("heel", "toe")
     _tz: str = None
 
     def __init__(
@@ -51,7 +51,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
             with gzip.open(file_path, "rb") as f:
                 _raw_data = _MvnxParser(f, verbose=verbose)
         else:
-            with open(file_path) as f:
+            with file_path.open() as f:
                 _raw_data = _MvnxParser(f, verbose=verbose)
 
         sampling_rate = _raw_data.frameRate
@@ -126,7 +126,7 @@ class MvnxData(_BaseMotionCaptureDataFormat):
         return pd.concat([center_mass_df], keys=["center_mass"], names=["data_format"], axis=1)
 
     def _parse_foot_contact_df(self, _raw_data: _MvnxParser) -> pd.DataFrame:
-        foot_contact_df = self._parse_foot_contacts(_raw_data.footContacts, type="segment")
+        foot_contact_df = self._parse_foot_contacts(_raw_data.footContacts, fc_type="segment")
         foot_contact_df = foot_contact_df.sort_index(axis=1, level="body_part")
         return pd.concat([foot_contact_df], keys=["foot_contact"], names=["data_format"], axis=1)
 
@@ -159,26 +159,26 @@ class MvnxData(_BaseMotionCaptureDataFormat):
 
         return sensor_data
 
-    def _parse_df_for_value(self, name: Union[str, List[str]], data: np.ndarray, format: str) -> pd.DataFrame:
-        if format not in self._types:
-            raise ValueError(f"Expected on of {self._types.keys()}, got {format} instead.")
+    def _parse_df_for_value(self, name: str | list[str], data: np.ndarray, data_type: str) -> pd.DataFrame:
+        if data_type not in self._types:
+            raise ValueError(f"Expected on of {self._types.keys()}, got {data_type} instead.")
 
         axis = self._quat if name == "ori" else self._xyz
 
-        if format == "segment":
+        if data_type == "segment":
             index_type = self.segments
-        elif format == "joint":
+        elif data_type == "joint":
             index_type = self.joints
-        elif format == "sensor":
+        elif data_type == "sensor":
             index_type = self.sensors
         else:
             index_type = self.center_mass
 
-        if type(name) == str:
+        if isinstance(name, str):
             name = [name]
 
         multi_index = pd.MultiIndex.from_product(
-            [index_type, name, axis], names=[self._types[format], "channel", "axis"]
+            [index_type, name, axis], names=[self._types[data_type], "channel", "axis"]
         )
 
         data = pd.DataFrame(data)
@@ -189,15 +189,15 @@ class MvnxData(_BaseMotionCaptureDataFormat):
 
         return data
 
-    def _parse_foot_contacts(self, data: np.ndarray, type: str) -> pd.DataFrame:
-        if type not in self._types:
-            raise ValueError(f"Expected on of {self._types.keys()}, got {type} instead.")
+    def _parse_foot_contacts(self, data: np.ndarray, fc_type: str) -> pd.DataFrame:
+        if fc_type not in self._types:
+            raise ValueError(f"Expected on of {self._types.keys()}, got {fc_type} instead.")
 
-        axis = self._footContacts
+        axis = self._foot_contacts
 
         multi_index = pd.MultiIndex.from_product(
             [["FootContacts"], ["left", "right"], axis],
-            names=[self._types[type], "channel", "axis"],
+            names=[self._types[fc_type], "channel", "axis"],
         )
 
         foot_df = pd.DataFrame(data)

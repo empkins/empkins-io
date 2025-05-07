@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from itertools import product
-from typing import Dict, Optional, Sequence
+from typing import ClassVar
 
 import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
@@ -13,20 +14,20 @@ Dataset for Radar and BIOPAC data recorded in Hamburg at 2023-04-25
 
 
 class RadarCardiaPreStudyHDataset(BaseDataset):
-    BIOPAC_CHANNEL_MAPPING: Dict[str, str] = {
+    BIOPAC_CHANNEL_MAPPING: ClassVar[dict[str, str]] = {
         "ECG (.05 - 150 Hz)": "ecg",
         "Cardiac Output - Z": "icg",
         "Cardiac Output - dZ/dt": "icg_der",
         "Digital input": "sync",
     }
 
-    _SAMPLING_RATES: Dict[str, float] = {"radar_original": 2400, "biopac_original": 2000, "resampled": 1000}
+    _SAMPLING_RATES: ClassVar[dict[str, float]] = {"radar_original": 2400, "biopac_original": 2000, "resampled": 1000}
 
     def __init__(
         self,
         base_path: path_t,
-        groupby_cols: Optional[Sequence[str]] = None,
-        subset_index: Optional[Sequence[str]] = None,
+        groupby_cols: Sequence[str] | None = None,
+        subset_index: Sequence[str] | None = None,
         use_cache: bool = True,
     ):
         super().__init__(base_path=base_path, groupby_cols=groupby_cols, subset_index=subset_index, use_cache=use_cache)

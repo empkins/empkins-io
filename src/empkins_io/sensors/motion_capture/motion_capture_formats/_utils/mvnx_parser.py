@@ -16,23 +16,23 @@ class _MvnxParser:
     Can also be used as a command line tool.
     """
 
-    def __init__(
+    def __init__(  # noqa: C901, PLR0912, PLR0913, PLR0915
         self,
         path,
         orientation=None,
         position=None,
         velocity=None,
         acceleration=None,
-        angularVelocity=None,
-        angularAcceleration=None,
-        footContacts=None,
-        sensorFreeAcceleration=None,
-        sensorMagneticField=None,
-        sensorOrientation=None,
-        jointAngle=None,
-        jointAngleXZY=None,
-        jointAngleErgo=None,
-        centerOfMass=None,
+        angular_velocity=None,
+        angular_acceleration=None,
+        foot_contacts=None,
+        sensor_free_acceleration=None,
+        sensor_magnetic_field=None,
+        sensor_orientation=None,
+        joint_angle=None,
+        joint_angle_xzy=None,
+        joint_angle_ergo=None,
+        center_of_mass=None,
         mapping=None,
         sensors=None,
         segments=None,
@@ -44,12 +44,12 @@ class _MvnxParser:
         version=None,
         build=None,
         label=None,
-        frameRate=None,
-        segmentCount=None,
-        recordingDate=None,
+        frame_rate=None,
+        segment_count=None,
+        recording_date=None,
         configuration=None,
-        userScenario=None,
-        securityCode=None,
+        user_scenario=None,
+        security_code=None,
         modality=None,
         time=None,
         index=None,
@@ -66,25 +66,25 @@ class _MvnxParser:
             self.velocity = []
         if acceleration is None:
             self.acceleration = []
-        if angularVelocity is None:
+        if angular_velocity is None:
             self.angularVelocity = []
-        if angularAcceleration is None:
+        if angular_acceleration is None:
             self.angularAcceleration = []
-        if footContacts is None:
+        if foot_contacts is None:
             self.footContacts = []
-        if sensorFreeAcceleration is None:
+        if sensor_free_acceleration is None:
             self.sensorFreeAcceleration = []
-        if sensorMagneticField is None:
+        if sensor_magnetic_field is None:
             self.sensorMagneticField = []
-        if sensorOrientation is None:
+        if sensor_orientation is None:
             self.sensorOrientation = []
-        if jointAngle is None:
+        if joint_angle is None:
             self.jointAngle = []
-        if jointAngleXZY is None:
+        if joint_angle_xzy is None:
             self.jointAngleXZY = []
-        if jointAngleErgo is None:
+        if joint_angle_ergo is None:
             self.jointAngleErgo = []
-        if centerOfMass is None:
+        if center_of_mass is None:
             self.centerOfMass = []
         if sensors is None:
             self.sensors = []
@@ -132,12 +132,12 @@ class _MvnxParser:
         self.version = version
         self.build = build
         self.label = label
-        self.frameRate = frameRate
-        self.segmentCount = segmentCount
-        self.recordingDate = recordingDate
+        self.frameRate = frame_rate
+        self.segmentCount = segment_count
+        self.recordingDate = recording_date
         self.configuration = configuration
-        self.userScenario = userScenario
-        self.securityCode = securityCode
+        self.userScenario = user_scenario
+        self.securityCode = security_code
         self.modality = modality
         self.verbose = verbose
         if path is None:

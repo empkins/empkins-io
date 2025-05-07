@@ -49,11 +49,7 @@ def _check_filetype_present(
     else:
         actual_filesize = np.mean([f.stat().st_size for f in existing_files])
 
-    if np.isnan(expected_filesize):
-        # timelog and opendbm file size does not matter
-        size_as_expected = True
-    else:
-        size_as_expected = actual_filesize > 0.8 * expected_filesize  # 20% tolerance (downwards)
+    size_as_expected = True if np.isnan(expected_filesize) else actual_filesize > 0.8 * expected_filesize
 
     if not num_files_is_expected:
         comment = (

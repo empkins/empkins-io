@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from itertools import product
-from typing import Optional, Sequence
+from typing import ClassVar
 
 import pandas as pd
 from biopsykit.io import load_atimelogger_file
@@ -17,18 +18,18 @@ class D07PilotStudyDataset(Dataset):
     use_cache: bool
     exclude_missing: bool
 
-    SUBSETS_NO_MOCAP = []
+    SUBSETS_NO_MOCAP: ClassVar[str] = []
 
     data_to_exclude: Sequence[str]
 
-    CONDITIONS = ["Baseline", "Gert"]
-    PHASES = ["Finger-Boden-Abstand", "Aufhebe Test"]
+    CONDITIONS: ClassVar[Sequence[str]] = ["Baseline", "Gert"]
+    PHASES: ClassVar[Sequence[str]] = ["Finger-Boden-Abstand", "Aufhebe Test"]
 
     def __init__(
         self,
         base_path: path_t,
-        groupby_cols: Optional[Sequence[str]] = None,
-        subset_index: Optional[Sequence[str]] = None,
+        groupby_cols: Sequence[str] | None = None,
+        subset_index: Sequence[str] | None = None,
         *,
         exclude_missing: bool = True,
         use_cache: bool = True,

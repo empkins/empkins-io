@@ -1,8 +1,9 @@
 import warnings
+from collections.abc import Sequence
 from functools import cached_property, lru_cache
 from itertools import product
 from pathlib import Path
-from typing import Dict, Optional, Sequence, Tuple
+from typing import ClassVar
 
 import pandas as pd
 from biopsykit.io import (
@@ -21,8 +22,8 @@ from empkins_io.datasets.d03.macro_ap01.helper import (
 )
 from empkins_io.utils._types import path_t
 from empkins_io.utils.exceptions import (
-    HeartRateDataNotFoundException,
-    TimelogNotFoundException,
+    HeartRateDataNotFoundError,
+    TimelogNotFoundError,
 )
 
 _cached_load_nilspod_data = lru_cache(maxsize=4)(_load_nilspod_session)
@@ -31,12 +32,12 @@ _cached_load_nilspod_data = lru_cache(maxsize=4)(_load_nilspod_session)
 class MacroBaseDataset(Dataset):
     base_path: path_t
     use_cache: bool
-    _sample_times_saliva: Tuple[int] = (-40, -1, 15, 25, 35, 45, 60, 75)
-    _sample_times_bloodspot: Tuple[int] = (-40, 60)
+    _sample_times_saliva: tuple[int] = (-40, -1, 15, 25, 35, 45, 60, 75)
+    _sample_times_bloodspot: tuple[int] = (-40, 60)
 
-    CONDITIONS = ["ftsst", "tsst"]
+    CONDITIONS: ClassVar[Sequence[str]] = ["ftsst", "tsst"]
 
-    NILSPOD_MAPPING: Dict[str, str] = {
+    NILSPOD_MAPPING: ClassVar[dict[str, str]] = {
         "chest": "56bb",  # ecg
         "sync": "9e02",  # sync with mocap
         "board": "e76b",  # sync with video (clapper board)
@@ -102,8 +103,8 @@ class MacroBaseDataset(Dataset):
     def __init__(
         self,
         base_path: path_t,
-        groupby_cols: Optional[Sequence[str]] = None,
-        subset_index: Optional[Sequence[str]] = None,
+        groupby_cols: Sequence[str] | None = None,
+        subset_index: Sequence[str] | None = None,
         *,
         exclude_complete_subjects_if_error: bool = True,
         exclude_without_mocap: bool = True,
@@ -201,7 +202,7 @@ class MacroBaseDataset(Dataset):
             return data[["ecg"]]
 
     @property
-    def heart_rate(self) -> Dict[str, pd.DataFrame]:
+    def heart_rate(self) -> dict[str, pd.DataFrame]:
         if not self.is_single(None):
             raise ValueError("Heart rate data can only be accessed for a single participant in a single condition!")
 
@@ -211,7 +212,7 @@ class MacroBaseDataset(Dataset):
 
         file_path = ecg_path.joinpath(f"hr_result_{subject_id}_{condition}_total.xlsx")
         if not file_path.exists():
-            raise HeartRateDataNotFoundException(f"No heart rate data for {subject_id} {condition}.")
+            raise HeartRateDataNotFoundError(f"No heart rate data for {subject_id} {condition}.")
         data = load_pandas_dict_excel(file_path)
         return data
 
@@ -225,7 +226,7 @@ class MacroBaseDataset(Dataset):
         ecg_path = self.ecg_output_path
         file_path = ecg_path.joinpath(f"hrv_result_{subject_id}_{condition}.csv")
         if not file_path.exists():
-            raise HeartRateDataNotFoundException(f"No HRV data for {subject_id} {condition}.")
+            raise HeartRateDataNotFoundError(f"No HRV data for {subject_id} {condition}.")
         return pd.read_csv(file_path, index_col="phase")
 
     @property
@@ -251,7 +252,7 @@ class MacroBaseDataset(Dataset):
         data_path = _build_data_path(self.base_path.joinpath("data_per_subject"), subject_id, condition)
         file_path = data_path.joinpath(f"timelog/cleaned/{subject_id}_{condition}_timelog_{timelog_type}.csv")
         if not file_path.exists():
-            raise TimelogNotFoundException(
+            raise TimelogNotFoundError(
                 f"No time log data was found for {timelog_type} in the {condition} condition of {subject_id}!"
             )
         timelog = load_atimelogger_file(file_path, timezone="Europe/Berlin")

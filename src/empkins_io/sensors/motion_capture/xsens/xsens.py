@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any
 
 from biopsykit.utils._datatype_validation_helper import _assert_is_dir
 
@@ -10,7 +11,7 @@ from empkins_io.utils._types import path_t
 SYSTEM = "xsens"
 
 
-def _get_files(folder_path: path_t, extensions: Union[Sequence[str], str]):
+def _get_files(folder_path: path_t, extensions: Sequence[str] | str):
     if isinstance(extensions, str):
         extensions = [extensions]
     file_list = []
@@ -19,13 +20,11 @@ def _get_files(folder_path: path_t, extensions: Union[Sequence[str], str]):
     return file_list
 
 
-def load_xsens_folder(
-    folder_path: path_t, index_start: Optional[int] = 0, index_end: Optional[int] = -1
-) -> Dict[str, Any]:
+def load_xsens_folder(folder_path: path_t, index_start: int | None = 0, index_end: int | None = -1) -> dict[str, Any]:
     # ensure pathlib
     folder_path = Path(folder_path)
     _assert_is_dir(folder_path)
-    return_dict: Dict[str, _BaseMotionCaptureDataFormat] = dict.fromkeys(["mvnx"])
+    return_dict: dict[str, _BaseMotionCaptureDataFormat] = dict.fromkeys(["mvnx"])
 
     mvnx_files = _get_files(folder_path, [".mvnx", ".mvnx.gz"])
     if len(mvnx_files) == 1:

@@ -1,5 +1,5 @@
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -15,7 +15,7 @@ class CenterOfMassData(_BaseMotionCaptureDataFormat):
 
     axis: Sequence[str]
 
-    def __init__(self, file_path: path_t, system: MOTION_CAPTURE_SYSTEM, frame_time: Optional[float] = 0.017):
+    def __init__(self, file_path: path_t, system: MOTION_CAPTURE_SYSTEM, frame_time: float | None = 0.017):
         """Create new ``CenterOfMassData`` instance.
 
         Parameters

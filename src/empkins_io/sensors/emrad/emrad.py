@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Dict, Optional, Sequence
+from typing import ClassVar
 
 import h5py
 import pandas as pd
@@ -24,19 +25,19 @@ class EmradDataset:
 
     """
 
-    _RADAR_NODES = ["rad1", "rad2", "rad3", "rad4"]
+    _RADAR_NODES: ClassVar[Sequence[str]] = ["rad1", "rad2", "rad3", "rad4"]
     _sampling_rate_hz: float
     _start_time_unix: int
 
     _tz: str
 
-    _radar_data: Dict[str, pd.DataFrame]
+    _radar_data: dict[str, pd.DataFrame]
 
     def __init__(
         self,
-        radar_data: Dict[str, pd.DataFrame],
+        radar_data: dict[str, pd.DataFrame],
         start_time: int,
-        tz: Optional[str] = None,
+        tz: str | None = None,
         sampling_rate_hz: float = 1953.125,
     ):
         """Get new Dataset instance.
@@ -67,16 +68,16 @@ class EmradDataset:
         return self._tz
 
     @property
-    def radar_data(self) -> Dict[str, pd.DataFrame]:
+    def radar_data(self) -> dict[str, pd.DataFrame]:
         """Dictionary with names of the radar node and sensor data as pandas Dataframe."""
         return self._radar_data
 
     def data_as_df(
         self,
-        nodes: Optional[Sequence[str]] = None,
-        index: Optional[str] = None,
-        add_sync_in: Optional[bool] = False,
-        add_sync_out: Optional[bool] = False,
+        nodes: Sequence[str] | None = None,
+        index: str | None = None,
+        add_sync_in: bool | None = False,
+        add_sync_out: bool | None = False,
     ) -> pd.DataFrame:
         """Export the nodes of the dataset in a single pandas DataFrame.
 
@@ -155,7 +156,7 @@ class EmradDataset:
 
     @classmethod
     def from_hd5_file(
-        cls, path: path_t, tz: Optional[str] = "Europe/Berlin", sampling_rate_hz: Optional[float] = 1953.125
+        cls, path: path_t, tz: str | None = "Europe/Berlin", sampling_rate_hz: float | None = 1953.125
     ) -> Self:
         """Create a new Dataset from a valid .hd5 file.
 

@@ -113,20 +113,15 @@ def _read_pressure_matrix_csv(file_path: path_t) -> pd.DataFrame:
         A pandas DataFrame containing pressure sensor data.
     """
     file_path = Path(file_path)
-    try:
-        # Skip metadata
-        df = pd.read_csv(file_path, skiprows=2)
-        if "time" in df.columns:
-            df = df.drop(columns=["time"])
-        df.columns = [f"x{i + 1}" for i in range(df.shape[1])]
-        # Save metadata
-        df.attrs.update({"type": "pressure matrix", "filename": file_path.stem})
+    # Skip metadata
+    df = pd.read_csv(file_path, skiprows=2)
+    if "time" in df.columns:
+        df = df.drop(columns=["time"])
+    df.columns = [f"x{i + 1}" for i in range(df.shape[1])]
+    # Save metadata
+    df.attrs.update({"type": "pressure matrix", "filename": file_path.stem})
 
-        return df
-
-    except Exception as e:
-        print(f"Error reading pressure matrix {file_path.name}: {e}")
-        return pd.DataFrame()
+    return df
 
 
 def _read_parameters_csv(file_path: path_t) -> pd.DataFrame:
@@ -175,50 +170,50 @@ def _read_parameters_csv(file_path: path_t) -> pd.DataFrame:
     data = data.drop(columns=["messdauer [sek]", "measurement_duration"], errors="ignore")
 
     for col in data.columns:
-        col = col.split(" ")
-        col = [col.replace(",", "").replace("[", "").replace("]", "").replace("%", "") for col in col]
+        col_out = col.split(" ")
+        col_out = [col.replace(",", "").replace("[", "").replace("]", "").replace("%", "") for col in col]
         # drop units
-        col = [c for c in col if c not in units_to_remove]
+        col_out = [c for c in col_out if c not in units_to_remove]
         # drop empty strings
-        col = [c for c in col if c != ""]
+        col_out = [c for c in col_out if c != ""]
         # translate
-        col = [translation_dict.get(c, c) for c in col]
+        col_out = [translation_dict.get(c, c) for c in col_out]
         # handle special cases
         # average velocity
-        if "velocity" in col:
-            col = ("average_velocity", "both", "total", "norm_mm_s")
+        if "velocity" in col_out:
+            col_out = ("average_velocity", "both", "total", "norm_mm_s")
         # cop path length
-        elif "length" in col:
-            col = ("cop_path_length", "both", "total", "path_length_mm")
+        elif "length" in col_out:
+            col_out = ("cop_path_length", "both", "total", "path_length_mm")
         # conf ellipse area
-        elif "area" in col:
-            col = ("conf_ellipse_area", "both", "total", "area_mm2")
+        elif "area" in col_out:
+            col_out = ("conf_ellipse_area", "both", "total", "area_mm2")
 
         # handle cop
-        if "cop" in col:
+        if "cop" in col_out:
             # if "cop" is the first element, it's from the total foot
-            if "cop" in col[0]:
-                col = ["total", *col]
+            if "cop" in col_out[0]:
+                col_out = ["total", *col_out]
             # if the last element is NOT "left" or "right", it's from the total foot => add this as the last element
-            if col[-1] not in ["left", "right"]:
-                col = [*col, "both"]
-            col = [col[1], col[-1], col[0], col[2]]
-            col[0] = "average_cop"
+            if col_out[-1] not in ["left", "right"]:
+                col_out = [*col_out, "both"]
+            col_out = [col_out[1], col_out[-1], col_out[0], col_out[2]]
+            col_out[0] = "average_cop"
         # handle force
-        elif any("force" in c for c in col):
-            # print(col)
-            if "total" in col[0]:
-                col = [c.split(" ") for c in col]
+        elif any("force" in c for c in col_out):
+            # print(col_out)
+            if "total" in col_out[0]:
+                col_out = [c.split(" ") for c in col_out]
                 # flatten the nested list
-                col = [c for sublist in col for c in sublist]
+                col_out = [c for sublist in col_out for c in sublist]
                 # swap the first and second elements
-                col = [col[1], col[0]] + col[2:]
+                col_out = [col_out[1], col_out[0]] + col_out[2:]
 
             # reorder the columns
-            col = [col[0], col[-1], col[1], "z"]
-            col[0] = "average_force"
+            col_out = [col_out[0], col_out[-1], col_out[1], "z"]
+            col_out[0] = "average_force"
 
-        multiindex_columns.append(tuple(col))
+        multiindex_columns.append(tuple(col_out))
 
     data.columns = pd.MultiIndex.from_tuples(multiindex_columns, names=["channel", "foot", "foot_region", "metric"])
     data = data.T

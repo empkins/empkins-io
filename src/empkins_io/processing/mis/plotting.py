@@ -67,7 +67,7 @@ def _hr_plot_ecg_radar(
     handles = []
     labels = ["ECG", "Radar"]
     if plot_outlier:
-        for hr, outlier_color in zip([hr_ecg, hr_radar], [outlier_color_ecg, outlier_color_radar]):
+        for hr, outlier_color in zip([hr_ecg, hr_radar], [outlier_color_ecg, outlier_color_radar], strict=False):
             h = _hr_plot_ecg_radar_outlier(hr, outlier_color, ax=ax)
             handles.append(h)
 
@@ -88,7 +88,7 @@ def _hr_plot_ecg_radar_outlier(data: RPeakDataFrame, color: str, ax: plt.Axes):
 def _hr_plot_ecg_radar_quality(hr_radar: HeartRateDataFrame, ax: plt.Axes):
     qual_handles = []
     qual_labels = ["Bad", "OK", "Good"]
-    for lims, color in zip([(0.0, 1.8), (1.8, 2.5), (2.5, 100)], ["wiso", "phil", "nat"]):
+    for lims, color in zip([(0.0, 1.8), (1.8, 2.5), (2.5, 100)], ["wiso", "phil", "nat"], strict=False):
         edgecolor = (*to_rgb(getattr(colors_all, color)), 0.3)
         facecolor = (*to_rgb(getattr(colors_all, color)), 0.05)
         mask = hr_radar["Heartsound_Quality"].between(*lims)
@@ -115,7 +115,7 @@ def _hr_plot_ecg_radar_add_legend(mean_ecg: float, mean_radar: float, ax: plt.Ax
     if plot_mean:
         handles = [tuple(handles[0:2]), tuple(handles[2:])]
 
-    labels = [f"{s}; Mean: {mean:.2f} bpm" for s, mean in zip(["ECG", "Radar"], [mean_ecg, mean_radar])]
+    labels = [f"{s}; Mean: {mean:.2f} bpm" for s, mean in zip(["ECG", "Radar"], [mean_ecg, mean_radar], strict=False)]
     legend = ax.legend(
         handles,
         labels,

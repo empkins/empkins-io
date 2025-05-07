@@ -1,4 +1,5 @@
-from typing import Dict, Optional, Sequence, Union
+from collections.abc import Sequence
+from typing import Optional
 
 import pandas as pd
 from biopsykit.signals.ecg import EcgProcessor
@@ -12,10 +13,10 @@ __all__ = ["MISProcessor"]
 class MISProcessor:
     def __init__(
         self,
-        rpeaks: Union[RPeakDataFrame, Dict[str, RPeakDataFrame]],
-        sampling_rate: Optional[float] = None,
-        time_intervals: Optional[Union[pd.Series, Dict[str, Sequence[str]]]] = None,
-        include_start: Optional[bool] = False,
+        rpeaks: RPeakDataFrame | dict[str, RPeakDataFrame],
+        sampling_rate: float | None = None,
+        time_intervals: pd.Series | dict[str, Sequence[str]] | None = None,
+        include_start: bool | None = False,
     ):
         if sampling_rate is None:
             sampling_rate = 2000
@@ -38,7 +39,7 @@ class MISProcessor:
             else:
                 rpeaks_dict = {"Data": rpeaks}
 
-        self.rpeaks: Dict[str, RPeakDataFrame] = rpeaks_dict
+        self.rpeaks: dict[str, RPeakDataFrame] = rpeaks_dict
         """Dictionary with R peak location indices, split into different phases.
 
         See Also
@@ -60,9 +61,9 @@ class MISProcessor:
 
     def process(
         self,
-        outlier_correction: Optional[Union[str, Sequence[str]]] = "all",
-        outlier_params: Optional[Dict[str, Union[float, Sequence[float]]]] = None,
-        title: Optional[str] = None,
+        outlier_correction: str | Sequence[str] | None = "all",
+        outlier_params: dict[str, float | Sequence[float]] | None = None,
+        title: str | None = None,
     ):
         """Process Radar signal.
 
@@ -134,11 +135,11 @@ class MISProcessor:
     def correct_outlier(
         cls,
         mis_processor: Optional["MISProcessor"] = None,
-        key: Optional[str] = None,
-        rpeaks: Optional[RPeakDataFrame] = None,
-        outlier_correction: Optional[Union[str, Sequence[str]]] = "all",
-        outlier_params: Optional[Dict[str, Union[float, Sequence[float]]]] = None,
-        sampling_rate: Optional[float] = 2000.0,
+        key: str | None = None,
+        rpeaks: RPeakDataFrame | None = None,
+        outlier_correction: str | Sequence[str] | None = "all",
+        outlier_params: dict[str, float | Sequence[float]] | None = None,
+        sampling_rate: float | None = 2000.0,
         **kwargs,
     ):
         _assert_input(mis_processor, key, rpeaks)

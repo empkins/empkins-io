@@ -1,3 +1,3 @@
-from empkins_io.datasets.vadas._dataset import VADAS_Dataset
+from empkins_io.datasets.vadas._dataset import VadasDataset
 
-__all__ = ["VADAS_Dataset"]
+__all__ = ["VadasDataset"]

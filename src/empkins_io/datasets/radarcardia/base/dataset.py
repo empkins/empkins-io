@@ -1,6 +1,7 @@
+from collections.abc import Sequence
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Optional, Sequence, Union
+from typing import ClassVar
 
 import pandas as pd
 from tpcp import Dataset
@@ -30,11 +31,15 @@ class BaseDataset(Dataset):
     use_cache: bool
     calc_biopac_timelog_shift: bool
     trigger_data_extraction: bool
-    bp_tl_shift: Union[pd.Timedelta, None]
+    bp_tl_shift: pd.Timedelta | None
 
-    _SAMPLING_RATES: Dict[str, float] = {"radar_original": 8000000 / 4096, "biopac_original": 2000, "resampled": 1000}
+    _SAMPLING_RATES: ClassVar[dict[str, float]] = {
+        "radar_original": 8000000 / 4096,
+        "biopac_original": 2000,
+        "resampled": 1000,
+    }
 
-    BIOPAC_CHANNEL_MAPPING: Dict[str, str] = {
+    BIOPAC_CHANNEL_MAPPING: ClassVar[dict[str, str]] = {
         "ECG (.05 - 150 Hz)": "ecg",
         "Cardiac Output - Z": "icg",
         "Cardiac Output - dZ/dt": "icg_der",
@@ -44,11 +49,11 @@ class BaseDataset(Dataset):
     def __init__(
         self,
         base_path: path_t,
-        groupby_cols: Optional[Sequence[str]] = None,
-        subset_index: Optional[Sequence[str]] = None,
-        use_cache: Optional[bool] = False,
-        calc_biopac_timelog_shift: Optional[bool] = True,
-        trigger_data_extraction: Optional[bool] = False,
+        groupby_cols: Sequence[str] | None = None,
+        subset_index: Sequence[str] | None = None,
+        use_cache: bool | None = False,
+        calc_biopac_timelog_shift: bool | None = True,
+        trigger_data_extraction: bool | None = False,
     ):
         """
         Creates new instance of the BaseDataset class
@@ -57,8 +62,8 @@ class BaseDataset(Dataset):
             groupby_cols: Optional[Sequence[str]]
             subset_index: Optional[Sequence[str]]
             use_cache: Optional[bool] (currently not implemented)
-            calc_biopac_timelog_shift: Optional[bool] (flag indicating whether to calculate and use the time shift between the
-                BIOPAC event marker and the start of the sync timelog entry to correct start and end times)
+            calc_biopac_timelog_shift: Optional[bool] (flag indicating whether to calculate and use the time shift
+                between the BIOPAC event marker and the start of the sync timelog entry to correct start and end times)
             trigger_data_extraction: Optional[bool] (flag indicating whether to trigger the data extraction from the
                 BIOPAC and radar data).
 
@@ -81,7 +86,7 @@ class BaseDataset(Dataset):
         raise NotImplementedError()
 
     @property
-    def sampling_rates(self) -> Dict[str, float]:
+    def sampling_rates(self) -> dict[str, float]:
         return self._SAMPLING_RATES
 
     @property
@@ -248,7 +253,7 @@ class BaseDataset(Dataset):
         return self._get_protocol(participant_id)
 
     @property
-    def apnea_segmentation(self) -> Dict:
+    def apnea_segmentation(self) -> dict:
         """
         Returns the apnea segmentation for the current participant. Apnea segmentations are only available for
         measurements at the aorta where the breath holding is performed.
@@ -335,7 +340,7 @@ class BaseDataset(Dataset):
             return flipping_data[participant_id]
         return flipping_data
 
-    def save_data_to_location(self, data: pd.DataFrame, file_name: str, sub_dir: Optional[str] = None):
+    def save_data_to_location(self, data: pd.DataFrame, file_name: str, sub_dir: str | None = None):
         """
         Save a dataframe as file to "data_per_location" sub-folder for the respective participant. In this folder,
         all intermediate data can be stored, e.g. the results of the preprocessing steps.
@@ -362,7 +367,7 @@ class BaseDataset(Dataset):
             sub_dir=sub_dir,
         )
 
-    def load_data_from_location(self, file_name: str, sub_dir: Optional[str] = None):
+    def load_data_from_location(self, file_name: str, sub_dir: str | None = None):
         """
         Load a dataframe from a file in the "data_per_location" sub-folder for the respective participant.
         Args:
@@ -389,7 +394,7 @@ class BaseDataset(Dataset):
         return data
 
     def _get_locations_from_index(self):
-        locations = self.index.drop(columns="subject").values.tolist()
+        locations = self.index.drop(columns="subject").to_numpy().tolist()
         locations = ["_".join(i) for i in locations]
         return locations
 
@@ -448,7 +453,7 @@ class BaseDataset(Dataset):
             base_path=self.base_path, participant_id=participant_id, trigger_extraction=self.trigger_data_extraction
         )
 
-    def _get_apnea_segmentation(self, participant_id: str) -> Dict:
+    def _get_apnea_segmentation(self, participant_id: str) -> dict:
         loc = self._get_locations_from_index()[0]
 
         if loc in ["aorta_prox_hold", "aorta_med_hold", "aorta_dist_hold"]:

@@ -1,6 +1,6 @@
 import logging
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Sequence
 
 import pandas as pd
 from typing_extensions import Self
@@ -52,9 +52,9 @@ class ZebrisDataset:
 
     data: pd.DataFrame
     aggregated_data: pd.DataFrame
-    raw_data: Optional[pd.DataFrame] = None
-    metadata: Optional[pd.DataFrame] = None
-    stance_average_data: Optional[pd.DataFrame] = None
+    raw_data: pd.DataFrame | None = None
+    metadata: pd.DataFrame | None = None
+    stance_average_data: pd.DataFrame | None = None
 
     @classmethod
     def from_folder(
@@ -180,7 +180,7 @@ class ZebrisDataset:
         return return_dict
 
     def data_as_df(
-        self, *, channel: Optional[str_t] = None, foot: Optional[str_t] = None, foot_region: Optional[str_t] = None
+        self, *, channel: str_t | None = None, foot: str_t | None = None, foot_region: str_t | None = None
     ) -> pd.DataFrame:
         """Returns the data as a pandas DataFrame."""
         if isinstance(channel, str):

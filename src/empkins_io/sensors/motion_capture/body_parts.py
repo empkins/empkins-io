@@ -1,6 +1,5 @@
-from typing import Dict, Literal, Sequence
-
-from typing_extensions import get_args
+from collections.abc import Sequence
+from typing import Literal, get_args
 
 from empkins_io.sensors.motion_capture.motion_capture_systems import MOTION_CAPTURE_SYSTEM
 
@@ -122,7 +121,7 @@ BODY_PART_OPENPOSE = Literal[
 
 BODY_PART_GROUP = Literal["TotalBody", "UpperExtremities", "LowerExtremities", "Trunk"]
 
-BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[BODY_PART_GROUP, Sequence[BODY_PART_PERCEPTION_NEURON]] = {
+BODY_PART_MAPPING_PERCEPTION_NEURON: dict[BODY_PART_GROUP, Sequence[BODY_PART_PERCEPTION_NEURON]] = {
     "TotalBody": get_args(BODY_PART_PERCEPTION_NEURON),
     "UpperExtremities": [
         "RightShoulder",
@@ -145,7 +144,7 @@ BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[BODY_PART_GROUP, Sequence[BODY_PART_PE
     "Trunk": ["Hips", "Spine", "Spine1", "Spine2", "Spine3", "Neck"],
 }
 
-BODY_PART_MAPPING_OPENPOSE: Dict[BODY_PART_GROUP, Sequence[BODY_PART_OPENPOSE]] = {
+BODY_PART_MAPPING_OPENPOSE: dict[BODY_PART_GROUP, Sequence[BODY_PART_OPENPOSE]] = {
     "TotalBody": get_args(BODY_PART_OPENPOSE),
     "UpperExtremities": [
         "RightShoulder",
@@ -170,7 +169,7 @@ BODY_PART_MAPPING_OPENPOSE: Dict[BODY_PART_GROUP, Sequence[BODY_PART_OPENPOSE]] 
     "Trunk": ["RightHip", "LeftHip", "RightShoulder", "LeftShoulder", "Neck"],
 }
 
-BODY_PART_MAPPING_XSENS: Dict[BODY_PART_GROUP, Sequence[BODY_PART_XSENS]] = {
+BODY_PART_MAPPING_XSENS: dict[BODY_PART_GROUP, Sequence[BODY_PART_XSENS]] = {
     "TotalBody": get_args(BODY_PART_XSENS),
     "UpperExtremities": [
         "RightShoulder",

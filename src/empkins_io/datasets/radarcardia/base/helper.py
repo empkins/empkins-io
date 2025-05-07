@@ -1,7 +1,7 @@
 import datetime
 import json
 from pathlib import Path
-from typing import Dict, Literal, Optional, Union
+from typing import Literal
 
 import bioread
 import numpy as np
@@ -14,8 +14,9 @@ from empkins_io.sensors.emrad import EmradDataset
 from empkins_io.sync import SyncedDataset
 from empkins_io.utils._types import path_t
 from empkins_io.utils.exceptions import (
-    SamplingRateMismatchException,
-    TimelogNotFoundException,
+    SamplingRateMismatchError,
+    SynchronizationError,
+    TimelogNotFoundError,
 )
 
 
@@ -147,7 +148,7 @@ def _load_biopac_raw_unsynced_data(
         # check if biopac sampling rate is the same for each channel
         sampling_rates = set(fs.values())
         if len(sampling_rates) > 1:
-            raise SamplingRateMismatchException(
+            raise SamplingRateMismatchError(
                 f"Biopac sampling rates are not the same for every channel! Found sampling rates: {sampling_rates}"
             )
 
@@ -330,10 +331,10 @@ def _load_timelog(base_path: path_t, participant_id: str) -> pd.DataFrame:
     if timelog_file_path.exists():
         timelog = _load_atimelogger_file(timelog_file_path, timezone="Europe/Berlin")
         return timelog
-    raise TimelogNotFoundException(f"No timelog file was found for {participant_id}!")
+    raise TimelogNotFoundError(f"No timelog file was found for {participant_id}!")
 
 
-def _load_atimelogger_file(file_path: path_t, timezone: Optional[Union[datetime.tzinfo, str]] = None) -> pd.DataFrame:
+def _load_atimelogger_file(file_path: path_t, timezone: datetime.tzinfo | str | None = None) -> pd.DataFrame:
     """Load time log file exported from the aTimeLogger app.
 
     The resulting dataframe will have one row and start and end times of the single phases as columns.
@@ -447,7 +448,7 @@ def _calc_biopac_timelog_shift(base_path: path_t, participant_id: str):
     if len(sync_events) == 1:
         sync_event = sync_events[0]
     elif len(sync_events) == 0:
-        raise Exception("Sync Event Marker in Biopac Data File is missing")
+        raise SynchronizationError("Sync Event Marker in Biopac Data File is missing")
     else:
         raise NotImplementedError("Two or more Biopac Event Markers have been detected. Handling is not implemented.")
 
@@ -470,7 +471,7 @@ def _calc_biopac_timelog_shift(base_path: path_t, participant_id: str):
     shift_path = _build_data_path(base_path, participant_id).joinpath(
         f"timelog/processed/timelog_shift_{participant_id}.json"
     )
-    with open(shift_path, "w", encoding="utf-8") as f:
+    with shift_path.open("w", encoding="utf-8") as f:
         json.dump(shift_dict, f, indent=4)
 
     shift = pd.Timedelta(seconds=shift)
@@ -485,7 +486,7 @@ def _load_protocol(base_path: path_t, participant_id: str) -> pd.DataFrame:
     raise FileNotFoundError("Processed Protocol file was not found.")
 
 
-def _load_apnea_segmentation(base_path: path_t, participant_id: str) -> Dict:
+def _load_apnea_segmentation(base_path: path_t, participant_id: str) -> dict:
     apnea_seg_file_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
         f"biopac/processed/apnea_segmentation_{participant_id}.json"
     )

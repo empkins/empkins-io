@@ -1,8 +1,8 @@
 import contextlib
 import json
+from collections.abc import Sequence
 from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import Optional, Sequence
 
 import pandas as pd
 
@@ -10,7 +10,7 @@ from empkins_io.datasets.d03._utils.dataset_utils import get_cleaned_openpose_da
 from empkins_io.datasets.d03.macro_ap01._base_dataset import MacroBaseDataset
 from empkins_io.datasets.d03.macro_ap01.helper import _get_times_for_mocap, _load_tsst_mocap_data
 from empkins_io.utils._types import path_t
-from empkins_io.utils.exceptions import SyncDataNotFoundException, TimestampDataNotFoundException
+from empkins_io.utils.exceptions import SyncDataNotFoundError, TimestampDataNotFoundError
 
 _cached_load_mocap_data = lru_cache(maxsize=4)(_load_tsst_mocap_data)
 
@@ -23,8 +23,8 @@ class MacroStudyTsstDataset(MacroBaseDataset):
     def __init__(
         self,
         base_path: path_t,
-        groupby_cols: Optional[Sequence[str]] = None,
-        subset_index: Optional[Sequence[str]] = None,
+        groupby_cols: Sequence[str] | None = None,
+        subset_index: Sequence[str] | None = None,
         *,
         exclude_complete_subjects_if_error: bool = True,
         exclude_without_mocap: bool = True,
@@ -104,7 +104,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
             """Class to properly convert ISO timestamps in json file to pd.Timestamps."""
 
             def __init__(self, *args, **kwargs):
-                json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
+                json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)  # noqa: B026
 
             def object_hook(self, obj):
                 if type(obj) is dict:
@@ -114,15 +114,15 @@ class MacroStudyTsstDataset(MacroBaseDataset):
                     return obj
                 try:
                     return pd.to_timedelta(obj)
-                except:
+                except ValueError:
                     return obj
 
         if not self.sync_path.exists():
             subject_id = self.group.subject
             condition = self.group.condition
-            raise SyncDataNotFoundException(f"Sync data not found for subject {subject_id} and condition {condition}.")
+            raise SyncDataNotFoundError(f"Sync data not found for subject {subject_id} and condition {condition}.")
 
-        with open(self.sync_path) as f:
+        with self.sync_path.open() as f:
             sync_data = json.load(f, cls=JSONDecoder)
         return sync_data
 
@@ -165,7 +165,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         if not file_path.exists():
             subject_id = self.group.subject
             condition = self.group.condition
-            raise TimestampDataNotFoundException(
+            raise TimestampDataNotFoundError(
                 f"Timestamp data not found for subject {subject_id} and condition {condition}."
             )
         df = pd.read_csv(file_path, header=0, index_col=0)

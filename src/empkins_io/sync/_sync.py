@@ -1,6 +1,7 @@
 import re
 import warnings
-from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Union, get_args
+from collections.abc import Sequence
+from typing import Any, Literal, get_args
 
 import numpy as np
 import pandas as pd
@@ -39,8 +40,8 @@ SYNC_TYPE_ESB = [
 class SyncedDataset:
     _VALID_INDEX_NAMES = (r"t", r"utc", r"date", r"date \(.*\)")
 
-    datasets: Dict[str, Dict[str, Any]]
-    datasets_synced_: Dict[str, Dict[str, Any]]
+    datasets: dict[str, dict[str, Any]]
+    datasets_synced_: dict[str, dict[str, Any]]
     sync_type: SYNC_TYPE
 
     def __init__(self, sync_type: SYNC_TYPE = "rising-trigger"):
@@ -61,7 +62,7 @@ class SyncedDataset:
         if sync_channel_name not in data.columns:
             raise ValidationError(f"Sync channel {sync_channel_name} not found in data columns.")
         # ensure that sampling_rate is a valid sampling rate
-        if not isinstance(sampling_rate, (int, float)) or sampling_rate <= 0:
+        if not isinstance(sampling_rate, int | float) or sampling_rate <= 0:
             raise ValidationError(f"Sampling rate {sampling_rate} is not a valid sampling rate.")
 
         # check if index of the dataset has same type as the previously added datasets
@@ -76,11 +77,11 @@ class SyncedDataset:
         self.datasets[name]["sync_channel"] = sync_channel_name
         self.datasets[name]["sampling_rate"] = sampling_rate
 
-    def plot_sync_channels(self, **kwargs) -> Tuple[plt.Figure, Sequence[plt.Axes]]:
+    def plot_sync_channels(self, **kwargs) -> tuple[plt.Figure, Sequence[plt.Axes]]:
         """Plot all sync channels in a single figure."""
         fig, axs = plt.subplots(nrows=len(self.datasets), sharex=True, squeeze=False, **kwargs)
         axs = axs.flatten()
-        for name, ax in zip(self.datasets, axs):
+        for name, ax in zip(self.datasets, axs, strict=False):
             dataset = self.datasets[name]
             data = dataset["data"]
             sync_channel = dataset["sync_channel"]
@@ -121,14 +122,14 @@ class SyncedDataset:
             dataset["data_resampled"] = data_resample
             setattr(self, f"{name}_resampled_", data_resample)
 
-    def cut_to_sync_start(self, sync_params: Optional[Dict[str, Any]] = None):
+    def cut_to_sync_start(self, sync_params: dict[str, Any] | None = None):
         warnings.warn(
             "cut_to_sync_start is deprecated and will be removed in the future. Use cut_to_sync_region instead.",
             DeprecationWarning,
         )
         return self.cut_to_sync_region(sync_params=sync_params)
 
-    def cut_to_sync_region(self, sync_params: Optional[Dict[str, Any]] = None):
+    def cut_to_sync_region(self, sync_params: dict[str, Any] | None = None):
         """Cut all datasets to the region where all datasets are synced."""
         if sync_params is None:
             sync_params = {}
@@ -138,7 +139,7 @@ class SyncedDataset:
             data_cut = self._cut_dataset_to_sync_region(dataset, sync_params=params)
             setattr(self, f"{name}_cut_", data_cut)
 
-    def _cut_dataset_to_sync_region(self, dataset: Dict[str, Any], sync_params: Dict[str, Any]) -> pd.DataFrame:
+    def _cut_dataset_to_sync_region(self, dataset: dict[str, Any], sync_params: dict[str, Any]) -> pd.DataFrame:
         if self.sync_type == "m-sequence":
             raise NotImplementedError(
                 "For cutting and aligning datasets, please use the 'cut_to_sync_start_m_sequence' method."
@@ -189,7 +190,7 @@ class SyncedDataset:
 
         return data_cut
 
-    def _find_shift(self, primary: str, sync_params: Optional[Dict[str, Any]] = None):
+    def _find_shift(self, primary: str, sync_params: dict[str, Any] | None = None):
         if sync_params is None:
             sync_params = {}
 
@@ -261,13 +262,11 @@ class SyncedDataset:
             index = index[:shortest_length]
             for name, data in dict_resampled.items():
                 # cut name after second _ to get rid of _aligned_
-                name = "_".join(name.split("_")[:2])
-
-                print(len(data))
+                name_out = "_".join(name.split("_")[:2])
 
                 data_aligned = data.iloc[:shortest_length]
                 data_aligned.index = index
-                setattr(self, f"{name}_resampled_", data_aligned)
+                setattr(self, f"{name_out}_resampled_", data_aligned)
 
     def _resample_sample_wise(self, df, sample_shift):
         df_size = len(df)
@@ -279,12 +278,12 @@ class SyncedDataset:
 
         return df_resample
 
-    def align_and_cut_m_sequence(
+    def align_and_cut_m_sequence(  # noqa: C901, PLR0912, PLR0915
         self,
         primary: str,
-        cut_to_shortest: Optional[bool] = False,
-        reset_time_axis: Optional[bool] = False,
-        sync_params: Optional[Dict[str, Any]] = None,
+        cut_to_shortest: bool | None = False,
+        reset_time_axis: bool | None = False,
+        sync_params: dict[str, Any] | None = None,
     ):
         if sync_params is None:
             sync_params = {}
@@ -355,23 +354,24 @@ class SyncedDataset:
 
         # align all the signals that are *behind* the primary signal by cutting the beginning
         for name, data in dict_data_pad.items():
+            data_out = None
             if dict_lags[name] < 0:
-                data = data.iloc[-dict_lags[name] :].reset_index(drop=True)
+                data_out = data.iloc[-dict_lags[name] :].reset_index(drop=True)
 
-            data = data.set_index(data.columns[0])
-            dict_data_pad[name] = data
-            setattr(self, f"{name}_aligned_", data)
+            data_out = data.set_index(data.columns[0])
+            dict_data_pad[name] = data_out
+            setattr(self, f"{name}_aligned_", data_out)
 
         # align all the signals that are *ahead* of the primary signal by cutting the beginning of all other signals
-        for name, data in dict_data_pad.items():
+        for name, _data in dict_data_pad.items():
             if dict_lags[name] > 0:
                 # shift all the others to match this one
                 for name2, data2 in dict_data_pad.items():
                     if name2 == name:
                         continue
-                    data2 = self._reset_and_shift(data2, dict_lags[name])
+                    data2_out = self._reset_and_shift(data2, dict_lags[name])
 
-                    setattr(self, f"{name2}_aligned_", data2)
+                    setattr(self, f"{name2}_aligned_", data2_out)
 
                 # shift primary
                 data_primary = getattr(self, f"{primary}_aligned_")
@@ -395,7 +395,7 @@ class SyncedDataset:
                 setattr(self, f"{name}_aligned_", data_aligned)
 
     def align_datasets(
-        self, primary: str, cut_to_shortest: Optional[bool] = False, reset_time_axis: Optional[bool] = False
+        self, primary: str, cut_to_shortest: bool | None = False, reset_time_axis: bool | None = False
     ) -> None:
         """Align all datasets to the primary dataset.
 
@@ -460,7 +460,7 @@ class SyncedDataset:
         return {attr: getattr(self, attr) for attr in dir(self) if attr.endswith("aligned_")}
 
     @staticmethod
-    def _find_sync_peaks(data: np.ndarray, sync_params: Dict[str, Any]) -> np.ndarray:
+    def _find_sync_peaks(data: np.ndarray, sync_params: dict[str, Any]) -> np.ndarray:
         max_expected_peaks = sync_params.get("max_expected_peaks")
         search_region_samples = sync_params.get("search_region_samples")
         distance = sync_params.get("distance")
@@ -489,8 +489,8 @@ class SyncedDataset:
 
     def _find_sync_cross_correlation(
         self,
-        primary: Union[np.ndarray, pd.DataFrame],
-        secondary: Union[np.ndarray, pd.DataFrame],
+        primary: np.ndarray | pd.DataFrame,
+        secondary: np.ndarray | pd.DataFrame,
         fs: float,
     ) -> int:
         # find the cross-correlation values and the index of the maximum cross-correlation
@@ -533,7 +533,7 @@ class SyncedDataset:
             f"* 'date (<timezone>)': for a pandas DateTime index in the timezone set for the session\n"
         )
 
-    def _determine_actual_sampling_rate(self, dataset: Dict[str, Any], **kwargs) -> float:
+    def _determine_actual_sampling_rate(self, dataset: dict[str, Any], **kwargs) -> float:
         wave_frequency = kwargs.get("wave_frequency")
         data = dataset["data"]
         sync_channel = dataset["sync_channel"]
@@ -552,11 +552,11 @@ class SyncedDataset:
         return fs_measured
 
     @classmethod
-    def _normalize_signal(cls, data: Union[pd.DataFrame, np.ndarray]) -> pd.DataFrame:
+    def _normalize_signal(cls, data: pd.DataFrame | np.ndarray) -> pd.DataFrame:
         return (data - np.min(data)) / (np.max(data) - np.min(data))
 
     @classmethod
-    def _binarize_signal(cls, data: Union[pd.DataFrame, np.ndarray]) -> pd.DataFrame:
+    def _binarize_signal(cls, data: pd.DataFrame | np.ndarray) -> pd.DataFrame:
         return 0.5 * (np.sign(data - np.mean(data)) + 1)
 
     @classmethod

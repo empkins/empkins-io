@@ -1,7 +1,8 @@
 import datetime
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal, Optional, Sequence, Union
+from typing import Literal
 
 import mne
 import pandas as pd
@@ -17,8 +18,8 @@ DATASTREAMS = Literal[PSG_CHANNELS_SOMNO, PSG_CHANNELS_MESA]
 
 def load_data_folder(
     folder_path: path_t,
-    datastreams: Optional[Union[DATASTREAMS, Sequence[DATASTREAMS]]] = None,
-    timezone: Optional[Union[datetime.tzinfo, str]] = None,
+    datastreams: DATASTREAMS | Sequence[DATASTREAMS] | None = None,
+    timezone: datetime.tzinfo | str | None = None,
 ):
     _assert_is_dir(folder_path)
 
@@ -28,7 +29,8 @@ def load_data_folder(
         raise ValueError(f"No PSG files found in folder {folder_path}!")
     if len(dataset_list) > 1:
         raise ValueError(
-            f"More than one PSG files found in folder {folder_path}! This function only supports one recording per folder!"
+            f"More than one PSG files found in folder {folder_path}! "
+            f"This function only supports one recording per folder!"
         )
 
     result_dict, fs = load_data(path_t.joinpath(dataset_list[0]), datastreams, timezone)
@@ -38,8 +40,8 @@ def load_data_folder(
 
 def load_data(
     path: path_t,
-    datastreams: Optional[Union[DATASTREAMS, Sequence[DATASTREAMS]]] = None,
-    timezone: Optional[Union[datetime.tzinfo, str]] = None,
+    datastreams: DATASTREAMS | Sequence[DATASTREAMS] | None = None,
+    timezone: datetime.tzinfo | str | None = None,
 ):
     data_psg, fs = load_data_raw(path, timezone)
 
@@ -55,11 +57,11 @@ def load_data(
             time, epochs = _create_datetime_index(data_psg.info["meas_date"], times_array=data_psg.times)
             psg_datastream = data_psg.copy().pick_channels([datastream]).get_data()[0, :]
             result_dict[datastream] = pd.DataFrame(psg_datastream, index=time, columns=["signal"])
-        except ValueError:
+        except ValueError as e:
             raise ValueError(
                 "Not all channels match the selected datastreams - Following Datastreams are available: "
                 + str(data_psg.ch_names)
-            )
+            ) from e
 
     sleep_phases = _load_ground_truth(path.parents[1])
     result_dict["sleep_phases"] = sleep_phases
@@ -69,7 +71,7 @@ def load_data(
 
 def load_data_raw(
     path: path_t,
-    timezone: Optional[Union[datetime.tzinfo, str]] = None,
+    timezone: datetime.tzinfo | str | None = None,
 ):
     # ensure pathlib
     path = Path(path)

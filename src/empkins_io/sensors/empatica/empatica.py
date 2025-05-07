@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from functools import lru_cache
-from typing import Optional
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -16,7 +17,7 @@ class EmpaticaDataset:
     _index_type: str
     _tz: str
 
-    _sensor_dict = {
+    _sensor_dict: ClassVar[dict[str, Sequence[str]]] = {
         "accelerometer": ["x", "y", "z"],
         "gyroscope": ["x", "y", "z"],
         "eda": ["values"],
@@ -28,7 +29,7 @@ class EmpaticaDataset:
         # TODO: add all sensors
     }
 
-    _sampling_rates_hz = {
+    _sampling_rates_hz: ClassVar[dict[str, float]] = {
         "accelerometer": 64.0,
         "eda": 4.0,
         "temperature": 1.0,
@@ -37,8 +38,8 @@ class EmpaticaDataset:
     def __init__(
         self,
         path: path_t,
-        index_type: Optional[str] = None,
-        tz: Optional[str] = None,
+        index_type: str | None = None,
+        tz: str | None = None,
     ):
         self.path = path
         if path.is_dir():
@@ -98,10 +99,13 @@ class EmpaticaDataset:
             df = self._add_index_for_stitching(df, sensor_dict["samplingFrequency"], sensor_dict["timestampStart"])
 
             # check for gaps between files
-            if prev_last_timestamp is not None:
-                # if the difference between the last timestamp of the previous file and the first timestamp of the current file is larger than twice sampling distance, we assume that there is a gap between the two files
-                if (df.index[0] - prev_last_timestamp) > (pd.Timedelta(seconds=2 / sensor_dict["samplingFrequency"])):
-                    raise ValueError(f"Gap between files detected. Please check the files in {self.path}.")
+            if prev_last_timestamp is not None and (df.index[0] - prev_last_timestamp) > (
+                pd.Timedelta(seconds=2 / sensor_dict["samplingFrequency"])
+            ):
+                # if the difference between the last timestamp of the previous file and the first timestamp of the
+                # current file is larger than twice sampling distance, we assume that there is a gap between the
+                # two files
+                raise ValueError(f"Gap between files detected. Please check the files in {self.path}.")
             prev_last_timestamp = df.index[-1]
             sampling_frequencies.append(sensor_dict["samplingFrequency"])
 
@@ -195,7 +199,7 @@ def _from_file(path: path_t) -> dict:
     if path.suffix != ".avro":
         raise ValueError(f"Supplied path ({path}) is not a .avro file.")
 
-    reader = DataFileReader(open(path, "rb"), DatumReader())
+    reader = DataFileReader(path.open("rb"), DatumReader())
     data = next(reader)
 
     return data

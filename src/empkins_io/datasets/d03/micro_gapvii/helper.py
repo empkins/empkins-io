@@ -1,9 +1,7 @@
 import ast
 import json
-import pathlib
 import tarfile
 from pathlib import Path
-from typing import Optional, Tuple
 
 import pandas as pd
 from biopsykit.io import load_atimelogger_file
@@ -17,10 +15,10 @@ from empkins_io.datasets.d03.micro_gapvii._custom_synced_session import CustomSy
 from empkins_io.sensors.emrad import EmradDataset
 from empkins_io.utils._types import path_t
 from empkins_io.utils.exceptions import (
-    NilsPodDataLoadException,
-    NilsPodDataNotFoundException,
-    SamplingRateMismatchException,
-    TimelogNotFoundException,
+    NilsPodDataLoadError,
+    NilsPodDataNotFoundError,
+    SamplingRateMismatchError,
+    TimelogNotFoundError,
 )
 
 
@@ -31,8 +29,8 @@ def _build_data_path(base_path: path_t, participant_id: str, condition: str) -> 
 
 
 def _load_biopac_data(
-    base_path: path_t, participant_id: str, condition: str, start_time: Optional[pd.Timestamp] = None
-) -> Tuple[pd.DataFrame, int]:
+    base_path: path_t, participant_id: str, condition: str, start_time: pd.Timestamp | None = None
+) -> tuple[pd.DataFrame, int]:
     biopac_dir_path = _build_data_path(base_path, participant_id=participant_id, condition=condition).joinpath(
         "biopac/raw"
     )
@@ -46,7 +44,7 @@ def _load_biopac_data(
     # check if biopac sampling rate is the same for each channel
     sampling_rates = set(fs.values())
     if len(sampling_rates) > 1:
-        raise SamplingRateMismatchException(
+        raise SamplingRateMismatchError(
             f"Biopac sampling rates are not the same for every channel! Found sampling rates: {sampling_rates}"
         )
 
@@ -96,19 +94,19 @@ def _load_timelog_video(base_path: path_t, participant_id: str, condition: str) 
     if timelog_file_path.exists():
         timelog = json.load(timelog_file_path.open(encoding="utf8"))
         return timelog
-    raise TimelogNotFoundException(
+    raise TimelogNotFoundError(
         f"No cleaned timelog file was found for {participant_id}! "
         "Run the 'notebooks/clean_timelog.ipynb' notebook first!"
     )
 
 
-def _load_nilspod_session(base_path: path_t, participant_id: str, condition: str) -> Tuple[pd.DataFrame, float]:
+def _load_nilspod_session(base_path: path_t, participant_id: str, condition: str) -> tuple[pd.DataFrame, float]:
     data_path = _build_data_path(base_path, participant_id=participant_id, condition=condition)
     data_path = data_path.joinpath("nilspod/raw")
 
     nilspod_files = sorted(data_path.glob("NilsPodX-*.bin"))
     if len(nilspod_files) == 0:
-        raise NilsPodDataNotFoundException("No NilsPod files found in directory!")
+        raise NilsPodDataNotFoundError("No NilsPod files found in directory!")
 
     try:
         session = CustomSyncedSession.from_folder_path(data_path)
@@ -117,7 +115,7 @@ def _load_nilspod_session(base_path: path_t, participant_id: str, condition: str
         session = session.cut(stop=-10)
         session = session.align_to_syncregion()
     except (ZeroDivisionError, SynchronisationError, SessionValidationError, InvalidInputFileError, KeyError) as e:
-        raise NilsPodDataLoadException("Cannot load NilsPod data!") from e
+        raise NilsPodDataLoadError("Cannot load NilsPod data!") from e
 
     _handle_counter_inconsistencies_session(session, handle_counter_inconsistency="ignore")
 
@@ -135,9 +133,7 @@ def build_data_path(base_path: path_t, subject_id: str, condition: str) -> Path:
     return path
 
 
-def build_opendbm_tarfile_path(
-    base_path: path_t, subject_id: str, condition: str, suffix: Optional[str] = None
-) -> Path:
+def build_opendbm_tarfile_path(base_path: path_t, subject_id: str, condition: str, suffix: str | None = None) -> Path:
     path = build_data_path(base_path, subject_id, condition)
     path = path.joinpath("video", "face", "processed")
 
@@ -158,7 +154,9 @@ def build_opendbm_extracted_tar_path(base_path: path_t, subject_id: str, conditi
     return path
 
 
-def build_opendbm_raw_data_path(subject_id: str, condition: str, group: str, subgroup: Optional[str] = None) -> list:
+def build_opendbm_raw_data_path(  # noqa: C901, PLR0912
+    subject_id: str, condition: str, group: str, subgroup: str | None = None
+) -> list:
     data_path = []
 
     if subgroup is None:
@@ -415,12 +413,7 @@ def get_opendbm_derived_features(base_path: path_t, subject_id: str, condition: 
     tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id.lower(), condition, suffix)
     file_path = build_opendbm_derived_data_path().joinpath("derived_output.csv")
     tar = tarfile.open(name=tar_path, mode="r")
-    if type(file_path) == pathlib.WindowsPath:
-        file_path = str(file_path)
-        file_path = file_path.replace("\\", "/")
-    else:
-        file_path = str(file_path)
-    file = tar.extractfile(file_path)
+    file = tar.extractfile(str(file_path))
     data = pd.read_csv(file)
     data = data.drop(columns=["Filename"])
     # data.index = pd.MultiIndex.from_arrays([[subject_id], [condition]], names=["subject", "condition"])

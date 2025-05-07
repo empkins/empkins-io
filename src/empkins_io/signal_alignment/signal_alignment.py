@@ -3,7 +3,7 @@
 This is useful for aligning a target signal to a reference signal.
 """
 
-from typing import Callable, Optional, Tuple, Union
+from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
@@ -22,11 +22,11 @@ __all__ = ["chisqr_align", "phase_align", "upsample", "signal_align"]
 def chisqr_align(
     reference: arr_t,
     target: arr_t,
-    roi: Optional[Tuple[int, int]] = None,
-    order: Optional[int] = 1,
-    init: Optional[float] = 0.1,
-    bound: Optional[int] = 1,
-    **kwargs,  # pylint:disable=unused-argument
+    roi: tuple[int, int] | None = None,
+    order: int | None = 1,
+    init: float | None = 0.1,
+    bound: int | None = 1,
+    **kwargs,  # noqa: ARG001
 ):
     """Align a target signal to a reference signal by minimizing the chi-squared between the two signals.
 
@@ -97,9 +97,9 @@ def chisqr_align(
 def phase_align(
     reference: arr_t,
     target: arr_t,
-    roi: Optional[Tuple[int, int]] = None,
-    upsample_rate: Optional[int] = 100,
-    **kwargs,  # pylint:disable=unused-argument
+    roi: tuple[int, int] | None = None,
+    upsample_rate: int | None = 100,
+    **kwargs,  # noqa: ARG001
 ):
     """Align a target signal to a reference signal using cross-correlation.
 
@@ -154,9 +154,9 @@ def phase_align(
 
 
 def upsample(
-    data: Union[pd.DataFrame, pd.Series],
-    upsample_rate: Optional[int] = 10,
-    interpol_type: Optional[str] = "cubic",
+    data: pd.DataFrame | pd.Series,
+    upsample_rate: int | None = 10,
+    interpol_type: str | None = "cubic",
 ) -> pd.DataFrame:
     """Upsample input data.
 
@@ -206,8 +206,8 @@ def upsample(
 
 
 def signal_align(
-    reference: arr_t, target: arr_t, align_func: Optional[Callable] = None, **kwargs
-) -> Tuple[arr_t, arr_t, float]:
+    reference: arr_t, target: arr_t, align_func: Callable | None = None, **kwargs
+) -> tuple[arr_t, arr_t, float]:
     """Align a target signal to a reference signal.
 
     Parameters

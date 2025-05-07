@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from itertools import product
-from typing import Optional, Sequence, Tuple
+from typing import ClassVar
 
 import biopsykit
 import pandas as pd
@@ -8,17 +9,17 @@ from tpcp import Dataset
 from empkins_io.utils._types import path_t
 
 
-class VADAS_Dataset(Dataset):
+class VadasDataset(Dataset):
     ECG_SAMPLING_RATE = 256
 
-    DAYS = ["U1", "U2"]
-    TEST = ["baseline", "cpt"]
+    DAYS: ClassVar[Sequence[str]] = ["U1", "U2"]
+    TEST: ClassVar[Sequence[str]] = ["baseline", "cpt"]
 
     def __init__(
         self,
         base_path: path_t,
-        groupby_cols: Optional[Sequence[str]] = None,
-        subset_index: Optional[Sequence[str]] = None,
+        groupby_cols: Sequence[str] | None = None,
+        subset_index: Sequence[str] | None = None,
     ):
         # ensure pathlib
         self.base_path = base_path
@@ -83,7 +84,7 @@ class VADAS_Dataset(Dataset):
         date = timelog.loc[(self.subject, self.day), "date"].split(",")[0]
         return pd.to_datetime(date + "2024 " + str(start_nilspod), format="%d.%m.%Y %H:%M:%S")
 
-    def _load_nilspod_session(self, subject_id: str, day: str) -> Tuple[pd.DataFrame, float]:
+    def _load_nilspod_session(self, subject_id: str, day: str) -> tuple[pd.DataFrame, float]:
         nilspod_files = sorted(self.base_path.joinpath("Sensordaten Luca").glob(f"{subject_id}_{day}_*.bin"))
 
         if len(nilspod_files) == 0:

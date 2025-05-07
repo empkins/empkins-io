@@ -1,6 +1,7 @@
+from collections.abc import Sequence
 from functools import lru_cache
 from itertools import product
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import ClassVar
 
 import pandas as pd
 from biopsykit.io import load_long_format_csv
@@ -36,19 +37,19 @@ _cached_load_hr_synced = lru_cache(maxsize=20)(load_hr_synced)
 
 
 class MicroPreStudyDataset(Dataset):
-    SUBJECTS_WITHOUT_LABELS: Tuple[str] = ()
+    SUBJECTS_WITHOUT_LABELS: tuple[str] = ()
 
     exclude_without_labels: bool
-    _sampling_rate: Dict[str, float] = {"ecg": 256, "emotion": 10}
-    _sample_times = [-1, 0, 10, 20, 45]
+    _sampling_rate: ClassVar[dict[str, float]] = {"ecg": 256, "emotion": 10}
+    _sample_times: ClassVar[Sequence[int]] = [-1, 0, 10, 20, 45]
 
     def __init__(
         self,
         base_path: path_t,
-        groupby_cols: Optional[Sequence[str]] = None,
-        subset_index: Optional[Sequence[str]] = None,
-        exclude_without_labels: Optional[bool] = True,
-        use_cache: Optional[bool] = True,
+        groupby_cols: Sequence[str] | None = None,
+        subset_index: Sequence[str] | None = None,
+        exclude_without_labels: bool | None = True,
+        use_cache: bool | None = True,
     ):
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
         # ensure pathlib
@@ -74,7 +75,7 @@ class MicroPreStudyDataset(Dataset):
         return index
 
     @property
-    def sampling_rate(self) -> Dict[str, float]:
+    def sampling_rate(self) -> dict[str, float]:
         return self._sampling_rate
 
     @property
@@ -124,7 +125,7 @@ class MicroPreStudyDataset(Dataset):
         return multi_xs(multi_xs(data, subject_ids, level="subject"), conditions, level="condition")
 
     @property
-    def ecg(self) -> Union[Dict[str, pd.DataFrame], pd.DataFrame]:
+    def ecg(self) -> dict[str, pd.DataFrame] | pd.DataFrame:
         self._check_access("ECG data")
         artifact = self._check_artifact("ECG data")
         phases, subphases = self._get_phases_subphases()
@@ -142,7 +143,7 @@ class MicroPreStudyDataset(Dataset):
         )
 
     @property
-    def hr_ecg(self) -> Union[Dict[str, pd.DataFrame], pd.DataFrame]:
+    def hr_ecg(self) -> dict[str, pd.DataFrame] | pd.DataFrame:
         self._check_access("ECG heart rate")
         artifact = self._check_artifact("ECG heart rate")
         phases, subphases = self._get_phases_subphases()
@@ -160,7 +161,7 @@ class MicroPreStudyDataset(Dataset):
         )
 
     @property
-    def hr_mis(self) -> Union[Dict[str, pd.DataFrame], pd.DataFrame]:
+    def hr_mis(self) -> dict[str, pd.DataFrame] | pd.DataFrame:
         self._check_access("MIS heart rate")
         artifact = self._check_artifact("MIS heart rate")
         if self.index["study_part"][0] == STUDY_PARTS[-1]:
@@ -200,11 +201,11 @@ class MicroPreStudyDataset(Dataset):
         )
 
     @property
-    def emotion(self) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    def emotion(self) -> pd.DataFrame | dict[str, pd.DataFrame]:
         return self._emotion("emotion")
 
     @property
-    def dominant_emotion(self) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    def dominant_emotion(self) -> pd.DataFrame | dict[str, pd.DataFrame]:
         return self._emotion("dominant_emotion")
 
     def _emotion(self, emotion_type: str):
@@ -232,7 +233,7 @@ class MicroPreStudyDataset(Dataset):
         )
 
     @property
-    def export_paths(self) -> Dict[str, path_t]:
+    def export_paths(self) -> dict[str, path_t]:
         if not self.is_single(["subject", "condition"]):
             print("Only supported for a single participant and condition!")
         subject_id = self.index["subject"][0]
@@ -242,7 +243,7 @@ class MicroPreStudyDataset(Dataset):
 
         return {"video": video_path_proc}
 
-    def _get_phases_subphases(self) -> Tuple[str_t, str_t]:
+    def _get_phases_subphases(self) -> tuple[str_t, str_t]:
         study_part = self.index["study_part"][0]
         if all(phase in self.index["phase"].unique() for phase in PHASES[study_part]):
             phases = None

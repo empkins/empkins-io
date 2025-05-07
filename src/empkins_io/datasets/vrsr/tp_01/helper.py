@@ -1,11 +1,9 @@
-from typing import Optional
-
 import pandas as pd
 
 from empkins_io.utils._types import path_t
 
 
-def _load_ecg_data(base_path: path_t, subject: str, to_local_time: Optional[bool] = True) -> pd.DataFrame:
+def _load_ecg_data(base_path: path_t, subject: str, to_local_time: bool | None = True) -> pd.DataFrame:
     df = pd.read_csv(
         base_path.joinpath("data_per_subject", subject, f"{subject}.txt"),
         sep="\t",

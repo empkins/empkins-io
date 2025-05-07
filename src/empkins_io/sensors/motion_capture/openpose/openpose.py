@@ -1,5 +1,5 @@
 import json
-import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -50,17 +50,18 @@ def get_df_from_json_dir(dir_jsons: path_t) -> pd.DataFrame:
     16301            NaN      NaN        NaN      NaN      NaN        NaN  ...
 
     """
+    dir_jsons = Path(dir_jsons)
     output_all_frames_list = []
     i = 0
     # go through all openpose output files
-    for file in dir_jsons.glob("*.json"):
+    for file in sorted(dir_jsons.glob("*.json")):
         more_than_one_person = False
-        basename = os.path.basename(file)
+        basename = file.name
 
         # extract frame number from filename
         frame_no = int(basename.split("_")[-2])
 
-        with open(file) as f:
+        with file.open() as f:
             op_output = json.load(f)
 
         # extract keypoint data

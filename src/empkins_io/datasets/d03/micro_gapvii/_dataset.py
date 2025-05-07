@@ -1,7 +1,8 @@
+from collections.abc import Sequence
 from functools import cached_property, lru_cache
 from itertools import product
 from pathlib import Path
-from typing import ClassVar, Optional, Sequence, Union
+from typing import ClassVar
 
 import pandas as pd
 from biopsykit.io.io import load_long_format_csv
@@ -58,7 +59,7 @@ class MicroBaseDataset(Dataset):
     sync_on_load: bool
     use_cache: bool
     phase_fine: bool
-    opendbm_suffix: Optional[str]
+    opendbm_suffix: str | None
     _sample_times_saliva: ClassVar[tuple[int]] = (-40, -1, 16, 25, 35, 45, 60, 75)
     _sample_times_bloodspot: ClassVar[tuple[int]] = (-40, 60)
 
@@ -182,12 +183,12 @@ class MicroBaseDataset(Dataset):
     def __init__(
         self,
         base_path: path_t,
-        groupby_cols: Optional[Sequence[str]] = None,
-        subset_index: Optional[Sequence[str]] = None,
+        groupby_cols: Sequence[str] | None = None,
+        subset_index: Sequence[str] | None = None,
         exclude_missing_data: bool = False,
         use_cache: bool = True,
         phase_fine: bool = False,
-        opendbm_suffix: Optional[str] = None,
+        opendbm_suffix: str | None = None,
         only_labeled: bool = False,
     ):
         # ensure pathlib
@@ -356,11 +357,11 @@ class MicroBaseDataset(Dataset):
         return self._load_reference_heartbeats()
 
     @property
-    def reference_labels_ecg(self) -> Union[pd.DataFrame, dict[str, pd.DataFrame]]:
+    def reference_labels_ecg(self) -> pd.DataFrame | dict[str, pd.DataFrame]:
         return self._load_reference_labels("ECG")
 
     @property
-    def reference_labels_icg(self) -> Union[pd.DataFrame, dict[str, pd.DataFrame]]:
+    def reference_labels_icg(self) -> pd.DataFrame | dict[str, pd.DataFrame]:
         return self._load_reference_labels("ICG")
 
     def _load_reference_heartbeats(self) -> pd.DataFrame:
@@ -654,7 +655,7 @@ class MicroBaseDataset(Dataset):
         file_path = self.base_path / "expected_files_per_subject.csv"
         return pd.read_csv(file_path, index_col=2)
 
-    def check_data_completeness(self, save_output: bool = False, output_path: Optional[path_t] = None):
+    def check_data_completeness(self, save_output: bool = False, output_path: path_t | None = None):
         """Check if all expected files are present for each subject."""
         file_overview = check_data_completeness(
             data_per_subject_folder=self.base_path.joinpath("data_per_subject"),
@@ -667,7 +668,7 @@ class MicroBaseDataset(Dataset):
         return file_overview
 
     def _get_biopac_data(
-        self, participant_id: str, condition: str, phase: str, start_time: Optional[pd.Timestamp] = None
+        self, participant_id: str, condition: str, phase: str, start_time: pd.Timestamp | None = None
     ) -> tuple[pd.DataFrame, int]:
         if self.use_cache:
             data, fs = _cached_get_biopac_data(self.base_path, participant_id, condition, start_time)

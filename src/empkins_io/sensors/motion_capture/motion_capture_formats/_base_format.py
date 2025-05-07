@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 import pandas as pd
 
@@ -15,15 +15,15 @@ class _BaseMotionCaptureDataFormat:
     channels: Sequence[str]
     axis: Sequence[str]
     num_frames: int
-    rot_drift_data: Optional[pd.DataFrame] = None
+    rot_drift_data: pd.DataFrame | None = None
 
     def __init__(
         self,
         system: MOTION_CAPTURE_SYSTEM,
         data: pd.DataFrame,
         sampling_rate: float,
-        channels: Optional[Sequence[str]] = None,
-        axis: Optional[Sequence[str]] = None,
+        channels: Sequence[str] | None = None,
+        axis: Sequence[str] | None = None,
     ):
         self.system = system
         self.data = data

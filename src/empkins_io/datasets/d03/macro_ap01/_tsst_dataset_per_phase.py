@@ -1,6 +1,6 @@
+from collections.abc import Sequence
 from functools import cached_property, lru_cache
 from itertools import product
-from typing import Dict, Optional, Sequence, Union
 
 import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
@@ -23,8 +23,8 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
     def __init__(
         self,
         base_path: path_t,
-        groupby_cols: Optional[Sequence[str]] = None,
-        subset_index: Optional[Sequence[str]] = None,
+        groupby_cols: Sequence[str] | None = None,
+        subset_index: Sequence[str] | None = None,
         *,
         exclude_complete_subjects_if_error: bool = True,
         exclude_without_mocap: bool = True,
@@ -62,7 +62,7 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
         return index
 
     @cached_property
-    def mocap_data(self) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    def mocap_data(self) -> pd.DataFrame | dict[str, pd.DataFrame]:
         if not self.is_single(["subject", "condition"]):
             raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
@@ -75,7 +75,7 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
 
     def _get_mocap_data_per_phase(
         self, subject_id: str, condition: str, phase: str_t, *, verbose: bool = True
-    ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    ) -> pd.DataFrame | dict[str, pd.DataFrame]:
         data, start = self._get_mocap_data(subject_id, condition, verbose=verbose)
         timelog = self.timelog_test
         times = _get_times_for_mocap(timelog, start, phase)

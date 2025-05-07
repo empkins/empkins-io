@@ -1,6 +1,5 @@
-from typing import Dict, Literal, Sequence
-
-from typing_extensions import get_args
+from collections.abc import Sequence
+from typing import Literal, get_args
 
 from empkins_io.sensors.psg.psg_systems import PSG_SYSTEM
 
@@ -97,7 +96,7 @@ PSG_CHANNELS_MESA = Literal[
 
 PSG_GROUP = Literal["FullPSG", "EEG", "ECG", "EOG", "SpO2", "System", "Resp", "EMG", "Sync", "Activity", "Position"]
 
-PSG_GROUP_MAPPING_SOMNO: Dict[PSG_GROUP, Sequence[PSG_CHANNELS_SOMNO]] = {
+PSG_GROUP_MAPPING_SOMNO: dict[PSG_GROUP, Sequence[PSG_CHANNELS_SOMNO]] = {
     "FullPSG": get_args(PSG_CHANNELS_SOMNO),
     "EEG": [
         "Fp1",
@@ -146,7 +145,7 @@ PSG_GROUP_MAPPING_SOMNO: Dict[PSG_GROUP, Sequence[PSG_CHANNELS_SOMNO]] = {
     "EMG": ["PLMr", "PLMl", "EMG1", "EMG2", "EMG3", "ArmLi", "ArmRe"],
 }
 
-PSG_GROUP_MAPPING_MESA: Dict[PSG_GROUP, Sequence[PSG_CHANNELS_MESA]] = {
+PSG_GROUP_MAPPING_MESA: dict[PSG_GROUP, Sequence[PSG_CHANNELS_MESA]] = {
     "FullPSG": [get_args(PSG_CHANNELS_MESA)],
     "EEG": [
         "EEG1",
@@ -234,7 +233,7 @@ PSG_CHANNELS_PD_SLEEP_LAB = Literal[
     "XFlow_DR",
 ]
 
-PSG_GROUP_MAPPING_PD_SLEEP_LAB: Dict[PSG_GROUP, Sequence[PSG_CHANNELS_PD_SLEEP_LAB]] = {
+PSG_GROUP_MAPPING_PD_SLEEP_LAB: dict[PSG_GROUP, Sequence[PSG_CHANNELS_PD_SLEEP_LAB]] = {
     "FullPSG": get_args(PSG_CHANNELS_PD_SLEEP_LAB),
     "EEG": [
         "C3",
@@ -255,7 +254,7 @@ PSG_GROUP_MAPPING_PD_SLEEP_LAB: Dict[PSG_GROUP, Sequence[PSG_CHANNELS_PD_SLEEP_L
 }
 
 
-def get_full_PSG(system: PSG_SYSTEM) -> Sequence[str]:
+def get_full_psg(system: PSG_SYSTEM) -> Sequence[str]:
     """Return full PSG."""
     if system not in get_args(PSG_SYSTEM):
         raise ValueError(f"Invalid 'system'! Expected one of {get_args(PSG_SYSTEM)}, got {system}.")

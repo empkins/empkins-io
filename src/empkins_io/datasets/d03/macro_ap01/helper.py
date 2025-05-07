@@ -1,6 +1,5 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Tuple
 
 import pandas as pd
 from biopsykit.io.nilspod import _handle_counter_inconsistencies_session
@@ -9,7 +8,7 @@ from empkins_io.datasets.d03._utils.dataset_utils import get_uncleaned_openpose_
 from empkins_io.datasets.d03.macro_ap01._custom_synced_session import CustomSyncedSession
 from empkins_io.sensors.motion_capture.motion_capture_formats import mvnx
 from empkins_io.utils._types import path_t, str_t
-from empkins_io.utils.exceptions import NilsPodDataNotFoundException
+from empkins_io.utils.exceptions import NilsPodDataNotFoundError
 
 
 def _build_data_path(base_path: path_t, subject_id: str, condition: str) -> Path:
@@ -19,13 +18,13 @@ def _build_data_path(base_path: path_t, subject_id: str, condition: str) -> Path
     return path
 
 
-def _load_nilspod_session(base_path: path_t, subject_id: str, condition: str) -> Tuple[pd.DataFrame, float]:
+def _load_nilspod_session(base_path: path_t, subject_id: str, condition: str) -> tuple[pd.DataFrame, float]:
     data_path = _build_data_path(base_path.joinpath("data_per_subject"), subject_id=subject_id, condition=condition)
     data_path = data_path.joinpath("nilspod/raw")
 
     nilspod_files = sorted(data_path.glob("NilsPodX-*.bin"))
     if len(nilspod_files) == 0:
-        raise NilsPodDataNotFoundException("No NilsPod files found in directory!")
+        raise NilsPodDataNotFoundError("No NilsPod files found in directory!")
 
     session = CustomSyncedSession.from_folder_path(data_path)
     # fix for "classical nilspod bug" where last sample counter is corrupted
@@ -99,7 +98,7 @@ def _load_gait_mocap_data(
 def _get_times_for_mocap(
     timelog: pd.DataFrame,
     start_time: datetime,
-    phase: Optional[str_t] = "total",
+    phase: str_t | None = "total",
 ) -> pd.DataFrame:
     if phase == "total":
         timelog = timelog.drop(columns="prep", level="phase")
@@ -116,8 +115,8 @@ def _get_times_for_mocap(
 
 
 def rearrange_hr_ensemble_data(
-    hr_ensemble: Dict[str, pd.DataFrame],
-) -> Tuple[Dict[str, pd.DataFrame], Dict[str, Dict[str, int]]]:
+    hr_ensemble: dict[str, pd.DataFrame],
+) -> tuple[dict[str, pd.DataFrame], dict[str, dict[str, int]]]:
     hr_ensemble = {
         cond: {key: val.xs(cond, level="condition", axis=1) for key, val in hr_ensemble.items()}
         for cond in ["tsst", "ftsst"]

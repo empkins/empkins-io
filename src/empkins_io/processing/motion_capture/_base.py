@@ -1,7 +1,8 @@
 import abc
 from abc import ABC
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any, Dict, Optional, Sequence, Tuple
+from typing import Any
 
 import pandas as pd
 import scipy.signal as ss
@@ -15,7 +16,7 @@ from empkins_io.sensors.motion_capture.motion_capture_formats._base_format impor
 
 
 class _BaseMotionCaptureProcessor(ABC):
-    data_dict: Dict[str, _BaseMotionCaptureDataFormat]
+    data_dict: dict[str, _BaseMotionCaptureDataFormat]
 
     def __init__(self, data: _BaseMotionCaptureDataFormat):
         self.data_dict = {}
@@ -31,19 +32,19 @@ class _BaseMotionCaptureProcessor(ABC):
 
     @abc.abstractmethod
     def filter_position_drift(
-        self, key: str, filter_params: Optional[Dict[str, Any]] = None
+        self, key: str, filter_params: dict[str, Any] | None = None
     ) -> _BaseMotionCaptureDataFormat:
         pass
 
     @abc.abstractmethod
     def filter_rotation_drift(
-        self, key: str, filter_params: Optional[Sequence[Dict[str, Any]]] = None
+        self, key: str, filter_params: Sequence[dict[str, Any]] | None = None
     ) -> _BaseMotionCaptureDataFormat:
         pass
 
-    def _filter_position_drift(self, pos_data: pd.DataFrame, Wn: float):
+    def _filter_position_drift(self, pos_data: pd.DataFrame, w_n: float):
         # filter data using butterworth filter
-        sos = ss.butter(N=3, Wn=Wn, fs=self.sampling_rate, btype="high", output="sos")
+        sos = ss.butter(N=3, Wn=w_n, fs=self.sampling_rate, btype="high", output="sos")
         pos_data_filt = ss.sosfiltfilt(sos, x=pos_data, axis=0)
 
         pos_data_filt = pd.DataFrame(pos_data_filt, columns=pos_data.columns, index=pos_data.index)
@@ -54,9 +55,9 @@ class _BaseMotionCaptureProcessor(ABC):
     def _filter_rotation_drift(
         self,
         rot_data: pd.DataFrame,
-        filter_params_list: Sequence[Dict[str, Any]],
-        to_euler: Optional[bool] = True,
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        filter_params_list: Sequence[dict[str, Any]],
+        to_euler: bool | None = True,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         # get rotation order sequence
         seq = "".join(rot_data.columns.get_level_values("axis").unique())
         drift_data = None
@@ -88,7 +89,7 @@ class _BaseMotionCaptureProcessor(ABC):
         data: pd.DataFrame,
         drift_data: pd.DataFrame,
         body_parts: Sequence[str],
-        filter_params: Optional[Dict[str, Any]] = None,
+        filter_params: dict[str, Any] | None = None,
     ) -> pd.DataFrame:
         data_before = data.loc[:, body_parts]
         sos = ss.butter(

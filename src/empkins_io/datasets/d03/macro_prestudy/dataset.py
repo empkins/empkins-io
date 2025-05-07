@@ -1,8 +1,8 @@
 import json
+from collections.abc import Sequence
 from functools import cached_property, lru_cache
 from itertools import product
 from pathlib import Path
-from typing import Optional, Sequence, Tuple
 
 import pandas as pd
 from biopsykit.io import load_long_format_csv, load_questionnaire_data
@@ -34,7 +34,7 @@ from empkins_io.datasets.d03.macro_prestudy.helper import (
     write_file_to_opendbm_tar,
 )
 from empkins_io.utils._types import path_t
-from empkins_io.utils.exceptions import SyncDataNotFoundException
+from empkins_io.utils.exceptions import SyncDataNotFoundError
 
 _cached_load_mocap_data = lru_cache(maxsize=4)(load_mocap_data)
 _cached_load_opendbm_facial_data = lru_cache(maxsize=4)(load_opendbm_facial_data)
@@ -47,9 +47,9 @@ _cached_load_speaker_diarization = lru_cache(maxsize=4)(load_speaker_diarization
 
 
 class MacroPreStudyDataset(Dataset):
-    SUBJECTS_WITHOUT_MOCAP: Tuple[str] = ("VP_01",)
-    SUBJECTS_DIARIZATION_FAILED: Tuple[str] = ("VP_19",)
-    SUBJECTS_WITHOUT_OPENPOSE: Tuple[str] = ("VP_01",)
+    SUBJECTS_WITHOUT_MOCAP: tuple[str] = ("VP_01",)
+    SUBJECTS_DIARIZATION_FAILED: tuple[str] = ("VP_19",)
+    SUBJECTS_WITHOUT_OPENPOSE: tuple[str] = ("VP_01",)
 
     base_path: path_t
     exclude_without_mocap: bool
@@ -62,13 +62,13 @@ class MacroPreStudyDataset(Dataset):
     _sampling_rate: float = 1.0 / 0.017
     _sampling_rate_video: float = 25  # frames per second
     _sampling_rate_audio: float = 1000  # down sampled fs of extracted features in opendbm
-    _sample_times: Tuple[int] = (-20, -1, 0, 10, 20, 45)
+    _sample_times: tuple[int] = (-20, -1, 0, 10, 20, 45)
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         base_path: path_t,
-        groupby_cols: Optional[Sequence[str]] = None,
-        subset_index: Optional[Sequence[str]] = None,
+        groupby_cols: Sequence[str] | None = None,
+        subset_index: Sequence[str] | None = None,
         exclude_without_mocap: bool = True,
         exclude_diarization_failed: bool = False,
         exclude_without_openpose: bool = True,
@@ -76,7 +76,7 @@ class MacroPreStudyDataset(Dataset):
         normalize_video_time: bool = True,
         normalize_openpose_time: bool = True,
         use_cache: bool = True,
-        opendbm_suffix: Optional[str] = None,
+        opendbm_suffix: str | None = None,
     ):
         # ensure pathlib
         self.base_path = base_path
@@ -276,7 +276,7 @@ class MacroPreStudyDataset(Dataset):
 
                 if self.normalize_video_time:
                     data.index -= data.index[0]
-            except Exception as e:
+            except ValueError as e:
                 print(f"loading acoustic_seg opendbm data failed for phase {phase}: {e}")
 
             return data
@@ -296,9 +296,8 @@ class MacroPreStudyDataset(Dataset):
                 data = data.loc[(data["start"] > times[0]) & (data["stop"] < times[1])]
                 if self.normalize_video_time:
                     data.index -= data.index[0]
-            except Exception as e:
+            except ValueError as e:
                 print(f"loading audio_seg opendbm data failed for phase {phase}: {e}")
-
             return data
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
@@ -317,7 +316,7 @@ class MacroPreStudyDataset(Dataset):
                 data = data.loc[times[0] : times[1]]
                 if self.normalize_video_time:
                     data.index -= data.index[0]
-            except Exception as e:
+            except ValueError as e:
                 print(f"warning: cutting facial tremor data failed (data shape: {data.shape}):", e)
 
             return data
@@ -347,7 +346,7 @@ class MacroPreStudyDataset(Dataset):
             condition = self.index["condition"][0]
             data = self._get_opendbm_eyeblink_data(subject_id, condition)
             if len(data.index) != 0:
-                fps = data.at[0, "fps"]
+                fps = data.loc[0, "fps"]
                 data.index = data["mov_blinkframes"] / fps
                 data.index.name = "time [s]"
                 phase = self.index["phase"].unique()[0] if self.is_single(None) else "total"
@@ -424,9 +423,8 @@ class MacroPreStudyDataset(Dataset):
             f"data_per_subject/{subject_id}/{condition}/{subject_id}_times_{condition}.json"
         )
         if not file_path.exists():
-            print(file_path)
-            raise SyncDataNotFoundException(f"Sync data not found for subject {subject_id} and condition {condition}.")
-        with open(file_path) as f:
+            raise SyncDataNotFoundError(f"Sync data not found for subject {subject_id} and condition {condition}.")
+        with file_path.open() as f:
             sync_data = json.load(f)
         return sync_data
 
@@ -468,12 +466,12 @@ class MacroPreStudyDataset(Dataset):
 
         raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
-    def extract_opendbm_data(self, suffix: Optional[str] = None):
+    def extract_opendbm_data(self, suffix: str | None = None):
         subject_id = self.index["subject"][0]
         condition = self.index["condition"][0]
         return extract_opendbm_data(self.base_path, subject_id, condition, suffix)
 
-    def compress_opendbm_data(self, suffix: Optional[str] = None):
+    def compress_opendbm_data(self, suffix: str | None = None):
         subject_id = self.index["subject"][0]
         condition = self.index["condition"][0]
         return compress_opendbm_data(self.base_path, subject_id, condition, suffix)
@@ -481,11 +479,11 @@ class MacroPreStudyDataset(Dataset):
     def write_file_to_opendbm(
         self,
         data: pd.DataFrame,
-        data_type: Optional[str] = None,
-        raw: Optional[bool] = False,
-        derived: Optional[bool] = False,
-        group: Optional[str] = None,
-        subgroup: Optional[str] = None,
+        data_type: str | None = None,
+        raw: bool | None = False,
+        derived: bool | None = False,
+        group: str | None = None,
+        subgroup: str | None = None,
     ):
         subject_id = self.index["subject"][0]
         condition = self.index["condition"][0]
