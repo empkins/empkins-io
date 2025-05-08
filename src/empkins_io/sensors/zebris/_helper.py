@@ -171,7 +171,7 @@ def _read_parameters_csv(file_path: path_t) -> pd.DataFrame:
 
     for col in data.columns:
         col_out = col.split(" ")
-        col_out = [col.replace(",", "").replace("[", "").replace("]", "").replace("%", "") for col in col]
+        col_out = [col.replace(",", "").replace("[", "").replace("]", "").replace("%", "") for col in col_out]
         # drop units
         col_out = [c for c in col_out if c not in units_to_remove]
         # drop empty strings
