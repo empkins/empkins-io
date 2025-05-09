@@ -126,8 +126,9 @@ class MacroBaseDataset(Dataset):
         phase = self.group_label.phase
 
         folder_path = self.base_path.joinpath("data_per_participant", p_id, condition, "zebris", "export", phase)
-        zebris_dataset = ZebrisDataset(folder_path)
-        return zebris_dataset
+        zebris_dataset = ZebrisDataset.from_folder(folder_path)
+
+        return zebris_dataset.data
 
     @property
     def zebris_aggregated(self) -> pd.DataFrame:
