@@ -2,7 +2,7 @@ import datetime
 from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from pathlib import Path
-from typing import Dict, Literal, Optional, Union
+from typing import Dict, Literal, Optional, Union, List
 from biopsykit.utils.time import tz
 from pandas import DataFrame
 from empkins_io.utils._types import path_t
@@ -58,6 +58,17 @@ def _load_general_information(base_path: path_t, column: str) -> DataFrame:
     file_path = _build_general_tabular_path(base_path)
     df = pd.read_excel(file_path, index_col=0)
     return df[column]
+
+def _build_phase_times_path(base_path: path_t) -> Path:
+    data_path = _build_tabular_data_path(base_path)
+    file_path = data_path / "processed/phase_times_synchronized.csv"
+    assert file_path.exists(), f"{file_path} does not exist"
+    return file_path
+
+def _load_phase_times(base_path: path_t) -> DataFrame:
+    file_path = _build_phase_times_path(base_path)
+    df = pd.read_csv(file_path)
+    return df
 
 def _build_datetime_path(base_path: path_t, participant_id: str) -> Path:
     date_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(

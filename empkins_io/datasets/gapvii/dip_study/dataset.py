@@ -18,7 +18,8 @@ from empkins_io.datasets.gapvii.dip_study.helper import (
     _load_b2b_data,
     _load_start_end_times,
     _load_empatica_data,
-    _load_avro_data
+    _load_avro_data,
+    _load_phase_times
 )
 
 
@@ -154,6 +155,14 @@ class DipStudyDataset(Dataset):
         if self.is_single(["subject"]):
             return self.index["subject"][0]
         return None
+    
+    @property
+    def phase_times(self) -> pd.DataFrame:
+        if self.is_single(["subject"]):
+            df = _load_phase_times(self.base_path)
+            subject = self.index["subject"][0]
+            return df[df["VP"] == subject]
+        return _load_phase_times(self.base_path)
     
     @property
     def date(self) -> str:
