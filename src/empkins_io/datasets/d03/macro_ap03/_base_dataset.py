@@ -8,6 +8,7 @@ from statsmodels.stats.oneway import power_equivalence_oneway
 from tpcp import Dataset
 
 from empkins_io.utils._types import path_t
+from empkins_io.sensors.zebris._zebris import ZebrisDataset
 
 # _cached_load_nilspod_data = lru_cache(maxsize=4)(_load_nilspod_session)
 
@@ -124,13 +125,15 @@ class MacroBaseDataset(Dataset):
         condition = self.group_label.condition
         phase = self.group_label.phase
 
-        folder_path = self.base_path.joinpath("data_per_participant").joinpath(
-            f"{p_id}/{condition}/zebris/export/{phase}"
-        )
-
-        return pd.DataFrame()
+        folder_path = self.base_path.joinpath("data_per_participant", p_id, condition, "zebris", "export", phase)
+        zebris_dataset = ZebrisDataset(folder_path)
+        return zebris_dataset
 
     @property
     def zebris_aggregated(self) -> pd.DataFrame:
-        # TODO : continue here
-        return pd.DataFrame()
+        if not self.is_single(None):
+            raise ValueError("Zebris aggregated data can only be accessed for a single recording.")
+        folder_path = self.base_path.joinpath("data_per_participant", self.group_label.participant,
+                                              self.group_label.condition, "zebris", "export", self.group_label.phase)
+        zebris_dataset = ZebrisDataset.from_folder(folder_path)
+        return zebris_dataset.aggregated_data
