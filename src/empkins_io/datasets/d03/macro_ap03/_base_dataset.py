@@ -116,7 +116,6 @@ class MacroBaseDataset(Dataset):
 
     @property
     def zebris(self) -> pd.DataFrame:
-        # TODO: continue here
         if not self.is_single(None):
             raise ValueError(
                 "Data can only be accessed for a single recording (participant, condition, phase) in the subset"
@@ -128,7 +127,7 @@ class MacroBaseDataset(Dataset):
         folder_path = self.base_path.joinpath("data_per_participant", p_id, condition, "zebris", "export", phase)
         zebris_dataset = ZebrisDataset.from_folder(folder_path)
 
-        return zebris_dataset.data
+        return zebris_dataset.data_as_df()
 
     @property
     def zebris_aggregated(self) -> pd.DataFrame:
