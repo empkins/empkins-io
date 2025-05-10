@@ -19,7 +19,9 @@ from empkins_io.datasets.gapvii.dip_study.helper import (
     _load_start_end_times,
     _load_empatica_data,
     _load_avro_data,
-    _load_phase_times
+    _load_phase_times,
+    _save_agg_empatica,
+    _create_agg_empatica
 )
 
 
@@ -198,6 +200,17 @@ class DipStudyDataset(Dataset):
             return _load_general_information(base_path=self.base_path, column="used_empatica_12")[self.index["subject"][0]]
 
         return _load_general_information(base_path=self.base_path, column="used_empatica_12")
+    
+    @property
+    def empatica_data_cleaned(self):
+        if self.is_single(["subject"]):
+            signal_phase_data = _create_agg_empatica(self.empatica_data, self.phase_times)
+            data = _save_agg_empatica(self.index["subject"][0], signal_phase_data, self.base_path)
+            return data
+
+        raise ValueError(
+            "Empatica clean data can only be accessed for a single participant and for all phases!"
+        )
     
     @property
     def empatica_data(self):

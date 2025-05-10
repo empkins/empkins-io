@@ -68,6 +68,12 @@ def _build_phase_times_path(base_path: path_t) -> Path:
 def _load_phase_times(base_path: path_t) -> DataFrame:
     file_path = _build_phase_times_path(base_path)
     df = pd.read_csv(file_path)
+
+    # Convert `timestamp_unix` from s to ms
+    if "start_time" in df.columns and 'end_time' in df.columns:
+        df["start_time"] = (df["start_time"] * 1000).astype("int64")
+        df["end_time"] = (df["end_time"] * 1000).astype("int64")
+
     return df
 
 def _build_datetime_path(base_path: path_t, participant_id: str) -> Path:
@@ -268,3 +274,63 @@ def _load_avro_data(base_path: path_t, participant_id: str, date: str, empatica_
             data[signal] = pd.DataFrame()  # Or None, depending on your design
     
     return data, fs
+def _create_agg_empatica(empatica_data: dict[str, pd.DataFrame], phase_times: pd.DataFrame) -> dict[str, dict[str, pd.DataFrame]]:
+    empatica_data_by_phase = {}
+
+    for signal, df in empatica_data.items():
+        # Ensure correct type
+        df["timestamp_unix"] = pd.to_numeric(df["timestamp_unix"])
+        df.columns.values[2] = "value"
+
+        phase_dict = {}
+        for _, row in phase_times.iterrows():
+            phase = row["phase"]
+            start = row["start_time"]
+            end = row["end_time"]
+
+            sliced = df[
+                (df["timestamp_unix"] >= start) &
+                (df["timestamp_unix"] <= end)
+            ]
+            phase_dict[phase] = sliced
+
+        empatica_data_by_phase[signal] = phase_dict
+    return empatica_data_by_phase
+
+def _save_agg_empatica(subject_id: str, signal_phase_data: dict[str, dict[str, pd.DataFrame]], base_path: path_t):
+    
+    # Skip if file already exists
+    data_path = _build_data_path(base_path, participant_id=subject_id)
+    output_path = data_path.joinpath("empatica/cleaned/aggregated_empatica.csv")
+    if output_path.exists():
+        # print(f"File already exists: {output_path}")
+        # load the existing file
+        existing_df = pd.read_csv(output_path)
+        return existing_df
+    
+    # Otherwise, create the directory
+    rows = []
+    for signal, phases in signal_phase_data.items():
+        for phase, df in phases.items():
+            df_copy = df.copy()
+            df_copy["timestamp"] = df_copy.index
+            df_copy["signal"] = signal
+            df_copy["phase"] = phase
+            rows.append(df_copy)
+
+    # Concatenate all rows into one big DataFrame
+    full_df = pd.concat(rows, ignore_index=True)
+    # order by timestamp
+    full_df = full_df.sort_values(by=["signal","timestamp_unix"])
+
+    # Reorder columns for clarity
+    cols = ["signal", "phase", "timestamp"] + [col for col in full_df.columns if col not in ["signal", "phase", "timestamp"]]
+    full_df = full_df[cols]
+
+    # Save to CSV
+    data_path = _build_data_path(base_path, participant_id=subject_id)
+    output_path = data_path.joinpath("empatica/cleaned/aggregated_empatica.csv")
+    full_df.to_csv(output_path, index=False)
+    print(f"Saved all data to: {output_path}")
+
+    return full_df
