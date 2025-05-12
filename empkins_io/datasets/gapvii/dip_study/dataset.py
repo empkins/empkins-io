@@ -18,10 +18,14 @@ from empkins_io.datasets.gapvii.dip_study.helper import (
     _load_b2b_data,
     _load_start_end_times,
     _load_empatica_data,
-    _load_avro_data,
+    _create_avro,
+    _save_avro,
     _load_phase_times,
     _save_agg_empatica,
-    _create_agg_empatica
+    _create_agg_empatica,
+    _sort_avro_files,
+    _check_if_file_exists,
+    _build_data_path,
 )
 
 
@@ -57,7 +61,7 @@ class DipStudyDataset(Dataset):
     def __init__(
             self,
             base_path: path_t,
-            exclude_failed: bool = False,
+            exclude_failed: bool = True,
             exclude_noisy_tfm: bool = False,
             groupby_cols: Optional[Sequence[str]] = None,
             subset_index: Optional[Sequence[str]] = None,
@@ -220,9 +224,17 @@ class DipStudyDataset(Dataset):
     @property
     def empatica_data_cleaned(self):
         if self.is_single(["subject"]):
-            signal_phase_data = _create_agg_empatica(self.empatica_data, self.phase_times)
-            data = _save_agg_empatica(self.index["subject"][0], signal_phase_data, self.base_path)
-            return data
+            parricipant_id = self.index["subject"][0]
+            EMPATICA_FILE_PATH = "empatica/cleaned/aggregated_empatica.csv"
+
+            # Check if the file already exists
+            file_exist = _check_if_file_exists(self.base_path, parricipant_id, EMPATICA_FILE_PATH)
+            if file_exist is not None:
+                df = file_exist
+            else:
+                signal_phase_data = _create_agg_empatica(self.empatica_data, self.phase_times)
+                df = _save_agg_empatica(self.base_path, parricipant_id, signal_phase_data, EMPATICA_FILE_PATH)
+            return df
 
         raise ValueError(
             "Empatica clean data can only be accessed for a single participant and for all phases!"
@@ -237,9 +249,34 @@ class DipStudyDataset(Dataset):
         # Check if data is requested for a single participant
         if self.is_single(["subject"]):
             participant_id = self.index["subject"][0]
-            df = _load_avro_data(self.base_path, participant_id, self.date, self.empatica_lr, self.start_end_times, self._AVRO)
-            # TODO add sampling rates
+            AVRO_FILE_PATH = "empatica/cleaned/avro_empatica.csv"
+
+            # Check if the file already exists
+            file_exist = _check_if_file_exists(self.base_path, participant_id, AVRO_FILE_PATH)
+            if file_exist is not None:
+                df = file_exist
+            else:
+                signal_phase_data, fs = _create_avro(self.base_path, participant_id, self._AVRO, self.phase_times)
+                df = _save_avro(self.base_path, participant_id, signal_phase_data, AVRO_FILE_PATH)
+                # Update the sampling rates
+                self._SAMPLING_RATES.update(fs)
             return df
+        raise ValueError(
+            "AVRO Empatica data can only be accessed for a single participant and for all phases!"
+        )
+    
+    @property
+    def sort_avro_files(self):
+        """
+        "
+        TODO remove this property, only for testing purposes (avro files sorting)
+        "
+        """
+        # Check if data is requested for a single participant
+        if self.is_single(["subject"]):
+            participant_id = self.index["subject"][0]
+            _sort_avro_files(self.base_path, participant_id, self.date, self.empatica_lr, self._AVRO)
+            return
         raise ValueError(
             "AVRO Empatica data can only be accessed for a single participant and for all phases!"
         )
