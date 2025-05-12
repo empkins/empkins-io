@@ -40,7 +40,7 @@ class DipStudyDataset(Dataset):
     use_cache: bool
 
     _EMPATICA = ["eda", "temperature", "respiratory-rate", "pulse-rate", "wearing-detection"]
-    _AVRO = ["eda", "bvp"]
+    _AVRO = ["eda", "bvp", "temperature"]
     _PHASES = ["rest_1", "cpt", "rest_2", "straw", "rest_3"]
     _SAMPLING_RATES: Dict[str, int] = {
         "radar": 8000000 / 4096 / 2,
@@ -200,18 +200,7 @@ class DipStudyDataset(Dataset):
             return _load_general_information(base_path=self.base_path, column="used_empatica_12")[self.index["subject"][0]]
 
         return _load_general_information(base_path=self.base_path, column="used_empatica_12")
-    
-    @property
-    def empatica_data_cleaned(self):
-        if self.is_single(["subject"]):
-            signal_phase_data = _create_agg_empatica(self.empatica_data, self.phase_times)
-            data = _save_agg_empatica(self.index["subject"][0], signal_phase_data, self.base_path)
-            return data
 
-        raise ValueError(
-            "Empatica clean data can only be accessed for a single participant and for all phases!"
-        )
-    
     @property
     def empatica_data(self):
         # Check if data is requested for a single participant and a single condition
@@ -227,6 +216,17 @@ class DipStudyDataset(Dataset):
         raise ValueError(
             "Empatica data can only be accessed for a single participant and for all phases!"
         )
+    
+    @property
+    def empatica_data_cleaned(self):
+        if self.is_single(["subject"]):
+            signal_phase_data = _create_agg_empatica(self.empatica_data, self.phase_times)
+            data = _save_agg_empatica(self.index["subject"][0], signal_phase_data, self.base_path)
+            return data
+
+        raise ValueError(
+            "Empatica clean data can only be accessed for a single participant and for all phases!"
+        )
 
     @property
     def avro_data(self):
@@ -237,9 +237,9 @@ class DipStudyDataset(Dataset):
         # Check if data is requested for a single participant
         if self.is_single(["subject"]):
             participant_id = self.index["subject"][0]
-            data, fs = _load_avro_data(self.base_path, participant_id, self.date, self.empatica_lr, self.start_end_times, self._AVRO)
-            self._SAMPLING_RATES.update(fs)
-            return data
+            df = _load_avro_data(self.base_path, participant_id, self.date, self.empatica_lr, self.start_end_times, self._AVRO)
+            # TODO add sampling rates
+            return df
         raise ValueError(
             "AVRO Empatica data can only be accessed for a single participant and for all phases!"
         )

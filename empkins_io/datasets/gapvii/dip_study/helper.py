@@ -229,51 +229,6 @@ def _load_empatica_data(base_path: path_t, participant_id: str, date: str, empat
         
     return data
 
-def _load_avro_data(base_path: path_t, participant_id: str, date: str, empatica_lr: str, start_end_times: tuple[datetime.datetime, datetime.datetime], signal_type: list[str]):
-    data = {signal: [] for signal in signal_type}
-   
-    # Convert date from "dd.mm.yyyy" to "yyyy-mm-dd" for folder matching
-    date_parts = date.split(".")
-    folder_date = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}"
-
-    # Determine LEFT or RIGHT device usage
-    device_side = FOLDER_LEFT if empatica_lr == "L" else FOLDER_RIGHT
-
-    # Determine the filename based on the device side, date, and signal type
-    file_prefix = PREFIX_LEFT if empatica_lr == "L" else PREFIX_RIGHT
-
-    # Build the path to the Empatica data directory for the given participant
-    final_path = base_path.joinpath(f"Empatica/{folder_date}/{device_side}/raw_data/v6/")
-
-    # Sampling rates
-    loader = EmpaticaDataset(
-        path=final_path
-    )
-    fs = loader._sampling_rates_hz
-
-    # List all avro files in the directory
-    avro_files = sorted(final_path.glob("*.avro")) 
-
-    # Iterate over each avro file
-    for file in avro_files:
-        # Load the Empatica data from the specified avro file
-        for signal in signal_type:
-            try:
-                # Load the Empatica data from the specified CSV file
-                sub_loader = EmpaticaDataset(path=file)
-                df = sub_loader.data_as_df(signal)
-                data[signal].append(df)
-            except Exception as e:
-                print(f"Skipping {signal} in {file.name} due to error: {e}")
-
-    # Concatenate all chunks per signal
-    for signal in data:
-        if data[signal]:  # Only if there is some data
-            data[signal] = pd.concat(data[signal])
-        else:
-            data[signal] = pd.DataFrame()  # Or None, depending on your design
-    
-    return data, fs
 def _create_agg_empatica(empatica_data: dict[str, pd.DataFrame], phase_times: pd.DataFrame) -> dict[str, dict[str, pd.DataFrame]]:
     empatica_data_by_phase = {}
 
@@ -298,10 +253,11 @@ def _create_agg_empatica(empatica_data: dict[str, pd.DataFrame], phase_times: pd
     return empatica_data_by_phase
 
 def _save_agg_empatica(subject_id: str, signal_phase_data: dict[str, dict[str, pd.DataFrame]], base_path: path_t):
+    PATH_TO_FILE = "empatica/cleaned/aggregated_empatica.csv"
     
     # Skip if file already exists
     data_path = _build_data_path(base_path, participant_id=subject_id)
-    output_path = data_path.joinpath("empatica/cleaned/aggregated_empatica.csv")
+    output_path = data_path.joinpath(PATH_TO_FILE)
     if output_path.exists():
         # print(f"File already exists: {output_path}")
         # load the existing file
@@ -329,8 +285,66 @@ def _save_agg_empatica(subject_id: str, signal_phase_data: dict[str, dict[str, p
 
     # Save to CSV
     data_path = _build_data_path(base_path, participant_id=subject_id)
-    output_path = data_path.joinpath("empatica/cleaned/aggregated_empatica.csv")
+    output_path = data_path.joinpath(PATH_TO_FILE)
     full_df.to_csv(output_path, index=False)
     print(f"Saved all data to: {output_path}")
 
     return full_df
+
+def _load_avro_data(base_path: path_t, participant_id: str, date: str, empatica_lr: str, start_end_times: tuple[datetime.datetime, datetime.datetime], signal_type: list[str]): 
+    # Convert date from "dd.mm.yyyy" to "yyyy-mm-dd" for folder matching
+    date_parts = date.split(".")
+    folder_date = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}"
+
+    # Determine LEFT or RIGHT device usage
+    device_side = FOLDER_LEFT if empatica_lr == "L" else FOLDER_RIGHT
+
+    # Determine the filename based on the device side, date, and signal type
+    file_prefix = PREFIX_LEFT if empatica_lr == "L" else PREFIX_RIGHT
+
+
+    # # # Build the path to the Empatica data directory for the given participant
+    # # filename = "1-1-RIGHT_1715644255.avro"
+    # filename = ""
+    # final_path = base_path.joinpath(f"Empatica/{folder_date}/{device_side}/raw_data/v6/{filename}")
+    # print(f"Base folder: {final_path}")   
+
+    # # List all avro files in the directory
+    # avro_files = sorted(final_path.glob("*.avro")) 
+    # display(avro_files)
+
+    # loader = EmpaticaDataset(path=final_path, index_type="local_datetime", tz="Europe/Berlin")
+    # data = loader.eda
+    # # display(data)
+    # data.plot()
+    
+
+    processed_path = base_path.joinpath(f"Empatica/{folder_date}/{device_side}/raw_data/sorted/")
+    print(f"Loading data from: {processed_path}")
+    folders = [p for p in processed_path.glob("*") if p.is_dir()]
+    folders.sort()
+    display(folders)
+
+    # Iterate over each avro file
+    for subject_proc in folders:
+        # Load the Empatica data from the specified CSV file
+        print(f"Loading data from: {subject_proc}")
+        loader = EmpaticaDataset(path=subject_proc, index_type="local_datetime", tz="Europe/Berlin")
+        df = loader.eda # eda, bvp, temperature
+
+        # Calculate time difference between first two rows (or use .diff().mean())
+        delta = (df.index[1] - df.index[0]).total_seconds()
+        # Sampling rate in Hz
+        sampling_rate = 1 / delta
+        print(f"Sampling rate: {sampling_rate:.2f} Hz")
+
+        #resample to 1Hz
+        if sampling_rate > 10:
+            #resample to 1Hz
+            print(f"Resampling to 10 Hz")
+            df = df.resample("100ms").mean()
+
+        # display(df)
+        df.plot()
+    
+    # return df

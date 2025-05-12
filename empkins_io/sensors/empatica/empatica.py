@@ -77,6 +77,11 @@ class EmpaticaDataset:
     def temperature(self) -> pd.DataFrame:
         """Get pandas DataFrame for temperature."""
         return self.data_as_df("temperature")
+    
+    @property
+    def bvp(self) -> pd.DataFrame:
+        "Get pandas DataFrame for blood volume pulse (bvp)."
+        return self.data_as_df("bvp")
 
     def data_as_df(self, sensor: str) -> pd.DataFrame:
         """Get pandas DataFrame for a specific sensor."""
