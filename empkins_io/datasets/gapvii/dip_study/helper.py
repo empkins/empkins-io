@@ -187,15 +187,28 @@ def _load_radar_data(base_path: path_t, participant_id: str, sampling_rate_hz: f
     # Return the DataFrame (data) and the sampling rate (fs)
     return data, fs
 
-def _check_if_file_exists(base_path: path_t, subject_id: str, path_to_file) -> Optional[pd.DataFrame]:
+def _check_if_file_exists(base_path: path_t, subject_id: str, path_to_file, is_avro: bool) -> Optional[pd.DataFrame]:
     # Skip if file already exists
     data_path = _build_data_path(base_path, participant_id=subject_id)
     output_path = data_path.joinpath(path_to_file)
+    sampling_rates = {}
+
     if output_path.exists():
-        # print(f"File already exists: {output_path}")
         # load the existing file
-        existing_df = pd.read_csv(output_path)
-        return existing_df
+        df = pd.read_csv(output_path)
+
+        if not df.empty:
+            signals = df['signal'].unique()  # Get unique signal names
+            for signal in signals:
+                signal_df = df[df['signal'] == signal]
+                # Calculate the difference between consecutive timestamps in seconds
+                delta = (signal_df['timestamp_unix'].iloc[1] - signal_df['timestamp_unix'].iloc[0]) / 1000
+                # Sampling rate in Hz
+                fs = 1 / delta
+                name = f"{signal}_avro" if is_avro else signal
+                sampling_rates[name] = fs
+
+        return (df, sampling_rates)
     else:
         return None
 
@@ -243,11 +256,18 @@ def _load_empatica_data(base_path: path_t, participant_id: str, date: str, empat
 
 def _create_agg_empatica(empatica_data: dict[str, pd.DataFrame], phase_times: pd.DataFrame) -> dict[str, dict[str, pd.DataFrame]]:
     empatica_data_by_phase = {}
+    sampling_rates = {}
 
     for signal, df in empatica_data.items():
         # Ensure correct type
         df["timestamp_unix"] = pd.to_numeric(df["timestamp_unix"])
         df.columns.values[2] = "value"
+
+        #calculate sampling rate
+        delta = (df["timestamp_unix"].iloc[1] - df["timestamp_unix"].iloc[0]) / 1000
+        # Sampling rate in Hz
+        sampling_rate = 1 / delta
+        sampling_rates[signal] = sampling_rate
 
         phase_dict = {}
         for _, row in phase_times.iterrows():
@@ -262,7 +282,7 @@ def _create_agg_empatica(empatica_data: dict[str, pd.DataFrame], phase_times: pd
             phase_dict[phase] = sliced
 
         empatica_data_by_phase[signal] = phase_dict
-    return empatica_data_by_phase
+    return empatica_data_by_phase, sampling_rates
 
 def _save_agg_empatica(base_path: path_t, subject_id: str, signal_phase_data: dict[str, dict[str, pd.DataFrame]], path_to_file: str) -> pd.DataFrame:
     # Otherwise, create the directory
@@ -298,7 +318,8 @@ def _create_avro(base_path: path_t, participant_id: str, signal_type: list[str],
 
     # Load the Empatica data from the specified CSV file
     loader = EmpaticaDataset(path=empatica_dir_path, index_type="local_datetime", tz="Europe/Berlin")
-    sampling_rates = loader._sampling_rates_hz.copy()
+    # sampling_rates = loader._sampling_rates_hz.copy()
+    sampling_rates = {}
     
     avro_data_by_phase = {}
     # Convert the timestamp_unix column to datetime
@@ -315,10 +336,10 @@ def _create_avro(base_path: path_t, participant_id: str, signal_type: list[str],
         df["timestamp_unix"] = df.index.astype("int64") // 10**6 
 
         #calculate sampling rate
-        delta = (df.index[1] - df.index[0]).total_seconds()
+        delta = (df["timestamp_unix"].iloc[1] - df["timestamp_unix"].iloc[0]) / 1000
         # Sampling rate in Hz
         sampling_rate = 1 / delta
-        sampling_rates[signal] = sampling_rate
+        sampling_rates[f"{signal}_avro"] = sampling_rate
 
         # Convert the timestamp_unix column to datetime
         phase_dict = {}

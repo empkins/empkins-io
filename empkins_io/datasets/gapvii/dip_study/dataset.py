@@ -204,7 +204,7 @@ class DipStudyDataset(Dataset):
         return _load_general_information(base_path=self.base_path, column="used_empatica_12")
 
     @property
-    def empatica_data(self):
+    def empatica_data_raw(self):
         # Check if data is requested for a single participant and a single condition
         if self.is_single(None):
             return #TODO
@@ -220,18 +220,21 @@ class DipStudyDataset(Dataset):
         )
     
     @property
-    def empatica_data_cleaned(self):
+    def empatica_data(self):
         if self.is_single(["subject"]):
             parricipant_id = self.index["subject"][0]
             EMPATICA_FILE_PATH = "empatica/cleaned/aggregated_empatica.csv"
 
             # Check if the file already exists
-            file_exist = _check_if_file_exists(self.base_path, parricipant_id, EMPATICA_FILE_PATH)
+            file_exist = _check_if_file_exists(self.base_path, parricipant_id, EMPATICA_FILE_PATH, False)
             if file_exist is not None:
-                df = file_exist
+                df = file_exist[0]
+                fs = file_exist[1]
+                self._SAMPLING_RATES.update(fs)
             else:
-                signal_phase_data = _create_agg_empatica(self.empatica_data, self.phase_times)
+                signal_phase_data, fs = _create_agg_empatica(self.empatica_data_raw, self.phase_times)
                 df = _save_agg_empatica(self.base_path, parricipant_id, signal_phase_data, EMPATICA_FILE_PATH)
+                self._SAMPLING_RATES.update(fs)
             return df
 
         raise ValueError(
@@ -250,9 +253,11 @@ class DipStudyDataset(Dataset):
             AVRO_FILE_PATH = "empatica/cleaned/avro_empatica.csv"
 
             # Check if the file already exists
-            file_exist = _check_if_file_exists(self.base_path, participant_id, AVRO_FILE_PATH)
+            file_exist = _check_if_file_exists(self.base_path, participant_id, AVRO_FILE_PATH, True)
             if file_exist is not None:
-                df = file_exist
+                df = file_exist[0]
+                fs = file_exist[1]
+                self._SAMPLING_RATES.update(fs)
             else:
                 signal_phase_data, fs = _create_avro(self.base_path, participant_id, self._AVRO, self.phase_times)
                 df = _save_avro(self.base_path, participant_id, signal_phase_data, AVRO_FILE_PATH)
