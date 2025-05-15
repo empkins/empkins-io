@@ -9,7 +9,6 @@ from tpcp import Dataset
 
 __all__ = ["D07PilotStudyDataset"]
 
-from empkins_io.sensors.motion_capture.motion_capture_formats import mvnx
 from empkins_io.sensors.motion_capture.xsens import XSensDataset
 from empkins_io.utils._types import path_t
 
@@ -23,8 +22,8 @@ class D07PilotStudyDataset(Dataset):
 
     data_to_exclude: Sequence[str]
 
-    CONDITIONS: ClassVar[Sequence[str]] = ["Baseline", "Gert"]
-    PHASES: ClassVar[Sequence[str]] = ["Finger-Boden-Abstand", "Aufhebe Test"]
+    CONDITIONS: ClassVar[Sequence[str]] = ["Control", "Gert"]
+    PHASES: ClassVar[Sequence[str]] = ["Finger-Boden-Abstand", "Aufhebe Test", "Test"]
 
     def __init__(
         self,
@@ -66,25 +65,32 @@ class D07PilotStudyDataset(Dataset):
     @property
     def timelog(self):
         if not self.is_single("participant"):
+            # todo add check for condition
             raise ValueError("Time logs can only be accessed for a single participant!")
 
         p_id = self.index["participant"][0]
-        self.index["phase"].unique()
+        condition = self.index["condition"][0]
+        phases = self.index["phase"].unique()
         file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/timelogs/cleaned/{p_id}_timelog.csv")
 
         data = load_atimelogger_file(file_path)
-        # data = data.reindex(phases, level="phase", axis=1)
+        data = data.reindex(phases, level="phase", axis=1)
         return data
 
     @property
     def mocap(self):
-        if not self.is_single("participant"):
-            raise ValueError("Motion capture data can only be accessed for a single participant!")
+        if not self.is_single(None):
+            raise ValueError("Motion capture data can only be accessed for a single participant, condition and phase!")
 
         p_id = self.index["participant"][0]
+        condition = self.index["condition"][0]
+        phase = self.index["phase"][0]
+
         # TODO continue
         file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/mocap/processed/{p_id}-002.mvnx")
 
         dataset = XSensDataset.from_mvnx_file(file_path, tz="Europe/Berlin")
         data = dataset.data_as_df(index="local_datetime")
+        # TODO: cut to selected phase by timelog
+
         return data
