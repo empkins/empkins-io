@@ -307,10 +307,6 @@ def _create_avro(base_path: path_t, participant_id: str, signal_type: list[str],
 
     # Filter the data to the specified start and end times
     for signal in signal_type:
-        # Skip for specific conditions (bvp keeps telling there are gaps)
-        if signal == "bvp" and participant_id == "VP_20":
-            continue
-
         # load the data
         df = loader.data_as_df(sensor=signal)
         # Ensure index is in datetime format
@@ -318,20 +314,13 @@ def _create_avro(base_path: path_t, participant_id: str, signal_type: list[str],
         df.index.name = "timestamp"
         df["timestamp_unix"] = df.index.astype("int64") // 10**6 
 
-
         #calculate sampling rate
         delta = (df.index[1] - df.index[0]).total_seconds()
         # Sampling rate in Hz
         sampling_rate = 1 / delta
         sampling_rates[signal] = sampling_rate
 
-        #resample to 1 hz beacause we look at long term data
-        if sampling_rate > 1:
-            #resample to 10hz
-            print(f"Resampling {signal} from {sampling_rate} to 1 Hz")
-            df = df.resample("1s").mean()
-
-
+        # Convert the timestamp_unix column to datetime
         phase_dict = {}
         for _, row in phase_times.iterrows():
             phase = row["phase"]
@@ -372,66 +361,3 @@ def _save_avro(base_path: path_t, subject_id: str, signal_phase_data: dict[str, 
     print(f"Saved all data to: {output_path}")
 
     return full_df
-
-def _sort_avro_files(base_path: path_t, participant_id: str, date: str, empatica_lr: str, signal_type: list[str]):
-    """
-    "
-    TODO remove this property, only for testing purposes (avro files sorting)
-    "
-    """
-    # Convert date from "dd.mm.yyyy" to "yyyy-mm-dd" for folder matching
-    date_parts = date.split(".")
-    folder_date = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}"
-    # Determine LEFT or RIGHT device usage
-    device_side = FOLDER_LEFT if empatica_lr == "L" else FOLDER_RIGHT
-    # Determine the filename based on the device side, date, and signal type
-    file_prefix = PREFIX_LEFT if empatica_lr == "L" else PREFIX_RIGHT
-
-
-    # STEP-1: Print avro files and raw_data folder
-
-    # # Build the path to the Empatica data directory for the given participant
-    # filename = ""
-    # final_path = base_path.joinpath(f"Empatica/{folder_date}/{device_side}/raw_data/sorted/{filename}/")
-    # print(f"Base folder: {final_path}")   
-
-    # # List all avro files in the directory
-    # avro_files = sorted(final_path.glob("*.avro")) 
-    # display(avro_files)
-
-    # for file in avro_files:
-    #     filename = file.name
-    #     print(f"Loading data from: {filename}")
-    #     loader = EmpaticaDataset(path=final_path.joinpath(filename), index_type="local_datetime", tz="Europe/Berlin")
-    #     eda = loader.eda
-    #     # eda.plot(title=f"eda")
-    #     display(eda)
-
-    # STEP-2: Load the avro files from the sorted folder
-
-    # processed_path = base_path.joinpath(f"Empatica/{folder_date}/{device_side}/raw_data/sorted/")
-    # print(f"Loading data from: {processed_path}")
-    # folders = [p for p in processed_path.glob("*") if p.is_dir()]
-    # folders.sort()
-    # display(folders)
-
-    # # Iterate over each avro file
-    # for subject_proc in folders:
-    #     # Load the Empatica data from the specified CSV file
-    #     print(f"Loading data from: {subject_proc}")
-    #     loader = EmpaticaDataset(path=subject_proc, index_type="local_datetime", tz="Europe/Berlin")
-    #     df = loader.eda # eda, bvp, temperature
-
-    #     # Calculate time difference between first two rows (or use .diff().mean())
-    #     delta = (df.index[1] - df.index[0]).total_seconds()
-    #     # Sampling rate in Hz
-    #     sampling_rate = 1 / delta
-    #     print(f"Sampling rate: {sampling_rate:.2f} Hz")
-
-    #     #resample to 1Hz
-    #     if sampling_rate > 20:
-    #         #resample to 1Hz
-    #         print(f"Resampling to 20 Hz")
-    #         df = df.resample('50ms').mean()
-    #     # display(df)
-    #     df.plot(title=f"{subject_proc.name} {empatica_lr}")

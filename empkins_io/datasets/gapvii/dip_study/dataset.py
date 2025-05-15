@@ -23,9 +23,7 @@ from empkins_io.datasets.gapvii.dip_study.helper import (
     _load_phase_times,
     _save_agg_empatica,
     _create_agg_empatica,
-    _sort_avro_files,
     _check_if_file_exists,
-    _build_data_path,
 )
 
 
@@ -261,22 +259,6 @@ class DipStudyDataset(Dataset):
                 # Update the sampling rates
                 self._SAMPLING_RATES.update(fs)
             return df
-        raise ValueError(
-            "AVRO Empatica data can only be accessed for a single participant and for all phases!"
-        )
-    
-    @property
-    def sort_avro_files(self):
-        """
-        "
-        TODO remove this property, only for testing purposes (avro files sorting)
-        "
-        """
-        # Check if data is requested for a single participant
-        if self.is_single(["subject"]):
-            participant_id = self.index["subject"][0]
-            _sort_avro_files(self.base_path, participant_id, self.date, self.empatica_lr, self._AVRO)
-            return
         raise ValueError(
             "AVRO Empatica data can only be accessed for a single participant and for all phases!"
         )
