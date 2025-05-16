@@ -19,7 +19,7 @@ opencv = ["opencv-python~=4.8"]
 
 [dependency-groups]
 dev = [
-    "black>=24.8.0,<25",
+    "black>=25",
     "ruff>=0.6.3,<0.7",
     "ipykernel>=6.29.5,<7",
     "ipympl>=0.9.6,<0.10",
@@ -53,26 +53,16 @@ exclude = '''
 )
 '''
 
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-line_length = 120
-skip_gitignore = true
-
 [tool.poe.tasks]
-_black = "black ."
-_black_check = "black . --check"
-_isort = "isort **/*.py"
-_isort_check = "isort **/*.py --check-only"
-
-# Reformat all files using black and sort import
 _format = "ruff format ."
 _auto_fix = "ruff check . --fix-only --show-fixes --exit-zero"
+_auto_fix_unsafe = "ruff check . --fix-only --show-fixes --exit-zero --unsafe-fixes"
 format = ["_auto_fix", "_format"]
+format_unsafe = ["_auto_fix_unsafe", "_format"]
 lint = { cmd = "ruff check src --fix", help = "Lint all files with ruff." }
-_lint_ci = "ruff check src --format=github"
-_check_black = "black . --check"
-ci_check = { sequence = ["_check_black", "_lint_ci"], help = "Check all potential format and linting issues." }
+_lint_ci = "ruff check src --output-format=github"
+_check_format = "ruff format . --check"
+ci_check = { sequence = ["_check_format", "_lint_ci"], help = "Check all potential format and linting issues." }
 test = {cmd = "pytest --cov=empkins_io --cov-report=xml", help = "Run Pytest with coverage." }
 update_version = {"script" = "_tasks:task_update_version"}
 register_ipykernel = { cmd = "python -m ipykernel install --user --name empkins-io --display-name empkins-io", help = "Add a new jupyter kernel for the project."}

@@ -69,7 +69,7 @@ class D07PilotStudyDataset(Dataset):
             raise ValueError("Time logs can only be accessed for a single participant!")
 
         p_id = self.index["participant"][0]
-        condition = self.index["condition"][0]
+        self.index["condition"][0]
         phases = self.index["phase"].unique()
         file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/timelogs/cleaned/{p_id}_timelog.csv")
 
@@ -83,8 +83,8 @@ class D07PilotStudyDataset(Dataset):
             raise ValueError("Motion capture data can only be accessed for a single participant, condition and phase!")
 
         p_id = self.index["participant"][0]
-        condition = self.index["condition"][0]
-        phase = self.index["phase"][0]
+        self.index["condition"][0]
+        self.index["phase"][0]
 
         # TODO continue
         file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/mocap/processed/{p_id}-002.mvnx")
