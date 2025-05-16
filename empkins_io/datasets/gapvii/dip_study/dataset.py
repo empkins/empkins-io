@@ -138,6 +138,7 @@ class DipStudyDataset(Dataset):
             # exchange second and fourth element
             res[1], res[3] = res[3], res[1]
             return res
+        
         return None
 
     @property

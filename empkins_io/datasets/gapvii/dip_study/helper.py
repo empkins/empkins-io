@@ -9,6 +9,8 @@ from empkins_io.utils._types import path_t
 from empkins_io.sensors.emrad import EmradDataset
 from empkins_io.sensors.tfm import TfmLoader
 from empkins_io.sensors.empatica import EmpaticaDataset
+import neurokit2 as nk
+from scipy.signal import butter, filtfilt
 
 import pandas as pd
 import numpy as np
@@ -196,18 +198,6 @@ def _check_if_file_exists(base_path: path_t, subject_id: str, path_to_file, is_a
     if output_path.exists():
         # load the existing file
         df = pd.read_csv(output_path)
-
-        if not df.empty:
-            signals = df['signal'].unique()  # Get unique signal names
-            for signal in signals:
-                signal_df = df[df['signal'] == signal]
-                # Calculate the difference between consecutive timestamps in seconds
-                delta = (signal_df['timestamp_unix'].iloc[1] - signal_df['timestamp_unix'].iloc[0]) / 1000
-                # Sampling rate in Hz
-                fs = 1 / delta
-                name = f"{signal}_avro" if is_avro else signal
-                sampling_rates[name] = fs
-
         return (df, sampling_rates)
     else:
         return None
@@ -263,12 +253,6 @@ def _create_agg_empatica(empatica_data: dict[str, pd.DataFrame], phase_times: pd
         df["timestamp_unix"] = pd.to_numeric(df["timestamp_unix"])
         df.columns.values[2] = "value"
 
-        #calculate sampling rate
-        delta = (df["timestamp_unix"].iloc[1] - df["timestamp_unix"].iloc[0]) / 1000
-        # Sampling rate in Hz
-        sampling_rate = 1 / delta
-        sampling_rates[signal] = sampling_rate
-
         phase_dict = {}
         for _, row in phase_times.iterrows():
             phase = row["phase"]
@@ -312,43 +296,66 @@ def _save_agg_empatica(base_path: path_t, subject_id: str, signal_phase_data: di
 
     return full_df
 
-def _create_avro(base_path: path_t, participant_id: str, signal_type: list[str], phase_times: pd.DataFrame) -> tuple[pd.DataFrame, float]: 
+# 0.5 Hz = 30 bpm bellow physiological range
+# 8 Hz = 480 bpm above physiological range
+def _bandpass_filter(signal, lowcut=0.5, highcut=8, fs=64, order=4):
+    nyq = 0.5 * fs
+    b, a = butter(order, [lowcut / nyq, highcut / nyq], btype="band")
+    return filtfilt(b, a, signal)
+
+def _create_avro(base_path: path_t, participant_id: str, signal_type: list[str], phase_times: pd.DataFrame) -> tuple[dict[str, dict[str, pd.DataFrame]], float]:
     # Build the path to the Empatica data directory for the given participant
     empatica_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath("empatica/raw")
 
     # Load the Empatica data from the specified CSV file
     loader = EmpaticaDataset(path=empatica_dir_path, index_type="local_datetime", tz="Europe/Berlin")
-    # sampling_rates = loader._sampling_rates_hz.copy()
-    sampling_rates = {}
-    
-    avro_data_by_phase = {}
-    # Convert the timestamp_unix column to datetime
-    # phase_times_datetime["start_time"] = pd.to_datetime(phase_times_datetime["start_time"], unit="ms", utc=True).dt.tz_convert("Europe/Berlin")
-    # phase_times_datetime["end_time"] = pd.to_datetime(phase_times_datetime["end_time"], unit="ms", utc=True).dt.tz_convert("Europe/Berlin")
+    sampling_rates = loader._sampling_rates_hz.copy()
 
-    # Filter the data to the specified start and end times
+    avro_data_by_phase = {}
+
     for signal in signal_type:
-        # load the data
         df = loader.data_as_df(sensor=signal)
-        # Ensure index is in datetime format
         df.columns.values[0] = "value"
         df.index.name = "timestamp"
-        df["timestamp_unix"] = df.index.astype("int64") // 10**6 
+        df["timestamp_unix"] = df.index.astype("int64") // 10**6
 
-        #calculate sampling rate
-        delta = (df["timestamp_unix"].iloc[1] - df["timestamp_unix"].iloc[0]) / 1000
-        # Sampling rate in Hz
-        sampling_rate = 1 / delta
-        sampling_rates[f"{signal}_avro"] = sampling_rate
-
-        # Convert the timestamp_unix column to datetime
         phase_dict = {}
+
         for _, row in phase_times.iterrows():
             phase = row["phase"]
             start = row["start_time"]
             end = row["end_time"]
 
-            sliced = df[(df["timestamp_unix"] >= start) & (df["timestamp_unix"] <= end)]
+            sliced = df[(df["timestamp_unix"] >= start) & (df["timestamp_unix"] <= end)].copy()
+            if sliced.empty:
+                print(f"No data for signal '{signal}' in phase '{phase}'")
+                continue
+
+            if signal == "bvp":
+                fs = sampling_rates["bvp"]
+                try:
+                    # Bandpass filter
+                    sliced["value"] = _bandpass_filter(sliced["value"], fs=fs)
+
+                    # Process PPG
+                    processed, info = nk.ppg_process(sliced["value"].values, sampling_rate=fs)
+                    processed = processed.iloc[:len(sliced)]
+
+                    # Add PPG Rate
+                    sliced["value"] = processed["PPG_Rate"].values
+
+                    # Ensure DatetimeIndex for resampling
+                    if not isinstance(sliced.index, pd.DatetimeIndex):
+                        sliced.index = pd.to_datetime(sliced.index)
+
+                    # Downsample to 4 Hz (250ms)
+                    sliced = sliced.resample("250ms").mean().interpolate("linear")
+                    sliced["timestamp_unix"] = sliced.index.astype("int64") // 10**6
+
+                except Exception as e:
+                    print(f"Failed to process BVP for phase '{phase}' in subject '{participant_id}': {e}")
+                    continue
+
             phase_dict[phase] = sliced
 
         avro_data_by_phase[signal] = phase_dict

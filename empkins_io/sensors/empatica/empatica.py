@@ -35,6 +35,7 @@ class EmpaticaDataset:
         "accelerometer": 64.0,
         "eda": 4.0,
         "temperature": 1.0,
+        "bvp": 64.0,
     }
 
     def __init__(
