@@ -19,7 +19,6 @@ opencv = ["opencv-python~=4.8"]
 
 [dependency-groups]
 dev = [
-    "black>=25",
     "ruff>=0.6.3,<0.7",
     "ipykernel>=6.29.5,<7",
     "ipympl>=0.9.6,<0.10",
@@ -64,7 +63,7 @@ _lint_ci = "ruff check src --output-format=github"
 _check_format = "ruff format . --check"
 ci_check = { sequence = ["_check_format", "_lint_ci"], help = "Check all potential format and linting issues." }
 test = {cmd = "pytest --cov=empkins_io --cov-report=xml", help = "Run Pytest with coverage." }
-update_version = {"script" = "_tasks:task_update_version"}
+version = { "script" = "_tasks:task_update_version" }
 register_ipykernel = { cmd = "python -m ipykernel install --user --name empkins-io --display-name empkins-io", help = "Add a new jupyter kernel for the project."}
 remove_ipykernel = { cmd = "jupyter kernelspec uninstall empkins-io", help = "Remove the project specific jupyter kernel."}
 default = {sequence = ["format", "lint", "test"], help = "Run the default pipeline, consisting of formatting, linting, and testing."}
