@@ -192,12 +192,12 @@ def _load_radar_data(base_path: path_t, participant_id: str, sampling_rate_hz: f
 def _check_if_file_exists(base_path: path_t, subject_id: str, path_to_file, is_avro: bool) -> Optional[pd.DataFrame]:
     # Skip if file already exists
     data_path = _build_data_path(base_path, participant_id=subject_id)
-    output_path = data_path.joinpath(path_to_file)
+    csv_path = data_path.joinpath(path_to_file)
     sampling_rates = {}
 
-    if output_path.exists():
+    if csv_path.exists():
         # load the existing file
-        df = pd.read_csv(output_path)
+        df = pd.read_csv(csv_path)
         return (df, sampling_rates)
     else:
         return None
@@ -244,6 +244,13 @@ def _load_empatica_data(base_path: path_t, participant_id: str, date: str, empat
         
     return data
 
+def calculate_empatica_sampling_rate(df: pd.DataFrame) -> float:
+    # Calculate the time difference between consecutive timestamps
+    time_diff = df["timestamp_unix"].diff().dropna()
+    # Calculate the average sampling rate in Hz
+    avg_sampling_rate = 1 / (time_diff.mean() / 1000)  # Convert ms to seconds
+    return avg_sampling_rate
+
 def _create_agg_empatica(empatica_data: dict[str, pd.DataFrame], phase_times: pd.DataFrame) -> dict[str, dict[str, pd.DataFrame]]:
     empatica_data_by_phase = {}
     sampling_rates = {}
@@ -252,6 +259,8 @@ def _create_agg_empatica(empatica_data: dict[str, pd.DataFrame], phase_times: pd
         # Ensure correct type
         df["timestamp_unix"] = pd.to_numeric(df["timestamp_unix"])
         df.columns.values[2] = "value"
+        df["sampling_rate"] = calculate_empatica_sampling_rate(df)
+        sampling_rates[f"{signal}_aggregated"] = df["sampling_rate"].iloc[0]
 
         phase_dict = {}
         for _, row in phase_times.iterrows():
@@ -301,14 +310,14 @@ def _save_agg_empatica(base_path: path_t, subject_id: str, signal_phase_data: di
 def _bandpass_filter(signal, lowcut=0.5, highcut=8, fs=64, order=4):
     nyq = 0.5 * fs
     b, a = butter(order, [lowcut / nyq, highcut / nyq], btype="band")
-    return filtfilt(b, a, signal)
+    return filtfilt(b, a, signal)   
 
 def _create_avro(base_path: path_t, participant_id: str, signal_type: list[str], phase_times: pd.DataFrame) -> tuple[dict[str, dict[str, pd.DataFrame]], float]:
     # Build the path to the Empatica data directory for the given participant
-    empatica_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath("empatica/raw")
+    data_path = _build_data_path(base_path, participant_id=participant_id).joinpath("empatica/raw")
 
     # Load the Empatica data from the specified CSV file
-    loader = EmpaticaDataset(path=empatica_dir_path, index_type="local_datetime", tz="Europe/Berlin")
+    loader = EmpaticaDataset(path=data_path, index_type="local_datetime", tz="Europe/Berlin")
     sampling_rates = loader._sampling_rates_hz.copy()
 
     avro_data_by_phase = {}
@@ -318,6 +327,7 @@ def _create_avro(base_path: path_t, participant_id: str, signal_type: list[str],
         df.columns.values[0] = "value"
         df.index.name = "timestamp"
         df["timestamp_unix"] = df.index.astype("int64") // 10**6
+        df['sampling_rate'] = sampling_rates[signal]
 
         phase_dict = {}
 
@@ -349,8 +359,11 @@ def _create_avro(base_path: path_t, participant_id: str, signal_type: list[str],
                         sliced.index = pd.to_datetime(sliced.index)
 
                     # Downsample to 4 Hz (250ms)
+                    new_sampling_rate = 4.0
                     sliced = sliced.resample("250ms").mean().interpolate("linear")
+                    
                     sliced["timestamp_unix"] = sliced.index.astype("int64") // 10**6
+                    sliced["sampling_rate"] = new_sampling_rate
 
                 except Exception as e:
                     print(f"Failed to process BVP for phase '{phase}' in subject '{participant_id}': {e}")
