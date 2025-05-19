@@ -26,7 +26,15 @@ class D07PilotStudyDataset(Dataset):
     data_to_exclude: Sequence[str]
 
     CONDITIONS: ClassVar[Sequence[str]] = ["Control", "Gert"]
-    PHASES: ClassVar[Sequence[str]] = ["Finger-Boden-Abstand", "Aufhebe Test", "Test"]
+    PHASE_MAPPER: ClassVar[dict[str, str]] = {
+        "Sockentest": "sock test",
+        "Sit to stand": "sit-to-stand test",
+        "Langsitz Test": "long-sit test",
+        "Finger-Boden-Abstand": "finger-floor distance test",
+        "Aufhebe Test": "pick-up test",
+        "Hebe Test": "lifting test"
+    }
+    PHASES: ClassVar[Sequence[str]] = PHASE_MAPPER.values()
 
     def __init__(
         self,
@@ -77,6 +85,7 @@ class D07PilotStudyDataset(Dataset):
         file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/timelogs/cleaned/{p_id}_timelog.csv")
 
         data = load_atimelogger_file(file_path)
+        data = data.rename(columns=self.PHASE_MAPPER, level="phase")
         data = data.reindex(phases, level="phase", axis=1)
         return data
 
