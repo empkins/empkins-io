@@ -7,6 +7,8 @@ from typing_extensions import Self
 
 from scipy.io import loadmat
 
+from datetime import timedelta
+
 import warnings
 
 
@@ -295,7 +297,64 @@ class TfmLoader:
         # get relative start time of the recording
         relative_start_time = data["IV"].Reltime[0]
 
+        df_iv = cls._check_rel_abs_timings(df_iv)
+
         return df_iv, relative_start_time
+
+    @classmethod
+    def _check_rel_abs_timings(cls, data) -> pd.DataFrame:
+        """Check whether the absolute start times of the listed interventions add up
+        (absolute_time[1] = absolute_time[0] + duration[0]).
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            DataFrame containing the absolute and relative start times as well as the durations of all interventions.
+
+        Raises
+        ------
+        Warning
+            If the absolute start times and durations do not add up.
+
+        """
+        duration = list(data["duration"].astype(float))[:-1]
+        abs_time = list(data["absolute_time"])
+        _abs_time = [pd.to_timedelta(time).total_seconds() for time in abs_time]
+
+        _tmp_data = np.insert(duration, [0], _abs_time[0]) # create array with the first absolute time in place 0
+        abs_time_computed = np.cumsum(_tmp_data)
+        abs_time_computed = np.round(abs_time_computed, decimals=3)
+
+        # replace absolute times if they are stored incorrectly in the mat file
+        if np.all(list(abs_time_computed) != _abs_time):
+            warnings.warn("The absolute timings of this recording do not add up with the durations of the"
+                          " interventions, replacing absolute times.")
+            abs_times_new = [
+                cls._format_absolute_timing(str(pd.to_timedelta(time_s, unit='s'))) for time_s in list(abs_time_computed)
+            ]
+            data["absolute_time"] = abs_times_new
+
+        return data
+
+    @classmethod
+    def _format_absolute_timing(cls, time_str: str):
+        """ Insures constistent formatting of absolute intervention start times.
+
+        Parameters
+        ----------
+        time_str : str
+            String containing the absolute time information.
+
+        """
+        parts = time_str.strip().split(' ')
+        time_part = parts[-1]
+        if '.' not in time_part:  # add dummy microseconds
+            time_part += '.000000'
+
+        hours, minutes, seconds = time_part.split(':')
+        sec_float = float(seconds)
+
+        return f"{hours.zfill(2)}:{minutes.zfill(2)}:{sec_float:05.2f}"
 
     @classmethod
     def _load_osc_blood_pressure(cls, data) -> pd.DataFrame:
@@ -431,7 +490,6 @@ class TfmLoader:
         else:
             missing_phases = []
 
-
         # loop through parameters
         for key_param, value_param in data_dict_tmp.items():
             data_dict[key_param] = {}
@@ -470,9 +528,6 @@ class TfmLoader:
             missing_phases.append(intervention_names[index_missing_phase])
 
         return missing_phases
-
-
-
 
     def raw_phase_data_as_df_dict(self, index: Optional[str] = None) -> Dict[str, Dict[str, pd.DataFrame]]:
         """Generate dictionary containing the raw data as dataframes separated in phases.
