@@ -305,12 +305,28 @@ def _save_agg_empatica(base_path: path_t, subject_id: str, signal_phase_data: di
 
     return full_df
 
+# Bandpass filter for PPG signal
 # 0.5 Hz = 30 bpm bellow physiological range
 # 8 Hz = 480 bpm above physiological range
+# https://ieeexplore.ieee.org/document/9662889
 def _bandpass_filter(signal, lowcut=0.5, highcut=8, fs=64, order=4):
+    # Normalize cutoff frequency by Nyquist frequency (fs/2)
     nyq = 0.5 * fs
+    # Design filter (4rd order Butterworth)
     b, a = butter(order, [lowcut / nyq, highcut / nyq], btype="band")
+    # Apply filter
     return filtfilt(b, a, signal)   
+
+# Lowpass filter for EDA signal
+# filter out frequencies which are above 0.5 Hz
+# https://www.sciencedirect.com/science/article/pii/S0167876021008461#bb0075
+def _lowpass_filter(signal, cutoff=0.5, fs=4, order=3):
+    # Normalize cutoff frequency by Nyquist frequency (fs/2)
+    normalized_cutoff = cutoff / (fs/2)
+    # Design filter (3rd order Butterworth)
+    b, a = butter(order, normalized_cutoff, 'low')
+    # Apply filter
+    return filtfilt(b, a, signal)
 
 def _create_avro(base_path: path_t, participant_id: str, signal_type: list[str], phase_times: pd.DataFrame) -> tuple[dict[str, dict[str, pd.DataFrame]], float]:
     # Build the path to the Empatica data directory for the given participant
@@ -361,12 +377,28 @@ def _create_avro(base_path: path_t, participant_id: str, signal_type: list[str],
                     # Downsample to 4 Hz (250ms)
                     new_sampling_rate = 4.0
                     sliced = sliced.resample("250ms").mean().interpolate("linear")
-                    
                     sliced["timestamp_unix"] = sliced.index.astype("int64") // 10**6
                     sliced["sampling_rate"] = new_sampling_rate
 
+
                 except Exception as e:
                     print(f"Failed to process BVP for phase '{phase}' in subject '{participant_id}': {e}")
+                    continue
+
+            elif signal == "eda":
+                fs = sampling_rates[signal]
+                try:
+                    # Apply lowpass filter
+                    sliced["value"] = _lowpass_filter(sliced["value"].values, fs=fs)
+
+                    # # Downsample to 4 Hz (250ms)
+                    # new_sampling_rate = 4.0
+                    # sliced = sliced.resample("250ms").mean().interpolate("linear")
+                    # sliced["timestamp_unix"] = sliced.index.astype("int64") // 10**6
+                    # sliced["sampling_rate"] = new_sampling_rate
+
+                except Exception as e:
+                    print(f"Failed to process EDA for phase '{phase}' in subject '{participant_id}': {e}")
                     continue
 
             phase_dict[phase] = sliced
