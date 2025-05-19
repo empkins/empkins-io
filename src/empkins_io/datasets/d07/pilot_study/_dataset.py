@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from itertools import product
 from typing import ClassVar
+from functools import cached_property, lru_cache
 
 import pandas as pd
 from biopsykit.io import load_atimelogger_file
@@ -9,8 +10,10 @@ from tpcp import Dataset
 
 __all__ = ["D07PilotStudyDataset"]
 
-from empkins_io.sensors.motion_capture.xsens import XSensDataset
 from empkins_io.utils._types import path_t
+from empkins_io.datasets.d07.pilot_study.helper import _load_mocap_data
+
+_cached_load_mocap_data = lru_cache(maxsize=4)(_load_mocap_data)
 
 
 class D07PilotStudyDataset(Dataset):
@@ -87,10 +90,12 @@ class D07PilotStudyDataset(Dataset):
         self.index["phase"][0]
 
         # TODO continue
-        file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/mocap/processed/{p_id}-002.mvnx")
-
-        dataset = XSensDataset.from_mvnx_file(file_path, tz="Europe/Berlin")
-        data = dataset.data_as_df(index="local_datetime")
+        data = self._get_mocap_data(p_id)
         # TODO: cut to selected phase by timelog
 
         return data
+
+    def _get_mocap_data(self, p_id: str) -> pd.DataFrame:
+        if self.use_cache:
+            return _cached_load_mocap_data(self.base_path, p_id)
+        return _load_mocap_data(self.base_path, p_id)
