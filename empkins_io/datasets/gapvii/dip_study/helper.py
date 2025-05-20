@@ -148,7 +148,7 @@ def _update_dates(base_path: path_t, subject_date_dict: dict, sheet_name: str = 
     # Save the changes to the workbook
     workbook.save(file_path)
 
-def _load_start_end_times(base_path: path_t, participant_id: str) -> (datetime.datetime, datetime.datetime):
+def _load_start_end_times(base_path: path_t, participant_id: str) -> tuple[datetime.datetime, datetime.datetime]:
     """
     Load start and end times from specific cells (C39 and C175) in 'Messung' sheet
     of participant's protocol Excel file.
@@ -249,7 +249,7 @@ def _check_if_file_exists(base_path: path_t, subject_id: str, path_to_file) -> O
     # Load the existing file
     if csv_path.exists():
         df = pd.read_csv(csv_path)
-        print(f"\tFile loaded from CSV Cache")
+        print(f"--- File loaded from CSV Cache")
         return (df, sampling_rates)
     # If the file does not exist, return None
     else:
@@ -371,7 +371,7 @@ def _save_agg_empatica(base_path: path_t, subject_id: str, signal_phase_data: di
     data_path = _build_data_path(base_path, participant_id=subject_id)
     output_path = data_path.joinpath(path_to_file)
     full_df.to_csv(output_path, index=False)
-    print(f"\tSaved all data to: {output_path}")
+    print(f"--- Saved all data to: {output_path}")
 
     return full_df
 
@@ -516,7 +516,7 @@ def _save_avro(base_path: path_t, subject_id: str, signal_phase_data: dict[str, 
     data_path = _build_data_path(base_path, participant_id=subject_id)
     output_path = data_path.joinpath(path_to_file)
     full_df.to_csv(output_path, index=False)
-    print(f"\tSaved all data to: {output_path}")
+    print(f"--- Saved all data to: {output_path}")
 
     return full_df
 
@@ -543,6 +543,6 @@ def _save_tfm_csv(base_path: path_t, subject_id: str, tfm_df: pd.DataFrame, path
     data_path = _build_data_path(base_path, participant_id=subject_id)
     output_path = data_path.joinpath(path_to_file)
     full_df.to_csv(output_path, index=False)
-    print(f"\tSaved all data to: {output_path}")
+    print(f"--- Saved all data to: {output_path}")
 
     return full_df
