@@ -24,6 +24,7 @@ from empkins_io.datasets.gapvii.dip_study.helper import (
     _save_agg_empatica,
     _create_agg_empatica,
     _check_if_file_exists,
+    _save_tfm_csv,
 )
 
 
@@ -221,13 +222,13 @@ class DipStudyDataset(Dataset):
         )
     
     @property
-    def empatica_data(self):
+    def empatica_data(self) -> pd.DataFrame:
         if self.is_single(["subject"]):
             parricipant_id = self.index["subject"][0]
             EMPATICA_FILE_PATH = "empatica/cleaned/aggregated_empatica.csv"
 
             # Check if the file already exists
-            file_exist = _check_if_file_exists(self.base_path, parricipant_id, EMPATICA_FILE_PATH, False)
+            file_exist = _check_if_file_exists(self.base_path, parricipant_id, EMPATICA_FILE_PATH)
             if file_exist is not None:
                 df = file_exist[0]
                 fs = file_exist[1]
@@ -243,7 +244,7 @@ class DipStudyDataset(Dataset):
         )
 
     @property
-    def avro_data(self):
+    def avro_data(self) -> pd.DataFrame:
         # Check if data is requested for a single participant and a single condition
         if self.is_single(None):
             return #TODO
@@ -254,7 +255,7 @@ class DipStudyDataset(Dataset):
             AVRO_FILE_PATH = "empatica/cleaned/avro_empatica.csv"
 
             # Check if the file already exists
-            file_exist = _check_if_file_exists(self.base_path, participant_id, AVRO_FILE_PATH, True)
+            file_exist = _check_if_file_exists(self.base_path, participant_id, AVRO_FILE_PATH)
             if file_exist is not None:
                 df = file_exist[0]
                 fs = file_exist[1]
@@ -267,6 +268,32 @@ class DipStudyDataset(Dataset):
             return df
         raise ValueError(
             "AVRO Empatica data can only be accessed for a single participant and for all phases!"
+        )
+    
+    def tfm_data_csv(self, tfm_df: pd.DataFrame = None) -> pd.DataFrame:
+        # Check if data is requested for a single participant and a single condition
+        if self.is_single(None):
+            return #TODO
+        
+        # Check if data is requested for a single participant
+        if self.is_single(["subject"]):
+            participant_id = self.index["subject"][0]
+            # Check if data is requested for a single participant
+            TFM_FILE_PATH = "tfm/cleaned/data_tfm.csv"
+
+            # Check if the file already exists
+            file_exist = _check_if_file_exists(self.base_path, participant_id, TFM_FILE_PATH)
+            if file_exist is not None and tfm_df is None:
+                df = file_exist[0]
+            else:
+                if tfm_df is not None:
+                    df = _save_tfm_csv(self.base_path, participant_id, tfm_df, TFM_FILE_PATH)
+                else:
+                    print("Error: No tfm_df provided for saving to CSV")
+            return df
+        
+        raise ValueError(
+            "TFM data can only be accessed for a single participant and for all phases!"
         )
 
     @property

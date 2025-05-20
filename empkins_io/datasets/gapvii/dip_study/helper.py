@@ -189,7 +189,7 @@ def _load_radar_data(base_path: path_t, participant_id: str, sampling_rate_hz: f
     # Return the DataFrame (data) and the sampling rate (fs)
     return data, fs
 
-def _check_if_file_exists(base_path: path_t, subject_id: str, path_to_file, is_avro: bool) -> Optional[pd.DataFrame]:
+def _check_if_file_exists(base_path: path_t, subject_id: str, path_to_file) -> Optional[pd.DataFrame]:
     # Skip if file already exists
     data_path = _build_data_path(base_path, participant_id=subject_id)
     csv_path = data_path.joinpath(path_to_file)
@@ -198,6 +198,7 @@ def _check_if_file_exists(base_path: path_t, subject_id: str, path_to_file, is_a
     if csv_path.exists():
         # load the existing file
         df = pd.read_csv(csv_path)
+        print(f"\tFile loaded from CSV Cache")
         return (df, sampling_rates)
     else:
         return None
@@ -301,7 +302,7 @@ def _save_agg_empatica(base_path: path_t, subject_id: str, signal_phase_data: di
     data_path = _build_data_path(base_path, participant_id=subject_id)
     output_path = data_path.joinpath(path_to_file)
     full_df.to_csv(output_path, index=False)
-    print(f"Saved all data to: {output_path}")
+    print(f"\tSaved all data to: {output_path}")
 
     return full_df
 
@@ -431,6 +432,30 @@ def _save_avro(base_path: path_t, subject_id: str, signal_phase_data: dict[str, 
     data_path = _build_data_path(base_path, participant_id=subject_id)
     output_path = data_path.joinpath(path_to_file)
     full_df.to_csv(output_path, index=False)
-    print(f"Saved all data to: {output_path}")
+    print(f"\tSaved all data to: {output_path}")
+
+    return full_df
+
+def _save_tfm_csv(base_path: path_t, subject_id: str, tfm_df: pd.DataFrame, path_to_file: str) -> pd.DataFrame:
+    full_df = tfm_df.copy()
+    
+    # Sort rows by subject, signal, phase, timestamp_unix (timestamp_unix is numeric, so good for sorting)
+    full_df = full_df.sort_values(by=["signal", "timestamp_unix"])
+
+    # Reorder columns exactly as requested
+    desired_order = [
+        "signal", "phase", "timestamp", "timestamp_unix", 
+        "value", "sampling_rate"
+    ]
+
+    # Keep only columns that exist in the DataFrame (in case some missing)
+    existing_cols = [col for col in desired_order if col in full_df.columns]
+    full_df = full_df[existing_cols]
+
+    # Save to CSV
+    data_path = _build_data_path(base_path, participant_id=subject_id)
+    output_path = data_path.joinpath(path_to_file)
+    full_df.to_csv(output_path, index=False)
+    print(f"\tSaved all data to: {output_path}")
 
     return full_df
