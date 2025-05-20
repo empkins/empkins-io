@@ -75,9 +75,8 @@ class D07PilotStudyDataset(Dataset):
 
     @property
     def timelog(self):
-        if not self.is_single("participant"):
-            # todo add check for condition
-            raise ValueError("Time logs can only be accessed for a single participant!")
+        if not self.is_single(None):
+            raise ValueError("Time logs can only be accessed for a single participant, condition and phase!")
 
         p_id = self.index["participant"][0]
         self.index["condition"][0]
@@ -95,14 +94,15 @@ class D07PilotStudyDataset(Dataset):
             raise ValueError("Motion capture data can only be accessed for a single participant, condition and phase!")
 
         p_id = self.index["participant"][0]
-        self.index["condition"][0]
-        self.index["phase"][0]
+        condition = self.index["condition"][0]
+        phase = self.index["phase"][0]
 
         # TODO continue
         data = self._get_mocap_data(p_id)
-        # TODO: cut to selected phase by timelog
 
-        return data
+        data_slice = data.loc[
+                     self.timelog[phase]["start"].iloc[0]:self.timelog[phase]["end"].iloc[0]]
+        return data_slice
 
     def _get_mocap_data(self, p_id: str) -> pd.DataFrame:
         if self.use_cache:
