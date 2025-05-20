@@ -54,12 +54,17 @@ class DipStudyDataset(Dataset):
         "radar": 8000000 / 4096 / 2,
     }
 
-    # Path to the Empatica data file
+    # Path to the Empatica data file per subject
     EMPATICA_FILE_PATH = "empatica/cleaned/aggregated_empatica.csv"
-    # Path to the AVRO data file
+    # Path to the AVRO data file per subject
     AVRO_FILE_PATH = "empatica/cleaned/avro_empatica.csv"
-    # Path to the TFM data file
+    # Path to the TFM data file per subject
     TFM_FILE_PATH = "tfm/cleaned/data_tfm.csv"
+
+    # Concatenated path for aggregated and Avro Empatica data
+    CONC_TFM_DATA_PATH = "data_tabular/cleaned/tfm_data_concatenated.csv"
+    # Concatenated path for AVRO data
+    CONC_EMPATICA_DATA_PATH = "data_tabular/cleaned/avro_data_concatenated.csv"
 
     # Default fallback date in case date info is missing
     DEF_DATE = "01.01.1970"
