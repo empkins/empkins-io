@@ -15,6 +15,7 @@ from scipy.signal import butter, filtfilt
 import pandas as pd
 import numpy as np
 
+# Mapping German phase names to English phase keys used internally
 PHASE_MAPPING = {
         "Beginn der Aufzeichnung": "start_recording",
         "Ende der Aufzeichnung": "end_recording",
@@ -30,48 +31,67 @@ PHASE_MAPPING = {
         "Ende Atmung": "end_straw",
 }
 
-# Define folder names for left and right devices
+# Constants defining folder names for left and right device data storage
 FOLDER_LEFT = "LEFT1-3YK33141NH"
 FOLDER_RIGHT = "RIGHT-3YK34142G6"
 
-# Define prefix for Empatica data files
+# Prefixes for Empatica data files for left and right devices
 PREFIX_LEFT = "1-1-LEFT1"
 PREFIX_RIGHT = "1-1-RIGHT"
 
 def _build_data_path(base_path: path_t, participant_id: str) -> Path:
+    """
+    Construct path to participant-specific data directory.
+    """
     data_path = base_path.joinpath(f"data_per_subject/{participant_id}")
     assert data_path.exists()
     return data_path
 
 
 def _build_tabular_data_path(base_path: path_t) -> Path:
+    """
+    Construct path to tabular data directory.
+    """
     data_path = base_path.joinpath("data_tabular")
     assert data_path.exists()
     return data_path
 
 
 def _build_general_tabular_path(base_path: path_t) -> Path:
+    """
+    Get path to the main processed Excel file with general tabular data.
+    """
     data_path = _build_tabular_data_path(base_path)
     data_path = data_path.joinpath("processed/empkins_dip_study.xlsx")
     assert data_path.exists()
     return data_path
 
 def _load_general_information(base_path: path_t, column: str) -> DataFrame:
+    """
+    Load a single column from the general tabular Excel file.
+    Used to get participant metadata or other information.
+    """
     file_path = _build_general_tabular_path(base_path)
     df = pd.read_excel(file_path, index_col=0)
     return df[column]
 
 def _build_phase_times_path(base_path: path_t) -> Path:
+    """
+    Construct path to CSV file containing synchronized phase times.
+    """
     data_path = _build_tabular_data_path(base_path)
     file_path = data_path / "processed/phase_times_synchronized.csv"
     assert file_path.exists(), f"{file_path} does not exist"
     return file_path
 
 def _load_phase_times(base_path: path_t) -> DataFrame:
+    """
+    Load phase times CSV and convert start/end times from seconds to milliseconds.
+    """
     file_path = _build_phase_times_path(base_path)
     df = pd.read_csv(file_path)
 
-    # Convert `timestamp_unix` from s to ms
+    # Convert start_time and end_time from seconds to milliseconds
     if "start_time" in df.columns and 'end_time' in df.columns:
         df["start_time"] = (df["start_time"] * 1000).astype("int64")
         df["end_time"] = (df["end_time"] * 1000).astype("int64")
@@ -79,6 +99,9 @@ def _load_phase_times(base_path: path_t) -> DataFrame:
     return df
 
 def _build_datetime_path(base_path: path_t, participant_id: str) -> Path:
+    """
+    Build path to participant's cleaned protocol Excel file containing date info.
+    """
     date_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
         "protocol/cleaned"
     )
@@ -87,6 +110,9 @@ def _build_datetime_path(base_path: path_t, participant_id: str) -> Path:
     return date_file_path
 
 def _load_single_date(base_path: path_t, subject_id: str) -> pd.Timestamp:
+    """
+    Load the date (timestamp) from a specific cell (C3) in the "Allgemein" sheet of the protocol file.
+    """
     data_path =_build_datetime_path(base_path=base_path, participant_id=subject_id)
     df = pd.read_excel(data_path, sheet_name="Allgemein", header=None)
     # Convert the cell to DataFrame indices (C3)
@@ -94,7 +120,10 @@ def _load_single_date(base_path: path_t, subject_id: str) -> pd.Timestamp:
     return pd.to_datetime(cell_value, dayfirst=True)
 
 def _update_dates(base_path: path_t, subject_date_dict: dict, sheet_name: str = "Sheet1"):
-    # Load the workbook and select the specified sheet
+    """
+    Update the 'date' column (H1) in the general tabular Excel file for given subjects.
+    Writes formatted date string for each subject on matching row.
+    """
     file_path = _build_general_tabular_path(base_path)
     workbook = load_workbook(file_path)
     sheet = workbook[sheet_name]
@@ -120,6 +149,10 @@ def _update_dates(base_path: path_t, subject_date_dict: dict, sheet_name: str = 
     workbook.save(file_path)
 
 def _load_start_end_times(base_path: path_t, participant_id: str) -> (datetime.datetime, datetime.datetime):
+    """
+    Load start and end times from specific cells (C39 and C175) in 'Messung' sheet
+    of participant's protocol Excel file.
+    """
     data_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
         "protocol/cleaned"
     )
@@ -132,7 +165,9 @@ def _load_start_end_times(base_path: path_t, participant_id: str) -> (datetime.d
     return (start_time, end_time)
 
 def _create_loader(base_path: path_t, participant_id: str, date: str) -> TfmLoader:
-    # Build the path to the TFM data directory for the given participant
+    """
+    Create a TfmLoader instance for the participant's TFM data at the given date.
+    """
     tfm_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
         "tfm/cleaned"
     )
@@ -143,6 +178,7 @@ def _create_loader(base_path: path_t, participant_id: str, date: str) -> TfmLoad
 
     # Construct the full path to the TFM data file for the participant
     tfm_file_path = tfm_dir_path.joinpath(f"{participant_id}_tfm_data.mat")
+
     # Load the TFM data from the specified .mat file
     loader = TfmLoader.from_mat_file(
         path=tfm_file_path,
@@ -153,16 +189,25 @@ def _create_loader(base_path: path_t, participant_id: str, date: str) -> TfmLoad
     return loader
 
 def _load_tfm_data(base_path: path_t, participant_id: str, date: str) -> tuple[pd.DataFrame, float]:
+    """
+    Load TFM raw phase data and sampling rate for given participant and date.
+    Returns data dictionary indexed by local_datetime and sampling frequency.
+    """
     # Create a TfmLoader object for the specified participant and date
     loader = _create_loader(base_path, participant_id, date)
+
     # Extract the raw phase data as a dictionary of DataFrames, indexed by local datetime
     data = loader.raw_phase_data_as_df_dict(index="local_datetime")
     # Retrieve the sampling rates from the loader
     fs = loader.sampling_rates_hz
+
     return data, fs
 
 
 def _load_b2b_data(base_path: path_t, participant_id: str, date: str) -> tuple[pd.DataFrame, float]:
+    """
+    Load beat-to-beat (B2B) data and sampling rate similarly to TFM data.
+    """
     # Create a TfmLoader object for the specified participant and date
     loader = _create_loader(base_path, participant_id, date)
     # Extract the B2B phase data as a dictionary of DataFrames, indexed by local datetime
@@ -172,6 +217,10 @@ def _load_b2b_data(base_path: path_t, participant_id: str, date: str) -> tuple[p
     return data, fs
 
 def _load_radar_data(base_path: path_t, participant_id: str, sampling_rate_hz: float) -> tuple[pd.DataFrame, float]:
+    """
+    Load radar data from HDF5 file using EmradDataset class.
+    Returns data as DataFrame indexed by local_datetime and sampling frequency.
+    """
     # Build the directory path for radar data based on the base path and participant ID
     radar_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
         "emrad/raw"
@@ -190,20 +239,26 @@ def _load_radar_data(base_path: path_t, participant_id: str, sampling_rate_hz: f
     return data, fs
 
 def _check_if_file_exists(base_path: path_t, subject_id: str, path_to_file) -> Optional[pd.DataFrame]:
-    # Skip if file already exists
+    """
+    Check if cached CSV file exists and load it.
+    """
     data_path = _build_data_path(base_path, participant_id=subject_id)
     csv_path = data_path.joinpath(path_to_file)
     sampling_rates = {}
 
+    # Load the existing file
     if csv_path.exists():
-        # load the existing file
         df = pd.read_csv(csv_path)
         print(f"\tFile loaded from CSV Cache")
         return (df, sampling_rates)
+    # If the file does not exist, return None
     else:
         return None
 
 def _load_empatica_data(base_path: path_t, participant_id: str, date: str, empatica_lr: str, start_end_times: tuple[datetime.datetime, datetime.datetime], signal_type: list[str]):
+    """
+    Load Empatica data filtered by date, device side, signals, and time range.
+    """
     data = {}
     
     # Convert date from "dd.mm.yyyy" to "yyyy-mm-dd" for folder matching
@@ -246,6 +301,9 @@ def _load_empatica_data(base_path: path_t, participant_id: str, date: str, empat
     return data
 
 def calculate_empatica_sampling_rate(df: pd.DataFrame) -> float:
+    """
+    Calculate average sampling rate from Unix timestamp differences in ms.
+    """
     # Calculate the time difference between consecutive timestamps
     time_diff = df["timestamp_unix"].diff().dropna()
     # Calculate the average sampling rate in Hz
@@ -253,9 +311,13 @@ def calculate_empatica_sampling_rate(df: pd.DataFrame) -> float:
     return avg_sampling_rate
 
 def _create_agg_empatica(empatica_data: dict[str, pd.DataFrame], phase_times: pd.DataFrame) -> dict[str, dict[str, pd.DataFrame]]:
+    """
+    Aggregate Empatica signals per phase based on timestamp ranges.
+    """
     empatica_data_by_phase = {}
     sampling_rates = {}
 
+    # Iterate over each signal in the Empatica data
     for signal, df in empatica_data.items():
         # Ensure correct type
         df["timestamp_unix"] = pd.to_numeric(df["timestamp_unix"])
@@ -264,23 +326,30 @@ def _create_agg_empatica(empatica_data: dict[str, pd.DataFrame], phase_times: pd
         sampling_rates[f"{signal}_aggregated"] = df["sampling_rate"].iloc[0]
 
         phase_dict = {}
+        # Iterate over each phase in the phase times DataFrame
         for _, row in phase_times.iterrows():
             phase = row["phase"]
             start = row["start_time"]
             end = row["end_time"]
 
+            # Filter the DataFrame for the current phase
             sliced = df[
                 (df["timestamp_unix"] >= start) &
                 (df["timestamp_unix"] <= end)
             ]
+            # Store the sliced DataFrame in the dictionary
             phase_dict[phase] = sliced
 
+        # Store the aggregated data for the current signal
         empatica_data_by_phase[signal] = phase_dict
     return empatica_data_by_phase, sampling_rates
 
 def _save_agg_empatica(base_path: path_t, subject_id: str, signal_phase_data: dict[str, dict[str, pd.DataFrame]], path_to_file: str) -> pd.DataFrame:
-    # Otherwise, create the directory
+    """
+    Save aggregated Empatica phase data into a single CSV file.
+    """
     rows = []
+    # Iterate over each signal and phase, and append the data to a list
     for signal, phases in signal_phase_data.items():
         for phase, df in phases.items():
             df_copy = df.copy()
@@ -306,11 +375,14 @@ def _save_agg_empatica(base_path: path_t, subject_id: str, signal_phase_data: di
 
     return full_df
 
-# Bandpass filter for PPG signal
-# 0.5 Hz = 30 bpm bellow physiological range
-# 8 Hz = 480 bpm above physiological range
-# https://ieeexplore.ieee.org/document/9662889
+
 def _bandpass_filter(signal, lowcut=0.5, highcut=8, fs=64, order=4):
+    """
+    Apply Butterworth bandpass filter to PPG signal.
+        0.5 Hz = 30 bpm bellow physiological range
+        8 Hz = 480 bpm above physiological range
+        https://ieeexplore.ieee.org/document/9662889
+    """
     # Normalize cutoff frequency by Nyquist frequency (fs/2)
     nyq = 0.5 * fs
     # Design filter (4rd order Butterworth)
@@ -318,10 +390,14 @@ def _bandpass_filter(signal, lowcut=0.5, highcut=8, fs=64, order=4):
     # Apply filter
     return filtfilt(b, a, signal)   
 
-# Lowpass filter for EDA signal
-# filter out frequencies which are above 0.5 Hz
-# https://www.sciencedirect.com/science/article/pii/S0167876021008461#bb0075
+
+
 def _lowpass_filter(signal, cutoff=0.5, fs=4, order=3):
+    """
+    Apply Butterworth lowpass filter to EDA signal.
+        filter out frequencies which are above 0.5 Hz
+        https://www.sciencedirect.com/science/article/pii/S0167876021008461#bb0075
+    """
     # Normalize cutoff frequency by Nyquist frequency (fs/2)
     normalized_cutoff = cutoff / (fs/2)
     # Design filter (3rd order Butterworth)
@@ -330,6 +406,9 @@ def _lowpass_filter(signal, cutoff=0.5, fs=4, order=3):
     return filtfilt(b, a, signal)
 
 def _create_avro(base_path: path_t, participant_id: str, signal_type: list[str], phase_times: pd.DataFrame) -> tuple[dict[str, dict[str, pd.DataFrame]], float]:
+    """
+    Load and preprocess AVRO Empatica signals per phase with filtering and resampling.
+    """
     # Build the path to the Empatica data directory for the given participant
     data_path = _build_data_path(base_path, participant_id=participant_id).joinpath("empatica/raw")
 
@@ -339,8 +418,12 @@ def _create_avro(base_path: path_t, participant_id: str, signal_type: list[str],
 
     avro_data_by_phase = {}
 
+    # Iterate over each signal type (e.g., "bvp", "eda")
     for signal in signal_type:
+        # Load the data for the current signal
         df = loader.data_as_df(sensor=signal)
+
+        # Ensure correct type
         df.columns.values[0] = "value"
         df.index.name = "timestamp"
         df["timestamp_unix"] = df.index.astype("int64") // 10**6
@@ -348,12 +431,16 @@ def _create_avro(base_path: path_t, participant_id: str, signal_type: list[str],
 
         phase_dict = {}
 
+        # Iterate over each phase in the phase times DataFrame
         for _, row in phase_times.iterrows():
             phase = row["phase"]
             start = row["start_time"]
             end = row["end_time"]
 
+            # Filter the DataFrame for the current phase
             sliced = df[(df["timestamp_unix"] >= start) & (df["timestamp_unix"] <= end)].copy()
+            
+            # Check if the sliced DataFrame is empty
             if sliced.empty:
                 print(f"No data for signal '{signal}' in phase '{phase}'")
                 continue
@@ -381,7 +468,6 @@ def _create_avro(base_path: path_t, participant_id: str, signal_type: list[str],
                     sliced["timestamp_unix"] = sliced.index.astype("int64") // 10**6
                     sliced["sampling_rate"] = new_sampling_rate
 
-
                 except Exception as e:
                     print(f"Failed to process BVP for phase '{phase}' in subject '{participant_id}': {e}")
                     continue
@@ -392,25 +478,23 @@ def _create_avro(base_path: path_t, participant_id: str, signal_type: list[str],
                     # Apply lowpass filter
                     sliced["value"] = _lowpass_filter(sliced["value"].values, fs=fs)
 
-                    # # Downsample to 4 Hz (250ms)
-                    # new_sampling_rate = 4.0
-                    # sliced = sliced.resample("250ms").mean().interpolate("linear")
-                    # sliced["timestamp_unix"] = sliced.index.astype("int64") // 10**6
-                    # sliced["sampling_rate"] = new_sampling_rate
-
                 except Exception as e:
                     print(f"Failed to process EDA for phase '{phase}' in subject '{participant_id}': {e}")
                     continue
 
             phase_dict[phase] = sliced
 
+        # Store the processed data for the current signal
         avro_data_by_phase[signal] = phase_dict
 
     return avro_data_by_phase, sampling_rates
 
 def _save_avro(base_path: path_t, subject_id: str, signal_phase_data: dict[str, dict[str, pd.DataFrame]], path_to_file: str) -> pd.DataFrame:
-    # Otherwise, create the directory
+    """
+    Save processed AVRO Empatica data to CSV with phase and signal annotations.
+    """
     rows = []
+    # Iterate over each signal and phase, and append the data to a list
     for signal, phases in signal_phase_data.items():
         for phase, df in phases.items():
             df_copy = df.copy()
@@ -437,6 +521,9 @@ def _save_avro(base_path: path_t, subject_id: str, signal_phase_data: dict[str, 
     return full_df
 
 def _save_tfm_csv(base_path: path_t, subject_id: str, tfm_df: pd.DataFrame, path_to_file: str) -> pd.DataFrame:
+    """
+    Save TFM signal DataFrame to CSV, sorted and ordered by columns.
+    """
     full_df = tfm_df.copy()
     
     # Sort rows by subject, signal, phase, timestamp_unix (timestamp_unix is numeric, so good for sorting)
