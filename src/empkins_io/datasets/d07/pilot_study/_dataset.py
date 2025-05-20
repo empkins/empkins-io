@@ -88,7 +88,7 @@ class D07PilotStudyDataset(Dataset):
         data = data.reindex(phases, level="phase", axis=1)
         return data
 
-    @property
+    @cached_property
     def mocap(self):
         if not self.is_single(None):
             raise ValueError("Motion capture data can only be accessed for a single participant, condition and phase!")
