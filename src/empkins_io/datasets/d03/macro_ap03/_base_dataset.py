@@ -67,8 +67,8 @@ class MacroBaseDataset(Dataset):
             subject_dir.name
             for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_participant"), "VP_*")
         ]
-        index_cols = ["participant", "condition"]
-        index = list(product(subject_ids, self.CONDITIONS))
+        index_cols = ["participant", "condition", "phase"]
+        index = list(product(subject_ids, self.CONDITIONS, self.PHASES))
 
         index = pd.DataFrame(index, columns=index_cols)
         index = index.set_index(index_cols)
@@ -101,6 +101,12 @@ class MacroBaseDataset(Dataset):
         return self.index["condition"][0]
 
     @property
+    def phase(self) -> str:
+        if not self.is_single("phase"):
+            raise ValueError("Phase data can only be accessed for a single phase!")
+        return self.index["phase"][0]
+
+    @property
     def sampling_rate(self) -> float:
         """Sampling rate of the MoCap system."""
         return self.SAMPLING_RATE_MOCAP
@@ -114,7 +120,7 @@ class MacroBaseDataset(Dataset):
         return self._sample_times_bloodspot
 
     @property
-    def zebris(self) -> pd.DataFrame:
+    def zebris(self) -> pd.DataFrame | None:
         if not self.is_single(None):
             raise ValueError(
                 "Data can only be accessed for a single recording (participant, condition, phase) in the subset"
@@ -124,12 +130,14 @@ class MacroBaseDataset(Dataset):
         phase = self.group_label.phase
 
         folder_path = self.base_path.joinpath("data_per_participant", p_id, condition, "zebris", "export", phase)
-        zebris_dataset = ZebrisDataset.from_folder(folder_path)
-
-        return zebris_dataset.data_as_df()
+        try:
+            zebris_dataset = ZebrisDataset.from_folder(folder_path)
+            return zebris_dataset.data_as_df()
+        except FileNotFoundError:
+            return None
 
     @property
-    def zebris_aggregated(self) -> pd.DataFrame:
+    def zebris_aggregated(self) -> pd.DataFrame | None:
         if not self.is_single(None):
             raise ValueError("Zebris aggregated data can only be accessed for a single recording.")
         folder_path = self.base_path.joinpath(
@@ -140,5 +148,8 @@ class MacroBaseDataset(Dataset):
             "export",
             self.group_label.phase,
         )
-        zebris_dataset = ZebrisDataset.from_folder(folder_path)
-        return zebris_dataset.aggregated_data
+        try:
+            zebris_dataset = ZebrisDataset.from_folder(folder_path)
+            return zebris_dataset.aggregated_data
+        except FileNotFoundError:
+            return None
