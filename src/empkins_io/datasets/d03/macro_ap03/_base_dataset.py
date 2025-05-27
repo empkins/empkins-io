@@ -13,6 +13,8 @@ from empkins_io.utils._types import path_t
 
 __all__ = ["MacroBaseDataset"]
 
+from empkins_io.utils.exceptions import ZebrisDataNotFoundError
+
 
 class MacroBaseDataset(Dataset):
     base_path: path_t
@@ -122,9 +124,7 @@ class MacroBaseDataset(Dataset):
     @property
     def zebris(self) -> pd.DataFrame | None:
         if not self.is_single(None):
-            raise ValueError(
-                "Data can only be accessed for a single recording (participant, condition, phase) in the subset"
-            )
+            raise ValueError("Data can only be accessed for a single recording (participant, condition, phase).")
         p_id = self.group_label.participant
         condition = self.group_label.condition
         phase = self.group_label.phase
@@ -133,23 +133,26 @@ class MacroBaseDataset(Dataset):
         try:
             zebris_dataset = ZebrisDataset.from_folder(folder_path)
             return zebris_dataset.data_as_df()
-        except FileNotFoundError:
-            return None
+        except FileNotFoundError as e:
+            raise ZebrisDataNotFoundError(
+                f"No Zebris data found for participant {p_id}, condition {condition}, phase {phase}."
+            ) from e
 
     @property
     def zebris_aggregated(self) -> pd.DataFrame | None:
         if not self.is_single(None):
-            raise ValueError("Zebris aggregated data can only be accessed for a single recording.")
-        folder_path = self.base_path.joinpath(
-            "data_per_participant",
-            self.group_label.participant,
-            self.group_label.condition,
-            "zebris",
-            "export",
-            self.group_label.phase,
-        )
+            raise ValueError(
+                "Zebris aggregated data can only be accessed for a single recording (participant, condition, phase)."
+            )
+
+        p_id = self.group_label.participant
+        condition = self.group_label.condition
+        phase = self.group_label.phase
+        folder_path = self.base_path.joinpath("data_per_participant", p_id, condition, "zebris", "export", phase)
         try:
             zebris_dataset = ZebrisDataset.from_folder(folder_path)
             return zebris_dataset.aggregated_data
-        except FileNotFoundError:
-            return None
+        except FileNotFoundError as e:
+            raise ZebrisDataNotFoundError(
+                f"No aggregated Zebris data found for participant {p_id}, condition {condition}, phase {phase}."
+            ) from e

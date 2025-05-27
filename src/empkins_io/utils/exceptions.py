@@ -13,6 +13,7 @@ __all__ = [
     "OpenposeDataNotFoundError",
     "CleanedOpenposeDataNotFoundError",
     "TimestampDataNotFoundError",
+    "ZebrisDataNotFoundError",
 ]
 
 
@@ -62,3 +63,7 @@ class CleanedOpenposeDataNotFoundError(Exception):
 
 class TimestampDataNotFoundError(Exception):
     """An error indicating that no timestamps.csv file is available."""
+
+
+class ZebrisDataNotFoundError(Exception):
+    """An error indicating that no Zebris data are available."""
