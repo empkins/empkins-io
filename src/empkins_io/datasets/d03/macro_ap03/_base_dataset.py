@@ -70,7 +70,11 @@ class MacroBaseDataset(Dataset):
             for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_participant"), "VP_*")
         ]
         index_cols = ["participant", "condition", "phase"]
-        index = list(product(subject_ids, self.CONDITIONS, self.PHASES))
+        if not self.include_prep:
+            phases = self.PHASES[1:]  # Exclude 'prep' phase
+        else:
+            phases = self.PHASES
+        index = list(product(subject_ids, self.CONDITIONS, phases))
 
         index = pd.DataFrame(index, columns=index_cols)
         index = index.set_index(index_cols)
