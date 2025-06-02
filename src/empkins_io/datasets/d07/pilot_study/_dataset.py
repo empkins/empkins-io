@@ -75,13 +75,13 @@ class D07PilotStudyDataset(Dataset):
 
     @property
     def timelog(self):
-        if not self.is_single(None):
-            raise ValueError("Time logs can only be accessed for a single participant, condition and phase!")
+        if not self.is_single(["participant", "condition"]):
+            raise ValueError("Time logs can only be accessed for a single participant and condition!")
 
         p_id = self.index["participant"][0]
         self.index["condition"][0]
         phases = self.index["phase"].unique()
-        file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/timelogs/cleaned/{p_id}_timelog.csv")
+        file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/timelogs/cleaned/{p_id}_timelog_old.csv")
 
         data = load_atimelogger_file(file_path)
         data = data.rename(columns=self.PHASE_MAPPER, level="phase")
