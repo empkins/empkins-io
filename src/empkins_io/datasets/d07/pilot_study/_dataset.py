@@ -1,7 +1,7 @@
 from collections.abc import Sequence
+from functools import cached_property, lru_cache
 from itertools import product
 from typing import ClassVar
-from functools import cached_property, lru_cache
 
 import pandas as pd
 from biopsykit.io import load_atimelogger_file
@@ -10,8 +10,8 @@ from tpcp import Dataset
 
 __all__ = ["D07PilotStudyDataset"]
 
-from empkins_io.utils._types import path_t
 from empkins_io.datasets.d07.pilot_study.helper import _load_mocap_data
+from empkins_io.utils._types import path_t
 
 _cached_load_mocap_data = lru_cache(maxsize=4)(_load_mocap_data)
 
@@ -32,7 +32,7 @@ class D07PilotStudyDataset(Dataset):
         "Langsitz Test": "long-sit test",
         "Finger-Boden-Abstand": "finger-floor distance test",
         "Aufhebe Test": "pick-up test",
-        "Hebe Test": "lifting test"
+        "Hebe Test": "lifting test",
     }
     PHASES: ClassVar[Sequence[str]] = PHASE_MAPPER.values()
 
@@ -100,8 +100,7 @@ class D07PilotStudyDataset(Dataset):
         # TODO continue
         data = self._get_mocap_data(p_id)
 
-        data_slice = data.loc[
-                     self.timelog[phase]["start"].iloc[0]:self.timelog[phase]["end"].iloc[0]]
+        data_slice = data.loc[self.timelog[phase]["start"].iloc[0] : self.timelog[phase]["end"].iloc[0]]
         return data_slice
 
     def _get_mocap_data(self, p_id: str) -> pd.DataFrame:

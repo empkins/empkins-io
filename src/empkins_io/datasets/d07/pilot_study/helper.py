@@ -1,6 +1,4 @@
-from datetime import datetime
 
-import pandas as pd
 from pandas import DataFrame
 
 from empkins_io.sensors.motion_capture.xsens import XSensDataset
