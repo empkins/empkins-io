@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from functools import lru_cache
 from itertools import product
 from typing import ClassVar
 
@@ -9,8 +10,10 @@ from tpcp import Dataset
 
 __all__ = ["D07PilotStudyDataset"]
 
-from empkins_io.sensors.motion_capture.xsens import XSensDataset
+from empkins_io.datasets.d07.pilot_study._helper import _load_xsens_data
 from empkins_io.utils._types import path_t
+
+_cached_load_xsens_data = lru_cache(maxsize=4)(_load_xsens_data)
 
 
 class D07PilotStudyDataset(Dataset):
@@ -45,7 +48,7 @@ class D07PilotStudyDataset(Dataset):
     def create_index(self) -> pd.DataFrame:
         p_ids = [
             subject_dir.name
-            for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_participant"), "VP_*")
+            for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_participant"), r"^VP_(\d+)")
         ]
         index_cols = ["participant", "condition", "phase"]
         index = list(product(p_ids, self.CONDITIONS, self.PHASES))
@@ -82,15 +85,23 @@ class D07PilotStudyDataset(Dataset):
         if not self.is_single(None):
             raise ValueError("Motion capture data can only be accessed for a single participant, condition and phase!")
 
-        p_id = self.index["participant"][0]
-        self.index["condition"][0]
-        self.index["phase"][0]
+        p_id = self.group_label.participant
+        condition = self.group_label.condition
+        phase = self.group_label.phase
 
         # TODO continue
-        file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/mocap/processed/{p_id}-002.mvnx")
+        # file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/mocap/processed/{p_id}-002.mvnx")
+        file_path = self.base_path.joinpath(
+            f"data_per_participant/{p_id}/mocap/export/D07_VP_DryRun_Monica_GERTfirst-001.mvnx"
+        )
 
-        dataset = XSensDataset.from_mvnx_file(file_path, tz="Europe/Berlin")
-        data = dataset.data_as_df(index="local_datetime")
+        if self.use_cache:
+            data = _cached_load_xsens_data(file_path)
+        else:
+            data = _load_xsens_data(file_path)
+
         # TODO: cut to selected phase by timelog
+        timelog = self.timelog.iloc[0]
+        data = data.loc[timelog[phase]["start"] : timelog[phase]["end"]]
 
         return data
