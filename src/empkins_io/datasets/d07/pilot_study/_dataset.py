@@ -28,6 +28,11 @@ class D07PilotStudyDataset(Dataset):
     CONDITIONS: ClassVar[Sequence[str]] = ["Control", "Gert"]
     PHASES: ClassVar[Sequence[str]] = ["Finger-Boden-Abstand", "Aufhebe Test", "Test"]
 
+    CONDITION_ORDER_MAPPING = {
+        "gert_first": {0: "Gert", 1: "Control"},
+        "control_first": {0: "Control", 1: "Gert"},
+    }
+
     def __init__(
         self,
         base_path: path_t,
@@ -72,9 +77,12 @@ class D07PilotStudyDataset(Dataset):
             raise ValueError("Time logs can only be accessed for a single participant!")
 
         p_id = self.index["participant"][0]
-        self.index["condition"][0]
+        condition = self.index["condition"][0]
         phases = self.index["phase"].unique()
         file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/timelogs/cleaned/{p_id}_timelog.csv")
+
+        # apply condition order mapping
+        # self.CONDITION_ORDER_MAPPING[self.condition_order.iloc[0]["condition_order"]]
 
         data = load_atimelogger_file(file_path)
         data = data.reindex(phases, level="phase", axis=1)
@@ -105,3 +113,10 @@ class D07PilotStudyDataset(Dataset):
         data = data.loc[timelog[phase]["start"] : timelog[phase]["end"]]
 
         return data
+
+    @property
+    def condition_order(self):
+        file_path = self.base_path.joinpath("metadata/condition_order.csv")
+        data = pd.read_csv(file_path, index_col=0)
+
+        return data.reindex(self.index["participant"].unique())
