@@ -27,12 +27,12 @@ class D07PilotStudyDataset(Dataset):
 
     CONDITIONS: ClassVar[Sequence[str]] = ["Control", "Gert"]
     PHASE_MAPPER: ClassVar[dict[str, str]] = {
-        "Sockentest": "sock test",
-        "Sit to stand": "sit-to-stand test",
-        "Langsitz Test": "long-sit test",
-        "Finger-Boden-Abstand": "finger-floor distance test",
-        "Aufhebe Test": "pick-up test",
-        "Hebe Test": "lifting test",
+        "Sockentest": "sock_test",
+        "Sit to stand": "sit_stand_test",
+        "Langsitz Test": "long_sit_test",
+        "Finger-Boden-Abstand": "finger_floor_distance_test",
+        "Aufhebe Test": "pick_up_test",
+        "Hebe Test": "lifting_test",
     }
     PHASES: ClassVar[Sequence[str]] = PHASE_MAPPER.values()
 
@@ -79,11 +79,10 @@ class D07PilotStudyDataset(Dataset):
             raise ValueError("Time logs can only be accessed for a single participant and condition!")
 
         p_id = self.index["participant"][0]
-        self.index["condition"][0]
         phases = self.index["phase"].unique()
-        file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/timelogs/cleaned/{p_id}_timelog_old.csv")
+        file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/timelogs/cleaned/{p_id}_timelog.csv")
 
-        data = load_atimelogger_file(file_path)
+        data = load_atimelogger_file(file_path, handle_multiple="fix")
         data = data.rename(columns=self.PHASE_MAPPER, level="phase")
         data = data.reindex(phases, level="phase", axis=1)
         return data
