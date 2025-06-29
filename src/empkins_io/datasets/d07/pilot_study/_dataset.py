@@ -93,8 +93,8 @@ class D07PilotStudyDataset(Dataset):
         # apply condition order mapping
         # self.CONDITION_ORDER_MAPPING[self.condition_order.iloc[0]["condition_order"]]
 
-        data = load_atimelogger_file(file_path)
-        data = data.reindex(phases, level="phase", axis=1)
+        # data = load_atimelogger_file(file_path)
+        # data = data.reindex(phases, level="phase", axis=1)
         return data
 
     @cached_property
@@ -102,30 +102,26 @@ class D07PilotStudyDataset(Dataset):
         if not self.is_single(None):
             raise ValueError("Motion capture data can only be accessed for a single participant, condition and phase!")
 
-        p_id = self.index["participant"][0]
-        condition = self.index["condition"][0]
-        phase = self.index["phase"][0]
+        # p_id = self.index["participant"][0]
+        # condition = self.index["condition"][0]
+        # phase = self.index["phase"][0]
         p_id = self.group_label.participant
         condition = self.group_label.condition
         phase = self.group_label.phase
 
         # TODO continue
         data = self._get_mocap_data(p_id)
-        # file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/mocap/processed/{p_id}-002.mvnx")
         file_path = self.base_path.joinpath(
             f"data_per_participant/{p_id}/mocap/export/D07_VP_DryRun_Monica_GERTfirst-001.mvnx"
         )
 
-        data_slice = data.loc[self.timelog[phase]["start"].iloc[0] : self.timelog[phase]["end"].iloc[0]]
-        return data_slice
-        if self.use_cache:
-            data = _cached_load_xsens_data(file_path)
-        else:
-            data = _load_xsens_data(file_path)
+        # data_slice = data.loc[self.timelog[phase]["start"].iloc[0] : self.timelog[phase]["end"].iloc[0]]
+        # return data_slice
 
         # TODO: cut to selected phase by timelog
         timelog = self.timelog.iloc[0]
         data = data.loc[timelog[phase]["start"] : timelog[phase]["end"]]
+        return data
 
     def _get_mocap_data(self, p_id: str) -> pd.DataFrame:
         if self.use_cache:
