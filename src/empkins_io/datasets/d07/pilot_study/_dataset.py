@@ -36,6 +36,11 @@ class D07PilotStudyDataset(Dataset):
     }
     PHASES: ClassVar[Sequence[str]] = PHASE_MAPPER.values()
 
+    CONDITION_ORDER_MAPPING = {
+        "gert_first": {0: "Gert", 1: "Control"},
+        "control_first": {0: "Control", 1: "Gert"},
+    }
+
     def __init__(
         self,
         base_path: path_t,
@@ -79,11 +84,16 @@ class D07PilotStudyDataset(Dataset):
             raise ValueError("Time logs can only be accessed for a single participant and condition!")
 
         p_id = self.index["participant"][0]
+        condition = self.index["condition"][0]
         phases = self.index["phase"].unique()
         file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/timelogs/cleaned/{p_id}_timelog.csv")
 
         data = load_atimelogger_file(file_path, handle_multiple="fix")
         data = data.rename(columns=self.PHASE_MAPPER, level="phase")
+        # apply condition order mapping
+        # self.CONDITION_ORDER_MAPPING[self.condition_order.iloc[0]["condition_order"]]
+
+        data = load_atimelogger_file(file_path)
         data = data.reindex(phases, level="phase", axis=1)
         return data
 
@@ -95,14 +105,36 @@ class D07PilotStudyDataset(Dataset):
         p_id = self.index["participant"][0]
         condition = self.index["condition"][0]
         phase = self.index["phase"][0]
+        p_id = self.group_label.participant
+        condition = self.group_label.condition
+        phase = self.group_label.phase
 
         # TODO continue
         data = self._get_mocap_data(p_id)
+        # file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/mocap/processed/{p_id}-002.mvnx")
+        file_path = self.base_path.joinpath(
+            f"data_per_participant/{p_id}/mocap/export/D07_VP_DryRun_Monica_GERTfirst-001.mvnx"
+        )
 
         data_slice = data.loc[self.timelog[phase]["start"].iloc[0] : self.timelog[phase]["end"].iloc[0]]
         return data_slice
+        if self.use_cache:
+            data = _cached_load_xsens_data(file_path)
+        else:
+            data = _load_xsens_data(file_path)
+
+        # TODO: cut to selected phase by timelog
+        timelog = self.timelog.iloc[0]
+        data = data.loc[timelog[phase]["start"] : timelog[phase]["end"]]
 
     def _get_mocap_data(self, p_id: str) -> pd.DataFrame:
         if self.use_cache:
             return _cached_load_mocap_data(self.base_path, p_id)
         return _load_mocap_data(self.base_path, p_id)
+
+    @property
+    def condition_order(self):
+        file_path = self.base_path.joinpath("metadata/condition_order.csv")
+        data = pd.read_csv(file_path, index_col=0)
+
+        return data.reindex(self.index["participant"].unique())
