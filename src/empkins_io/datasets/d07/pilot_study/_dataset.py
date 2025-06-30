@@ -84,8 +84,8 @@ class D07PilotStudyDataset(Dataset):
         if not self.is_single(["participant", "condition"]):
             raise ValueError("Time logs can only be accessed for a single participant and condition!")
 
-        p_id = self.index["participant"][0]
-        condition = self.index["condition"][0]
+        p_id = self.group_label.participant
+        condition = self.group_label.condition
         phases = self.index["phase"].unique()
         file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/timelogs/cleaned/{p_id}_timelog.csv")
 
@@ -94,8 +94,7 @@ class D07PilotStudyDataset(Dataset):
         # apply condition order mapping
         # self.CONDITION_ORDER_MAPPING[self.condition_order.iloc[0]["condition_order"]]
 
-        # data = load_atimelogger_file(file_path)
-        # data = data.reindex(phases, level="phase", axis=1)
+        data = data.reindex(phases, level="phase", axis=1)
         return data
 
     @cached_property
