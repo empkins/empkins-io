@@ -84,19 +84,25 @@ class D07PilotStudyDataset(Dataset):
         if not self.is_single(["participant", "condition"]):
             raise ValueError("Time logs can only be accessed for a single participant and condition!")
 
-        p_id = self.group_label.participant
-        condition = self.group_label.condition
+        p_id = self.index["participant"][0]
+        condition = self.index["condition"][0]
         phases = self.index["phase"].unique()
         file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/timelogs/cleaned/{p_id}_timelog.csv")
 
         data = load_atimelogger_file(file_path, handle_multiple="fix")
         data = data.rename(columns=self.PHASE_MAPPER, level="phase")
 
-        condition_order_label = self.condition_order.loc[p_id, "condition_order"]
-        condition_order_map = self.CONDITION_ORDER_MAPPING[condition_order_label]
-        data = data.rename(columns=condition_order_map, level="trial")
         data.columns = data.columns.set_names(["phase", "condition", "start_end"])
         data.columns = data.columns.reorder_levels(["condition", "phase", "start_end"])
+
+        t0 = data[(0, phases[0], "start")].iloc[0]
+        t1 = data[(1, phases[0], "start")].iloc[0]
+        if t0 > t1:  # determines which trial (0 or 1) starts earlier.
+            data = data.rename(columns={0: 1, 1: 0}, level="condition")
+
+        condition_order = self.condition_order.loc[p_id, "condition_order"]
+        condition_order_map = self.CONDITION_ORDER_MAPPING[condition_order]
+        data = data.rename(columns=condition_order_map, level="condition")
 
         data = data.reindex(phases, level="phase", axis=1)
         data = data.reindex([condition], level="condition", axis=1)
@@ -107,17 +113,22 @@ class D07PilotStudyDataset(Dataset):
         if not self.is_single(None):
             raise ValueError("Motion capture data can only be accessed for a single participant, condition and phase!")
         p_id = self.group_label.participant
-        condition = 0  # TODO nach umbenennung anpassen
+        condition = self.group_label.condition
         phase = self.group_label.phase
 
         # TODO continue
-        file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/mocap/processed/VP_99-002.mvnx")
+        condition_order = self.condition_order.loc[p_id, "condition_order"]
+        condition_order_map = self.CONDITION_ORDER_MAPPING[condition_order]
+        condition_key = next(i for i, cond in condition_order_map.items() if cond == condition)
+        file_path = self.base_path.joinpath(
+            f"data_per_participant/{p_id}/mocap/processed/VP_99-00{condition_key + 1}.mvnx"
+        )
         data = self._get_mocap_data(file_path)
 
         # TODO: cut to selected phase by timelog
         timelog = self.timelog
-        start_ts = timelog[(phase, condition, "start")].iloc[0]
-        end_ts = timelog[(phase, condition, "end")].iloc[0]
+        start_ts = timelog[(condition, phase, "start")].iloc[0]
+        end_ts = timelog[(condition, phase, "end")].iloc[0]
 
         data = data.loc[start_ts:end_ts]
         return data
