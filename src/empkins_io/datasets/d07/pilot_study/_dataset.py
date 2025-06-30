@@ -91,11 +91,14 @@ class D07PilotStudyDataset(Dataset):
 
         data = load_atimelogger_file(file_path, handle_multiple="fix")
         data = data.rename(columns=self.PHASE_MAPPER, level="phase")
-        # apply condition order mapping
 
-        # self.CONDITION_ORDER_MAPPING[self.condition_order.iloc[0]["condition_order"]]
+        condition_order_label = self.condition_order.loc[p_id, "condition_order"]
+        condition_order_map = self.CONDITION_ORDER_MAPPING[condition_order_label]
+        data = data.rename(columns=condition_order_map, level="trial")
+        data.columns = data.columns.set_names(["phase", "condition", "start_end"])
 
         data = data.reindex(phases, level="phase", axis=1)
+        data = data.reindex([condition], level="condition", axis=1)
         return data
 
     @cached_property
