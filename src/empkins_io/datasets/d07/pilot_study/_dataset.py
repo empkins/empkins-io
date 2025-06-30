@@ -96,6 +96,7 @@ class D07PilotStudyDataset(Dataset):
         condition_order_map = self.CONDITION_ORDER_MAPPING[condition_order_label]
         data = data.rename(columns=condition_order_map, level="trial")
         data.columns = data.columns.set_names(["phase", "condition", "start_end"])
+        data.columns = data.columns.reorder_levels(["condition", "phase", "start_end"])
 
         data = data.reindex(phases, level="phase", axis=1)
         data = data.reindex([condition], level="condition", axis=1)
