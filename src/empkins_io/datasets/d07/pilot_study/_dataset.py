@@ -1,6 +1,7 @@
 from collections.abc import Sequence
-from functools import lru_cache
+from functools import cached_property, lru_cache
 from itertools import product
+from pathlib import Path
 from typing import ClassVar
 
 import pandas as pd
@@ -10,10 +11,10 @@ from tpcp import Dataset
 
 __all__ = ["D07PilotStudyDataset"]
 
-from empkins_io.datasets.d07.pilot_study._helper import _load_xsens_data
+from empkins_io.datasets.d07.pilot_study.helper import _load_mocap_data
 from empkins_io.utils._types import path_t
 
-_cached_load_xsens_data = lru_cache(maxsize=4)(_load_xsens_data)
+_cached_load_mocap_data = lru_cache(maxsize=4)(_load_mocap_data)
 
 
 class D07PilotStudyDataset(Dataset):
@@ -26,7 +27,15 @@ class D07PilotStudyDataset(Dataset):
     data_to_exclude: Sequence[str]
 
     CONDITIONS: ClassVar[Sequence[str]] = ["Control", "Gert"]
-    PHASES: ClassVar[Sequence[str]] = ["Finger-Boden-Abstand", "Aufhebe Test", "Test"]
+    PHASE_MAPPER: ClassVar[dict[str, str]] = {
+        "Sockentest": "sock_test",
+        "Sit to stand": "sit_stand_test",
+        "Langsitz Test": "long_sit_test",
+        "Finger-Boden-Abstand": "finger_floor_distance_test",
+        "Aufhebe Test": "pick_up_test",
+        "Hebe Test": "lifting_test",
+    }
+    PHASES: ClassVar[Sequence[str]] = PHASE_MAPPER.values()
 
     CONDITION_ORDER_MAPPING = {
         "gert_first": {0: "Gert", 1: "Control"},
@@ -53,7 +62,7 @@ class D07PilotStudyDataset(Dataset):
     def create_index(self) -> pd.DataFrame:
         p_ids = [
             subject_dir.name
-            for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_participant"), r"^VP_(\d+)")
+            for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_participant"), "VP_*")
         ]
         index_cols = ["participant", "condition", "phase"]
         index = list(product(p_ids, self.CONDITIONS, self.PHASES))
@@ -72,47 +81,62 @@ class D07PilotStudyDataset(Dataset):
 
     @property
     def timelog(self):
-        if not self.is_single("participant"):
-            # todo add check for condition
-            raise ValueError("Time logs can only be accessed for a single participant!")
+        if not self.is_single(["participant", "condition"]):
+            raise ValueError("Time logs can only be accessed for a single participant and condition!")
 
         p_id = self.index["participant"][0]
         condition = self.index["condition"][0]
         phases = self.index["phase"].unique()
         file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/timelogs/cleaned/{p_id}_timelog.csv")
 
-        # apply condition order mapping
-        # self.CONDITION_ORDER_MAPPING[self.condition_order.iloc[0]["condition_order"]]
+        data = load_atimelogger_file(file_path, handle_multiple="fix")
+        data = data.rename(columns=self.PHASE_MAPPER, level="phase")
 
-        data = load_atimelogger_file(file_path)
+        data.columns = data.columns.set_names(["phase", "condition", "start_end"])
+        data.columns = data.columns.reorder_levels(["condition", "phase", "start_end"])
+
+        t0 = data[(0, phases[0], "start")].iloc[0]
+        t1 = data[(1, phases[0], "start")].iloc[0]
+        if t0 > t1:  # determines which trial (0 or 1) starts earlier.
+            data = data.rename(columns={0: 1, 1: 0}, level="condition")
+
+        condition_order = self.condition_order.loc[p_id, "condition_order"]
+        condition_order_map = self.CONDITION_ORDER_MAPPING[condition_order]
+        data = data.rename(columns=condition_order_map, level="condition")
+
         data = data.reindex(phases, level="phase", axis=1)
+        data = data.reindex([condition], level="condition", axis=1)
         return data
 
-    @property
+    @cached_property
     def mocap(self):
         if not self.is_single(None):
             raise ValueError("Motion capture data can only be accessed for a single participant, condition and phase!")
-
         p_id = self.group_label.participant
         condition = self.group_label.condition
         phase = self.group_label.phase
 
         # TODO continue
-        # file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/mocap/processed/{p_id}-002.mvnx")
+        condition_order = self.condition_order.loc[p_id, "condition_order"]
+        condition_order_map = self.CONDITION_ORDER_MAPPING[condition_order]
+        condition_key = next(i for i, cond in condition_order_map.items() if cond == condition)
         file_path = self.base_path.joinpath(
-            f"data_per_participant/{p_id}/mocap/export/D07_VP_DryRun_Monica_GERTfirst-001.mvnx"
+            f"data_per_participant/{p_id}/mocap/processed/VP_99-00{condition_key + 1}.mvnx"
         )
-
-        if self.use_cache:
-            data = _cached_load_xsens_data(file_path)
-        else:
-            data = _load_xsens_data(file_path)
+        data = self._get_mocap_data(file_path)
 
         # TODO: cut to selected phase by timelog
-        timelog = self.timelog.iloc[0]
-        data = data.loc[timelog[phase]["start"] : timelog[phase]["end"]]
+        timelog = self.timelog
+        start_ts = timelog[(condition, phase, "start")].iloc[0]
+        end_ts = timelog[(condition, phase, "end")].iloc[0]
 
+        data = data.loc[start_ts:end_ts]
         return data
+
+    def _get_mocap_data(self, file_path: Path) -> pd.DataFrame:
+        if self.use_cache:
+            return _cached_load_mocap_data(file_path)
+        return _load_mocap_data(file_path)
 
     @property
     def condition_order(self):
