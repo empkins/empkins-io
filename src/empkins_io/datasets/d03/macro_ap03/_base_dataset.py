@@ -36,7 +36,10 @@ class MacroBaseDataset(Dataset):
 
     SUBSETS_WITHOUT_MOCAP = ()
 
-    SUBSETS_WITHOUT_ZEBRIS = ()
+    SUBSETS_WITHOUT_ZEBRIS = (
+        ("VP_15", "ftsst", "math"), # much shorter
+
+    )
 
     def __init__(
         self,
