@@ -37,22 +37,40 @@ class MacroBaseDataset(Dataset):
     SUBSETS_WITHOUT_MOCAP = ()
 
     SUBSETS_WITHOUT_ZEBRIS = (
-        ("VP_15", "ftsst", "math"), # much shorter
-
+        ("VP_001", "ftsst", "math"),  # short recording 190.10 seconds
+        ("VP_015", "ftsst", "math"),  # much shorter # TODO: did not find in short recording check
+        ("VP_016", "tsst", "talk"),  # no data
+        ("VP_016", "tsst", "math"),  # no data
+        ("VP_020", "ftsst", "talk"),  # no data
+        ("VP_020", "ftsst", "math"),  # no data
+        ("VP_024", "tsst", "talk"),  # no data
+        ("VP_024", "tsst", "math"),  # no data
+        ("VP_027", "tsst", "math"),  # short recording of 0.00 seconds
+        ("VP_032", "tsst", "talk"),  # no data
+        ("VP_036", "tsst", "talk"),  # no data
+        ("VP_037", "tsst", "math"),  # short recording 63.87 seconds
+        ("VP_038", "ftsst", "math"),  # short recording of 2.35 seconds
+        ("VP_041", "ftsst", "talk"),  # short recording of 3.28 seconds
+        ("VP_042", "tsst", "talk"),  # no data
+        ("VP_042", "tsst", "math"),  # no data
+        ("VP_043", "tsst", "math"),  # short recording of 195.60 seconds.
+        ("VP_044", "ftsst", "talk"),  # no data
+        ("VP_045", "tsst", "math"),  # short recording of 3.17 seconds
+        ("VP_051", "tsst", "talk"),  # short recording of 160.72 seconds
     )
 
     def __init__(
-        self,
-        base_path: path_t,
-        groupby_cols: Sequence[str] | None = None,
-        subset_index: Sequence[str] | None = None,
-        *,
-        use_phases: bool = False,
-        include_prep: bool = False,
-        exclude_complete_subjects_if_error: bool = True,
-        exclude_without_mocap: bool = True,
-        exclude_without_zebris: bool = True,
-        use_cache: bool = True,
+            self,
+            base_path: path_t,
+            groupby_cols: Sequence[str] | None = None,
+            subset_index: Sequence[str] | None = None,
+            *,
+            use_phases: bool = False,
+            include_prep: bool = False,
+            exclude_complete_subjects_if_error: bool = True,
+            exclude_without_mocap: bool = True,
+            exclude_without_zebris: bool = True,
+            use_cache: bool = True,
     ):
         # ensure pathlib
         self.base_path = base_path
