@@ -43,6 +43,7 @@ class MacroBaseDataset(Dataset):
         ("VP_016", "tsst", "math"),  # no data
         ("VP_020", "ftsst", "talk"),  # no data
         ("VP_020", "ftsst", "math"),  # no data
+        ("VP_023", "ftsst", "math"),  # no data
         ("VP_024", "tsst", "talk"),  # no data
         ("VP_024", "tsst", "math"),  # no data
         ("VP_027", "tsst", "math"),  # short recording of 0.00 seconds
@@ -57,6 +58,13 @@ class MacroBaseDataset(Dataset):
         ("VP_044", "ftsst", "talk"),  # no data
         ("VP_045", "tsst", "math"),  # short recording of 3.17 seconds
         ("VP_051", "tsst", "talk"),  # short recording of 160.72 seconds
+        ('VP_059', 'tsst', 'talk'), # no data
+        ('VP_069', 'ftsst', 'talk'), # no data
+        ('VP_069', 'ftsst', 'math'), # no data
+        ('VP_069', 'tsst', 'talk'), # no data
+        ('VP_069', 'tsst','math'), # no data
+
+
     )
 
     def __init__(
