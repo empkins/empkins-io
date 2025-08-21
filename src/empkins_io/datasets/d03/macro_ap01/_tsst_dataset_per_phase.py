@@ -20,12 +20,15 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
 
     PHASES = ("prep", "talk", "math")
 
+    include_prep: bool = False
+
     def __init__(
         self,
         base_path: path_t,
         groupby_cols: Sequence[str] | None = None,
         subset_index: Sequence[str] | None = None,
         *,
+        include_prep: bool = False,
         exclude_complete_subjects_if_error: bool = True,
         exclude_without_mocap: bool = True,
         exclude_without_openpose: bool = False,
@@ -35,6 +38,7 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
         use_cache: bool = True,
         verbose: bool = True,
     ):
+        self.include_prep = include_prep
         super().__init__(
             base_path=base_path,
             groupby_cols=groupby_cols,
@@ -54,7 +58,11 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
             subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_*")
         ]
 
-        index = list(product(subject_ids, self.CONDITIONS, self.PHASES))
+        phases = self.PHASES
+        if not self.include_prep:
+            phases = phases[1:]
+
+        index = list(product(subject_ids, self.CONDITIONS, phases))
 
         index_cols = ["subject", "condition", "phase"]
         index = pd.DataFrame(index, columns=index_cols)

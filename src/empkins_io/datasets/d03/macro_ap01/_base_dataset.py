@@ -270,7 +270,9 @@ class MacroBaseDataset(Dataset):
     def questionnaire(self) -> pd.DataFrame:
         if self.is_single(["condition"]):
             raise ValueError("Questionnaire data can not be accessed for a single condition!")
-        data = load_questionnaire_data(self.base_path.joinpath("questionnaires/merged_total/questionnaire_data.xlsx"))
+        data = load_questionnaire_data(
+            self.base_path.joinpath("data_tabular/questionnaires/merged_total/questionnaire_data.xlsx")
+        )
         subject_ids = self.index["subject"].unique()
         return data.loc[subject_ids]
 
@@ -284,7 +286,7 @@ class MacroBaseDataset(Dataset):
 
     @property
     def questionnaire_scores(self) -> pd.DataFrame:
-        data_path = self.base_path.joinpath("questionnaires/processed/questionnaire_data_processed.csv")
+        data_path = self.base_path.joinpath("data_tabular/questionnaires/processed/questionnaire_data_processed.csv")
         if not data_path.exists():
             raise ValueError(
                 "Processed questionnaire data not available! "
@@ -337,11 +339,11 @@ class MacroBaseDataset(Dataset):
 
     @property
     def codebook(self) -> pd.DataFrame:
-        return load_codebook(self.base_path.joinpath("questionnaires/codebook.csv"))
+        return load_codebook(self.base_path.joinpath("data_tabular/questionnaires/codebook.csv"))
 
     @property
     def condition_order(self) -> pd.DataFrame:
-        data = pd.read_csv(self.base_path.joinpath("extras/condition_order.csv"))
+        data = pd.read_csv(self.base_path.joinpath("data_tabular/extras/condition_order.csv"))
         data = data.set_index("subject")[["condition_order"]]
         subject_ids = self.index["subject"].unique()
         return data.loc[subject_ids]
@@ -447,7 +449,7 @@ class MacroBaseDataset(Dataset):
         return data["data"].unstack("type")[[score_type]].dropna()
 
     def _load_saliva_data(self, saliva_type: str) -> pd.DataFrame:
-        data_path = self.base_path.joinpath(f"saliva/processed/{saliva_type}_samples.csv")
+        data_path = self.base_path.joinpath(f"data_tabular/saliva/processed/{saliva_type}_samples.csv")
         if not data_path.exists():
             raise ValueError(
                 "Processed saliva data not available! "
@@ -460,7 +462,7 @@ class MacroBaseDataset(Dataset):
         return data.reindex(subject_ids, level="subject").reindex(conditions, level="condition")
 
     def _load_saliva_features(self, saliva_type: str) -> pd.DataFrame:
-        data_path = self.base_path.joinpath(f"saliva/processed/{saliva_type}_features.csv")
+        data_path = self.base_path.joinpath(f"data_tabular/saliva/processed/{saliva_type}_features.csv")
         data = load_long_format_csv(data_path)
         subject_ids = self.index["subject"].unique()
         conditions = self.index["condition"].unique()
