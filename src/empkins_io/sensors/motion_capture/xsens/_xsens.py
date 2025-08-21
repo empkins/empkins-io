@@ -22,7 +22,7 @@ class XSensDataset:
         cls, file_path: path_t, load_sensor_data: bool = False, tz: str = "Europe/Berlin", *, verbose: bool = True
     ) -> "XSensDataset":
         file_path = Path(file_path)
-        if file_path.suffix not in (".mvnx", ".mvnx.gz"):
+        if file_path.suffix not in (".mvnx", ".gz"):
             raise InvalidFileFormatError(
                 f"File {file_path} is not a valid mvnx (or compressed mvnx) file. Please check the file extension."
             )
