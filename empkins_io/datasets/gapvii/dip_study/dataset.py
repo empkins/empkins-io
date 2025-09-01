@@ -15,7 +15,9 @@ from empkins_io.datasets.gapvii.dip_study.helper import (
     _update_dates,
     _load_single_date,
     _load_tfm_data,
-    _load_b2b_data
+    _load_b2b_data,
+    _sync_datasets,
+    _load_tfm_phase_timestamps
 )
 
 
@@ -39,7 +41,7 @@ class DipStudyDataset(Dataset):
     }
     DEF_DATE = "01.01.1970"
     SUBJECTS_MISSING: Tuple[str] = ("VP_15", "VP_18")
-    RADAR_FAILURE: Tuple[str] = ("VP_03")
+    RADAR_FAILURE: Tuple[str] = ("", "VP_03")
     TFM_FAILURE: Tuple[Tuple[str, str]] = (
     #   ("VP_05", "cpt"),
     #   ("VP_08", "straw"),
@@ -230,6 +232,59 @@ class DipStudyDataset(Dataset):
         raise ValueError(
             "Radar data can only be accessed for a single participant and a single condition at once!"
         )
+
+    @property
+    def tfm_phase_timestamps(self) -> pd.DataFrame:
+        if self.is_single(["subject"]):
+            participant_id = self.index["subject"][0]
+            phase_timestamps = _load_tfm_phase_timestamps(self.base_path, participant_id, self.date)
+            return phase_timestamps
+
+        raise ValueError(
+            "Radar data can only be accessed for a single participant and a single condition at once!"
+        )
+
+    @property
+    def synced_datasets(self) -> Tuple[Dict[str, pd.DataFrame], pd.DataFrame]:
+
+        phase_mapping = {
+            "start_recording": 0,
+            "start_rest_1": 1,
+            "end_rest_1": 2,
+            "start_rest_2": 3,
+            "end_rest_2": 4,
+            "start_rest_3": 5,
+            "end_rest_3": 6,
+            "start_cpt": 7,
+            "end_cpt": 8,
+            "start_straw": 9,
+            "end_straw": 10,
+        }
+
+        emrad_data = self.emrad_raw_data
+        tfm_data = self.tfm_raw_data["ext_1"]
+
+        df_tfm = []
+        for phase, data in tfm_data.items():
+            _data = data.copy()
+            _data["phase"] = phase_mapping[phase]
+            df_tfm.append(_data)
+
+        df_tfm = pd.concat(df_tfm)
+
+        synced_data = _sync_datasets(
+            tfm_data=df_tfm,
+            fs_tfm=self.sampling_rates["ext_1"],
+            emrad_data=emrad_data,
+            fs_emrad=self.sampling_rates["radar"],
+        )
+
+        phase_time_stamps = self.tfm_phase_timestamps
+        delta = phase_time_stamps.at["start_recording", "date (UTC)"] - synced_data["tfm_aligned_"].index[0]
+        phase_time_stamps["date (UTC) corr"] = phase_time_stamps["date (UTC)"] - delta
+        phase_time_stamps["date (Europe/Berlin) corr"] = phase_time_stamps["date (Europe/Berlin)"] - delta
+
+        return synced_data, phase_time_stamps
 
     def _get_tfm_data(self, participant_id: str, phase: str) -> tuple[pd.DataFrame, float]:
         # Check if caching is enabled for data retrieval
