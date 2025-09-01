@@ -215,12 +215,13 @@ class SyncedDataset:
 
         fs = sync_params["sampling_rate"]
 
-        data_primary = self.datasets_aligned[primary]
+        data_primary = self.datasets_aligned[f"{primary}_aligned_"]
         data_primary = data_primary.copy()
         data_primary.loc[:, sync_channel_primary] = self._binarize_signal(data_primary[sync_channel_primary])
+        data_primary = data_primary.reset_index()
 
         for name, dataset in self.datasets_aligned.items():
-            if name == primary:
+            if name == f"{primary}_aligned_":
                 continue
 
             data_secondary = dataset
@@ -229,7 +230,6 @@ class SyncedDataset:
                 data_secondary[sync_channel_secondary]
             )
 
-            data_primary = data_primary.reset_index()
             data_secondary = data_secondary.reset_index()
 
             # cut to search region
@@ -241,7 +241,7 @@ class SyncedDataset:
                 data_primary_search[sync_channel_primary], data_secondary_search[sync_channel_secondary], fs
             )
             dict_lags[name] = lag_samples
-            print("Shift: " + name + " " + str(lag_samples))
+            print("End Shift: " + name + " " + str(lag_samples))
 
         return dict_lags
 
@@ -252,12 +252,13 @@ class SyncedDataset:
 
             df = self.datasets_aligned[name]
 
-            if name == primary:
+            if name == f"{primary}_aligned_":
                 index = df.index
                 df = df.reset_index(drop=True)
                 dict_resampled[name] = df
                 continue
             data_resample = self._resample_sample_wise(df, dict_sample_shift[name])
+            data_resample["Sync_Out"] = self._binarize_signal(data_resample["Sync_Out"])
             dict_resampled[name] = data_resample
 
         if cut_to_shortest:
@@ -265,9 +266,7 @@ class SyncedDataset:
             index = index[:shortest_length]
             for name, data in dict_resampled.items():
                 # cut name after second _ to get rid of _aligned_
-                name = "_".join(name.split("_")[:2])
-
-                print(len(data))
+                name = name.split("_")[0]
 
                 data_aligned = data.iloc[:shortest_length]
                 data_aligned.index = index
@@ -349,7 +348,7 @@ class SyncedDataset:
             lag_samples = self._find_sync_cross_correlation(
                 data_primary_search[sync_channel_primary], data_secondary_search[sync_channel_secondary], fs
             )
-            print(lag_samples)
+            print("Start Shift: ", lag_samples)
 
             dict_data_pad[name] = data_secondary
             dict_lags[name] = lag_samples
@@ -499,11 +498,22 @@ class SyncedDataset:
         fs: float,
     ) -> int:
 
+        # primary -= 0.5
+        # secondary -= 0.5
+
+        print("prim:", len(primary))
+        print("sec:", len(secondary))
+
         # find the cross-correlation values and the index of the maximum cross-correlation
         lag_values = np.arange((-len(primary) + 1) / fs, len(primary) / fs, 1 / fs)
 
-        crosscorr = signal.correlate(primary, secondary)
+        crosscorr = signal.correlate(primary, secondary, mode="full")
+
+        fig, axs = plt.subplots()
+        axs.plot(crosscorr)
+
         max_crosscorr_idx = np.argmax(crosscorr)
+        print(max_crosscorr_idx)
 
         # find the lag at the cross-correlation maximum (t-value) and the number of timesteps corresponding to this lag
         lag_samples = int(round(lag_values[max_crosscorr_idx] * fs))
@@ -569,10 +579,10 @@ class SyncedDataset:
     def _pad_signal(cls, data: pd.DataFrame, padlen: int, start: bool, fs: float) -> pd.DataFrame:
         if start:
             pad_width = ((padlen, 0), (0, 0))
-            constant_values = ((0, None), (None, None))
+            constant_values = ((0.5, None), (None, None))
         else:
             pad_width = ((0, padlen), (0, 0))
-            constant_values = ((None, 0), (None, None))
+            constant_values = ((None, 0.5), (None, None))
         data_pad = np.pad(data, pad_width=pad_width, mode="constant", constant_values=constant_values)
         data_pad = pd.DataFrame(data_pad, columns=data.columns)
 
