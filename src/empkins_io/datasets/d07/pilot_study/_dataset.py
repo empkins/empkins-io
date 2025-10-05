@@ -22,7 +22,7 @@ class D07PilotStudyDataset(Dataset):
     use_cache: bool
     exclude_missing: bool
 
-    SUBSETS_NO_MOCAP: ClassVar[str] = []
+    SUBSETS_NO_MOCAP: ClassVar[str] = ["Template_VP_xx"]
 
     data_to_exclude: Sequence[str]
 
@@ -116,16 +116,24 @@ class D07PilotStudyDataset(Dataset):
         condition = self.group_label.condition
         phase = self.group_label.phase
 
-        # TODO continue
-        condition_order = self.condition_order.loc[p_id, "condition_order"]
-        condition_order_map = self.CONDITION_ORDER_MAPPING[condition_order]
-        condition_key = next(i for i, cond in condition_order_map.items() if cond == condition)
-        file_path = self.base_path.joinpath(
-            f"data_per_participant/{p_id}/mocap/processed/VP_99-00{condition_key + 1}.mvnx"
-        )
-        data = self._get_mocap_data(file_path)
+        # condition_order = self.condition_order.loc[p_id, "condition_order"]
+        # condition_order_map = self.CONDITION_ORDER_MAPPING[condition_order]
+        # condition_key = next(i for i, cond in condition_order_map.items() if cond == condition)
+        # file_path = self.base_path.joinpath(
+        #    f"data_per_participant/{p_id}/mocap/processed/VP_99-00{condition_key + 1}.mvnx"
+        # )
+        file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/mocap/export/")
+        mocap_files = sorted(file_path.glob(f"D07_{p_id}_{condition.lower()}*.mvnx"))
+        if len(mocap_files) == 1:
+            data = self._get_mocap_data(mocap_files[0])
+        elif len(mocap_files) == 0:
+            raise FileNotFoundError(f"No mocap file found for participant {p_id} and condition {condition}!")
+        else:
+            data = pd.DataFrame()
+            for file in mocap_files:
+                df = self._get_mocap_data(file)
+                data = pd.concat([data, df])
 
-        # TODO: cut to selected phase by timelog
         timelog = self.timelog
         start_ts = timelog[(condition, phase, "start")].iloc[0]
         end_ts = timelog[(condition, phase, "end")].iloc[0]
