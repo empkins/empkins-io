@@ -1,22 +1,46 @@
-import json
-from functools import cached_property, lru_cache
-from itertools import product
-from pathlib import Path
-from typing import Dict, Optional, Sequence, Tuple
+from functools import lru_cache
+from typing import Dict, Optional, Sequence, Union, Tuple
 import pandas as pd
-
-from empkins_io.datasets.radarcardia.base.dataset import BaseDataset
-
-from biopsykit.io import load_long_format_csv
-from biopsykit.utils.dataframe_handling import multi_xs, wide_to_long
+from tpcp import Dataset
+from pathlib import Path
+from itertools import product
 from biopsykit.utils.file_handling import get_subject_dirs
-
 from empkins_io.utils._types import path_t
 
+from empkins_io.datasets.radarcardia.study.helper import (
+    _load_biopac_data,
+    _load_radar_data,
+    _load_timelog,
+    _build_timelog_path,
+    _build_protocol_path,
+    _get_biopac_timelog_shift,
+    _load_protocol,
+    _save_data_to_location_h5,
+    _load_data_from_location_h5,
+    _load_apnea_segmentation,
+    _load_visual_segmentation,
+)
 
-class RadarCardiaStudyDataset(BaseDataset):
+_cached_get_biopac_data = lru_cache(maxsize=4)(_load_biopac_data)
+_cached_get_radar_data = lru_cache(maxsize=4)(_load_radar_data)
+
+
+class RadarCardiaStudyDataset(Dataset):
+
+    base_path: path_t
+    use_cache: bool
+    calc_biopac_timelog_shift: bool
+    trigger_data_extraction: bool
+    bp_tl_shift: Union[pd.Timedelta, None]
+
     exclude_ecg_seg_failed: bool
     exclude_ecg_corrupted: bool
+
+    _SAMPLING_RATES: Dict[str, float] = {
+        "radar_original": 8000000 / 4096,
+        "biopac_original": 2000,
+        "resampled": 1000
+    }
 
     BIOPAC_CHANNEL_MAPPING: Dict[str, str] = {
         "ecg": "ecg",
@@ -37,22 +61,34 @@ class RadarCardiaStudyDataset(BaseDataset):
             groupby_cols: Optional[Sequence[str]] = None,
             subset_index: Optional[Sequence[str]] = None,
             use_cache: Optional[bool] = False,
-            calc_biopac_timelog_shift: Optional[bool] = True,
             trigger_data_extraction: Optional[bool] = False,
             exclude_ecg_seg_failed: Optional[bool] = True,
             exclude_ecg_corrupted: Optional[bool] = True
     ):
+        """
+        Creates new instance of the RadarCardiaStudyDataset class
+        Args:
+            base_path: path_t (path to the base directory of the dataset)
+            groupby_cols: Optional[Sequence[str]]
+            subset_index: Optional[Sequence[str]]
+            use_cache: Optional[bool] (currently not implemented)
+            trigger_data_extraction: Optional[bool] (flag indicating whether to trigger the data extraction from the
+                BIOPAC and radar data)
+            exclude_ecg_seg_failed: Optional[bool] (flag indicating whether to exclude subjects with failed
+                ECG segmentation)
+            exclude_ecg_corrupted: Optional[bool] (flag indicating whether to exclude subjects with
+                corrupted ECG data)
+        Returns:
+        """
+        self.base_path = base_path
+        self.use_cache = use_cache
+        self.trigger_data_extraction = trigger_data_extraction
         self.exclude_ecg_seg_failed = exclude_ecg_seg_failed
         self.exclude_ecg_corrupted = exclude_ecg_corrupted
 
-        super().__init__(
-            base_path=base_path,
-            groupby_cols=groupby_cols,
-            subset_index=subset_index,
-            use_cache=use_cache,
-            calc_biopac_timelog_shift=calc_biopac_timelog_shift,
-            trigger_data_extraction=trigger_data_extraction
-        )
+        self.bp_tl_shift = None
+
+        super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
     def create_index(self):
         subject_ids = [
@@ -81,3 +117,360 @@ class RadarCardiaStudyDataset(BaseDataset):
         index = pd.DataFrame(index, columns=["subject", "location", "breathing"])
 
         return index
+
+    @property
+    def subject(self) -> str:
+        if not self.is_single(["subject"]):
+            raise ValueError("Subject can only be accessed for one single participant at once")
+        return self.index["subject"][0]
+
+    @property
+    def location(self) -> str:
+        if not self.is_single(["location"]):
+            raise ValueError("Location can only be accessed for a single location at once")
+        return self.index["location"][0]
+
+    @property
+    def breathing(self) -> str:
+        if not self.is_single(["breathing"]):
+            raise ValueError("Breathing can only be accessed for one single location-breathing combination at once")
+        return self.index["breathing"][0]
+
+    @property
+    def sampling_rates(self) -> Dict[str, float]:
+        return self._SAMPLING_RATES
+
+    @property
+    def biopac_timelog_shift(self):
+        """
+        Returns the time shift between the BIOPAC event marker and the start of the sync timelog entry.
+        This shift is necessary to synchronize the BIOPAC data with the timelog.
+        Args:
+        Returns:
+            bp_tl_shift: pd.Timedelta
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError(
+                "Shift between Timelog and BIOPAC/EMRAD data can only be accessed for one single participant at once"
+            )
+
+        if not self.bp_tl_shift:
+            self.bp_tl_shift = self._get_biopac_timelog_shift(participant_id=self.subject)
+
+        return self.bp_tl_shift
+
+    @property
+    def biopac_raw_unsynced(self) -> tuple[pd.DataFrame, float]:
+        """
+        Returns the raw BIOPAC data without any synchronization with the emrad dataset
+        Args:
+        Returns:
+            biopac_data: pd.DataFrame
+            sampling_rate: float
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError("BIOPAC data can only be accessed for one single participant at once")
+
+        biopac_data = self._get_biopac_data(participant_id=self.subject, state="raw_unsynced")
+
+        return biopac_data, self.sampling_rates["biopac_original"]
+
+    @property
+    def emrad_raw_unsynced(self) -> tuple[pd.DataFrame, float]:
+        """
+        Returns the raw radar data without any synchronization with the BIOPAC dataset
+        Args:
+        Returns:
+            radar_data: pd.DataFrame
+            sampling_rate: float
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError("Radar data can only be accessed for one single participant at once")
+
+        radar_data = self._get_radar_data(participant_id=self.subject, state="raw_unsynced")
+
+        return radar_data, self.sampling_rates["radar_original"]
+
+    @property
+    def biopac_raw_synced(self) -> tuple[pd.DataFrame, float]:
+        """
+        Returns the raw BIOPAC data synchronized with the emrad dataset
+        Args:
+        Returns:
+            biopac_data: pd.DataFrame
+            sampling_rate: float
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError("BIOPAC data can only be accessed for one single participant at once")
+
+        biopac_data = self._get_biopac_data(participant_id=self.subject, state="raw_synced")
+
+        return biopac_data, self.sampling_rates["resampled"]
+
+    @property
+    def emrad_raw_synced(self) -> tuple[pd.DataFrame, float]:
+        """
+        Returns the raw radar data synchronized with the BIOPAC dataset
+        Args:
+        Returns:
+            radar_data: pd.DataFrame
+            sampling_rate: float
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError("Radar data can only be accessed for one single participant at once")
+
+        radar_data = self._get_radar_data(participant_id=self.subject, state="raw_synced")
+
+        return radar_data, self.sampling_rates["resampled"]
+
+    @property
+    def biopac_data(self) -> tuple[pd.DataFrame, float]:
+        """
+        Returns the BIOPAC data synchronized with the emrad dataset cut for a single measurement location
+        Args:
+        Returns:
+            biopac_data: pd.DataFrame
+            sampling_rate: float
+        """
+        if not self.is_single(None):
+            raise ValueError("BIOPAC data can only be accessed for one single location at once")
+
+        biopac_data = self._get_biopac_data(participant_id=self.subject, state="location_synced")
+
+        return biopac_data, self.sampling_rates["resampled"]
+
+    @property
+    def emrad_data(self) -> tuple[pd.DataFrame, float]:
+        """
+        Returns the radar data synchronized with the BIOPAC dataset cut for a single measurement location
+        Args:
+        Returns:
+            radar_data: pd.DataFrame
+            sampling_rate: float
+        """
+        if not self.is_single(None):
+            raise ValueError("Radar data can only be accessed for one single location at once")
+
+        radar_data = self._get_radar_data(participant_id=self.subject, state="location_synced")
+
+        return radar_data, self.sampling_rates["resampled"]
+
+    @property
+    def timelog(self) -> pd.DataFrame:
+        """
+        Return the timelog data for the currently selected dataset, if only one participant is selected
+        Args:
+        Returns:
+            timelog: pd.DataFrame
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError("Timelog can only be accessed for one single participant at once")
+        locations = self._get_locationbreathingcombi_from_index()
+        tl = self._get_timelog(self.subject)
+        return tl[locations]
+
+    @property
+    def timelog_all(self) -> pd.DataFrame:
+        """
+        Returns the all timelog entries for the current participant
+        Args:
+        Returns:
+            timelog: pd.DataFrame
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError("Timelog can only be accessed for one single participant at once")
+        return self._get_timelog(self.subject)
+
+    @property
+    def protocol(self) -> pd.DataFrame:
+        """
+        Returns the study protocol information for the current participant
+        Args:
+        Returns:
+            protocol: pd.DataFrame
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError("Protocol Information can only be accessed for one single participant at once")
+        return self._get_protocol(self.subject)
+
+    @property
+    def apnea_segmentation(self) -> Dict:
+        """
+        Returns the apnea segmentation for the current participant. Apnea segmentations are only available for
+        measurements at the aorta where the breath holding is performed.
+        Args:
+        Returns:
+            apnea_seg: Dict
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError("Apnea Segmentation can only be accessed for one single participant at once")
+        apnea_seg = self._get_apnea_segmentation(self.subject)
+        return apnea_seg
+
+    @property
+    def timelog_path(self) -> Path:
+        """
+        Returns the path to the timelog file for the current participant
+        Args:
+        Returns:
+            timelog_path: Path
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError("Timelog path can only be accessed for one single participant at once")
+        timelog_path = _build_timelog_path(base_path=self.base_path, participant_id=self.subject)
+        return timelog_path
+
+    @property
+    def protocol_path(self) -> Path:
+        """
+        Returns the path to the protocol file for the current participant
+        Args:
+        Returns:
+            protocol_path: Path
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError("Protocol path can only be accessed for one single participant at once")
+        protocol_path = _build_protocol_path(base_path=self.base_path, participant_id=self.subject)
+        return protocol_path
+
+    @property
+    def visual_segmentation(self) -> pd.DataFrame:
+        """
+        Returns the visual heart sound segmentation for the current participant
+        Args:
+        Returns:
+            visual_seg: pd.DataFrame
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError("Visual Inspection Segmentation can only be accessed for one single participant at once")
+        data = self._get_visual_segmentation(self.subject)
+        if self.is_single(None):
+            loc = self._get_locationbreathingcombi_from_index()[0]
+            return data.loc[loc]
+        return data
+
+    def save_data_to_location(self, data: pd.DataFrame, file_name: str, sub_dir: Optional[str] = None):
+        """
+        Save a dataframe as file to "data_per_location" sub-folder for the respective participant. In this folder,
+        all intermediate data can be stored, e.g. the results of the preprocessing steps.
+        Args:
+            data: pd.DataFrame (data frame containing the data to be saved)
+            file_name: str (name of the file to be saved)
+            sub_dir: Optional[str] (path to subdirectory in "data_per_location", e.g., "ensemble_averaging/all")
+        Returns:
+        """
+
+        if not self.is_single(["subject"]):
+            raise ValueError("Data can only be saved for a single participant at once")
+
+        if not self.is_single(["location"]) or not self.is_single(["breathing"]):
+            raise ValueError("Data can only be saved for a single location-breathing combination")
+
+        location = self._get_locationbreathingcombi_from_index()[0]
+
+        _save_data_to_location_h5(
+            base_path=self.base_path,
+            participant_id=self.subject,
+            data=data,
+            location=location,
+            file_name=file_name,
+            sub_dir=sub_dir
+        )
+
+    def load_data_from_location(self, file_name: str, sub_dir: Optional[str] = None):
+        """
+        Load a dataframe from a file in the "data_per_location" sub-folder for the respective participant.
+        Args:
+            file_name: str (name of the file to be loaded)
+            sub_dir: Optional[str] (path to subdirectory in "data_per_location", e.g., "ensemble_averaging/all")
+        Returns:
+            data: pd.DataFrame (data frame containing the loaded data)
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError("Data can only be loaded for a single participant at once")
+
+        if not self.is_single(["location"]) or not self.is_single(["breathing"]):
+            raise ValueError("Data can only be saved for a single location-breathing combination")
+
+        location = self._get_locationbreathingcombi_from_index()[0]
+
+        data = _load_data_from_location_h5(
+            base_path=self.base_path,
+            participant_id=self.subject,
+            location=location,
+            file_name=file_name,
+            sub_dir=sub_dir
+        )
+        return data
+
+    def _get_locationbreathingcombi_from_index(self):
+        locations = self.index.drop(columns="subject").values.tolist()
+        locations = ["_".join(i) for i in locations]
+        return locations
+
+    def _get_biopac_data(self, participant_id: str, state: str):
+        biopac = _load_biopac_data(
+            self.base_path,
+            participant_id=participant_id,
+            fs=self._SAMPLING_RATES,
+            channel_mapping=self.BIOPAC_CHANNEL_MAPPING,
+            state=state,
+            trigger_extraction=self.trigger_data_extraction,
+            location=self._get_locationbreathingcombi_from_index()[0]
+        )
+
+        if self.is_single(None):
+            location = self._get_locationbreathingcombi_from_index()
+            if len(location) > 1:
+                raise ValueError("BIOPAC data can be accessed for all or only one single location at the same time.")
+            tl = self.timelog
+            start = tl[location[0]]["start"][0] + self.biopac_timelog_shift
+            end = tl[location[0]]["end"][0] + self.biopac_timelog_shift
+            return biopac.loc[start:end]
+
+        return biopac
+
+    def _get_radar_data(self, participant_id: str, state: str):
+        radar = _load_radar_data(
+            self.base_path,
+            participant_id=participant_id,
+            fs=self._SAMPLING_RATES,
+            channel_mapping=self.BIOPAC_CHANNEL_MAPPING,
+            state=state,
+            trigger_extraction=self.trigger_data_extraction,
+            location=self._get_locationbreathingcombi_from_index()[0]
+        )
+
+        if self.is_single(None):
+            location = self._get_locationbreathingcombi_from_index()
+            if len(location) > 1:
+                raise ValueError("Radar data can be accessed for all or only one single location at the same time.")
+            tl = self.timelog
+            start = tl[location[0]]["start"][0] + self.biopac_timelog_shift
+            end = tl[location[0]]["end"][0] + self.biopac_timelog_shift
+            return radar[start:end]
+
+        return radar
+
+    def _get_timelog(self, participant_id: str) -> pd.DataFrame:
+        return _load_timelog(self.base_path, participant_id)
+
+    def _get_protocol(self, participant_id: str) -> pd.DataFrame:
+        return _load_protocol(self.base_path, participant_id)
+
+    def _get_biopac_timelog_shift(self, participant_id: str):
+        return _get_biopac_timelog_shift(
+            base_path=self.base_path, participant_id=participant_id, trigger_extraction=self.trigger_data_extraction
+        )
+
+    def _get_apnea_segmentation(self, participant_id: str) -> Dict:
+        loc = self._get_locationbreathingcombi_from_index()[0]
+
+        if loc in ["aorta_prox_hold", "aorta_med_hold", "aorta_dist_hold"]:
+            apnea_seg = _load_apnea_segmentation(self.base_path, participant_id)
+            return apnea_seg[loc]
+        else:
+            raise ValueError("Apnea Segmentation is only available for hold measurements")
+
+    def _get_visual_segmentation(self, participant_id: str) -> pd.DataFrame:
+        return _load_visual_segmentation(self.base_path, participant_id)

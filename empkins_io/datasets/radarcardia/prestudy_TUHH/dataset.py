@@ -5,7 +5,9 @@ from pathlib import Path
 from typing import Dict, Optional, Sequence, Tuple
 import pandas as pd
 
-from empkins_io.datasets.radarcardia.base.dataset import BaseDataset
+from tpcp import Dataset
+
+# from empkins_io.datasets.radarcardia.base.dataset import BaseDataset
 
 from biopsykit.io import load_long_format_csv
 from biopsykit.utils.dataframe_handling import multi_xs, wide_to_long
@@ -18,7 +20,10 @@ from empkins_io.utils._types import path_t
 Dataset for Radar and BIOPAC data recorded in Hamburg at 2023-04-25
 """
 
-class RadarCardiaPreStudyHDataset(BaseDataset):
+
+class RadarCardiaPreStudyTUHHDataset(Dataset):
+
+    base_path: path_t
 
     BIOPAC_CHANNEL_MAPPING: Dict[str, str] = {
         "ECG (.05 - 150 Hz)": "ecg",
@@ -38,10 +43,9 @@ class RadarCardiaPreStudyHDataset(BaseDataset):
             base_path: path_t,
             groupby_cols: Optional[Sequence[str]] = None,
             subset_index: Optional[Sequence[str]] = None,
-            use_cache: bool = True
     ):
-
-        super().__init__(base_path=base_path, groupby_cols=groupby_cols, subset_index=subset_index, use_cache=use_cache)
+        self.base_path = base_path
+        super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
     def create_index(self):
         participant_ids = [

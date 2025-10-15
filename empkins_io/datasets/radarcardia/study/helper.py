@@ -29,7 +29,7 @@ def _build_timelog_path(base_path: path_t, participant_id: str) -> Path:
     timelog_dir_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
         "timelog/processed"
     )
-    timelog_file_path = timelog_dir_path.joinpath(f"timelog_{participant_id}.csv")
+    timelog_file_path = timelog_dir_path.joinpath(f"{participant_id}_timelog.csv")
     return timelog_file_path
 
 
@@ -37,7 +37,7 @@ def _build_protocol_path(base_path: path_t, participant_id: str) -> Path:
     protocol_dir_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
         "protocol/processed"
     )
-    protocol_file_path = protocol_dir_path.joinpath(f"protocol_{participant_id}.csv")
+    protocol_file_path = protocol_dir_path.joinpath(f"{participant_id}_protocol.csv")
     return protocol_file_path
 
 
@@ -133,7 +133,7 @@ def _load_biopac_raw_unsynced_data(
         base_path: path_t, participant_id: str, channel_mapping: dict, trigger_extraction: bool
 ) -> pd.DataFrame:
     biopac_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-        f"biopac/cleaned/biopac_data_{participant_id}.h5"
+        f"biopac/cleaned/{participant_id}_biopac_data.h5"
     )
 
     if biopac_path.exists() and not trigger_extraction:
@@ -142,10 +142,9 @@ def _load_biopac_raw_unsynced_data(
         biopac_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
             "biopac/raw"
         )
-        biopac_file_path = biopac_dir_path.joinpath(f"biopac_data_{participant_id}.acq")
+        biopac_file_path = biopac_dir_path.joinpath(f"{participant_id}_biopac_data.acq")
         dataset_biopac = BiopacDataset.from_acq_file(biopac_file_path, channel_mapping=channel_mapping)
         biopac_df = dataset_biopac.data_as_df(index="local_datetime")
-        # biopac_df = dataset_biopac.data_as_df(index="time")
         fs = dataset_biopac._sampling_rate
 
         # check if biopac sampling rate is the same for each channel
@@ -164,7 +163,7 @@ def _load_radar_raw_unsynced_data(
         base_path: path_t, participant_id: str, fs: float, trigger_extraction: bool
 ) -> DataFrame:
     radar_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-        f"emrad/cleaned/emrad_data_{participant_id}.h5"
+        f"emrad/cleaned/{participant_id}_emrad_data.h5"
     )
 
     if radar_path.exists() and not trigger_extraction:
@@ -173,7 +172,7 @@ def _load_radar_raw_unsynced_data(
         radar_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
             "emrad/raw"
         )
-        radar_file_path = radar_dir_path.joinpath(f"emrad_data_{participant_id}.h5")
+        radar_file_path = radar_dir_path.joinpath(f"{participant_id}_emrad_data.h5")
 
         dataset_radar = EmradDataset.from_hd5_file(radar_file_path, sampling_rate_hz=fs)
         radar_df = dataset_radar.data_as_df(index="local_datetime", add_sync_out=True)["rad1"]
@@ -192,7 +191,7 @@ def _load_raw_synced_data(
         data_type: Literal["biopac", "emrad"]
 ) -> pd.DataFrame:
     data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-        f"{data_type}/processed/{data_type}_data_{participant_id}.h5"
+        f"{data_type}/processed/{participant_id}_{data_type}_data.h5"
     )
     if not data_path.exists() or trigger_extraction:
         synced_dataset = _sync_datasets(
@@ -218,7 +217,7 @@ def _load_location_synced_data(
         data_type: Literal["biopac", "emrad"]
 ) -> DataFrame:
     data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-        f"data_per_location/{location}/{data_type}_data_{participant_id}.h5"
+        f"data_per_location/{location}/raw/{participant_id}_{data_type}_data.h5"
     )
     # for location syncing resampling is not necessary as it was already applied on the whole data recording
     if not data_path.exists() or trigger_extraction:
@@ -319,8 +318,8 @@ def _sync_datasets_without_resample(
 
 def _save_raw_synced_data(base_path: path_t, participant_id: str, synced_dataset: SyncedDataset):
     data_path = _build_data_path(base_path=base_path, participant_id=participant_id)
-    biopac_path = data_path.joinpath(f"biopac/processed/biopac_data_{participant_id}.h5")
-    radar_path = data_path.joinpath(f"emrad/processed/emrad_data_{participant_id}.h5")
+    biopac_path = data_path.joinpath(f"biopac/processed/{participant_id}_biopac_data.h5")
+    radar_path = data_path.joinpath(f"emrad/processed/{participant_id}_emrad_data.h5")
 
     synced_dataset.datasets_aligned["biopac_aligned_"].to_hdf(biopac_path, mode="w", key="biopac_data", index=True)
     synced_dataset.datasets_aligned["radar_aligned_"].to_hdf(radar_path, mode="w", key="emrad_data", index=True)
@@ -328,10 +327,10 @@ def _save_raw_synced_data(base_path: path_t, participant_id: str, synced_dataset
 
 def _save_location_synced_data(base_path: path_t, participant_id: str, synced_dataset: SyncedDataset, location: str):
     data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-        f"data_per_location/{location}"
+        f"data_per_location/{location}/raw"
     )
-    biopac_path = data_path.joinpath(f"biopac_data_{participant_id}.h5")
-    radar_path = data_path.joinpath(f"emrad_data_{participant_id}.h5")
+    biopac_path = data_path.joinpath(f"{participant_id}_biopac_data.h5")
+    radar_path = data_path.joinpath(f"{participant_id}_emrad_data.h5")
 
     biopac_path.parent.mkdir(parents=True, exist_ok=True)
     radar_path.parent.mkdir(parents=True, exist_ok=True)
@@ -417,11 +416,11 @@ def _save_data_to_location_h5(
 ):
     if sub_dir is None:
         data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-            f"data_per_location/{location}/{file_name}_{participant_id}.h5"
+            f"data_per_location/{location}/{participant_id}_{file_name}.h5"
         )
     else:
         data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-            f"data_per_location/{location}/{sub_dir}/{file_name}_{participant_id}.h5"
+            f"data_per_location/{location}/{sub_dir}/{participant_id}_{file_name}.h5"
         )
 
     data_path.parent.mkdir(parents=True, exist_ok=True)
@@ -437,11 +436,11 @@ def _load_data_from_location_h5(
 ):
     if sub_dir is None:
         data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-            f"data_per_location/{location}/{file_name}_{participant_id}.h5"
+            f"data_per_location/{location}/{participant_id}_{file_name}.h5"
         )
     else:
         data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-            f"data_per_location/{location}/{sub_dir}/{file_name}_{participant_id}.h5"
+            f"data_per_location/{location}/{sub_dir}/{participant_id}_{file_name}.h5"
         )
     data = pd.read_hdf(data_path, key="data")
 
@@ -450,7 +449,7 @@ def _load_data_from_location_h5(
 
 def _get_biopac_timelog_shift(base_path: path_t, participant_id: str, trigger_extraction: bool) -> pd.Timedelta:
     shift_path = _build_data_path(base_path, participant_id).joinpath(
-        f"timelog/processed/timelog_shift_{participant_id}.json"
+        f"timelog/processed/{participant_id}_timelog_shift.json"
     )
     if shift_path.exists() and not trigger_extraction:
         shift_dict = json.load(shift_path.open(encoding="utf-8"))
@@ -463,11 +462,11 @@ def _get_biopac_timelog_shift(base_path: path_t, participant_id: str, trigger_ex
 
 def _calc_biopac_timelog_shift(base_path: path_t, participant_id: str):
 
-    # biopac sync event marker
+    # extract sync event marker from biopac file
     biopac_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
         "biopac/raw"
     )
-    biopac_file_path = biopac_dir_path.joinpath(f"biopac_data_{participant_id}.acq")
+    biopac_file_path = biopac_dir_path.joinpath(f"{participant_id}_biopac_data.acq")
 
     biopac_data: bioread.reader.Datafile = bioread.read(str(biopac_file_path))
     event_marker = biopac_data.event_markers
@@ -485,7 +484,7 @@ def _calc_biopac_timelog_shift(base_path: path_t, participant_id: str):
 
     sync_event_time = sync_event.date_created_utc
 
-    # timelog sync entry
+    # get the start time from timelog sync entry
     timelog = _load_timelog(base_path=base_path, participant_id=participant_id)
     timelog_sync_start_time = timelog["sync"]["start"].time
 
@@ -500,7 +499,7 @@ def _calc_biopac_timelog_shift(base_path: path_t, participant_id: str):
         "biopac_timelog_shift": shift
     }
     shift_path = _build_data_path(base_path, participant_id).joinpath(
-        f"timelog/processed/timelog_shift_{participant_id}.json"
+        f"timelog/processed/{participant_id}_timelog_shift.json"
     )
     with open(shift_path, "w", encoding="utf-8") as f:
         json.dump(shift_dict, f, indent=4)
@@ -519,7 +518,7 @@ def _load_protocol(base_path: path_t, participant_id: str) -> pd.DataFrame:
 
 def _load_apnea_segmentation(base_path: path_t, participant_id: str) -> Dict:
     apnea_seg_file_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-        f"biopac/processed/apnea_segmentation_{participant_id}.json"
+        f"biopac/processed/{participant_id}_apnea_segmentation.json"
     )
     if apnea_seg_file_path.exists():
         apnea_seg = json.load(apnea_seg_file_path.open(encoding="utf-8"))
@@ -530,7 +529,7 @@ def _load_apnea_segmentation(base_path: path_t, participant_id: str) -> Dict:
 
 def _load_visual_segmentation(base_path: path_t, participant_id: str) -> pd.DataFrame:
     file_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-        f"visual_segmentation/visual_segmentation_{participant_id}.xlsx"
+        f"visual_segmentation/{participant_id}_visual_segmentation.xlsx"
     )
     if file_path.exists():
         seg = pd.read_excel(file_path, index_col=0)
@@ -538,11 +537,3 @@ def _load_visual_segmentation(base_path: path_t, participant_id: str) -> pd.Data
     else:
         raise FileNotFoundError("Visual segmentation file was not found.")
 
-
-def _load_flipping(base_path: path_t, modality: str) -> pd.DataFrame:
-    file_path = base_path.joinpath(f"flipping_total/{modality}_flipping_total.xlsx")
-    if file_path.exists():
-        data = pd.read_excel(file_path, index_col=0)
-        return data
-    else:
-        raise FileNotFoundError("Flipping file was not found.")
