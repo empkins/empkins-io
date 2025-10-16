@@ -359,28 +359,53 @@ class SyncedDataset:
 
         # align all the signals that are *behind* the primary signal by cutting the beginning
         for name, data in dict_data_pad.items():
-            if dict_lags[name] < 0:
+            if dict_lags[name] <= 0:
                 data = data.iloc[-dict_lags[name] :].reset_index(drop=True)
+                dict_data_pad[name] = data
+                setattr(self, f"{name}_aligned_", data)
 
-            data = data.set_index(data.columns[0])
-            dict_data_pad[name] = data
-            setattr(self, f"{name}_aligned_", data)
+            # data = data.set_index(data.columns[0])
+            # dict_data_pad[name] = data
+            # setattr(self, f"{name}_aligned_", data)
 
         # align all the signals that are *ahead* of the primary signal by cutting the beginning of all other signals
         for name, data in dict_data_pad.items():
             if dict_lags[name] > 0:
-                # shift all the others to match this one
-                for name2, data2 in dict_data_pad.items():
-                    if name2 == name:
-                        continue
-                    data2 = self._reset_and_shift(data2, dict_lags[name])
+                # pad signals
+                nan_rows = pd.DataFrame(np.nan, index=range(dict_lags[name]), columns=data.columns)
+                nan_rows.index.name = data.index.name
+                data = pd.concat([nan_rows, data]).reset_index(drop=True)
+                dict_data_pad[name] = data
+                setattr(self, f"{name}_aligned_", data)
 
-                    setattr(self, f"{name2}_aligned_", data2)
+                # # shift all the others to match this one
+                # for name2, data2 in dict_data_pad.items():
+                #     if name2 == name:
+                #         continue
+                #     data2 = self._reset_and_shift(data2, dict_lags[name])
+                #     print(name, name2)
+                #     setattr(self, f"{name2}_aligned_", data2)
 
-                # shift primary
-                data_primary = getattr(self, f"{primary}_aligned_")
-                data_primary = self._reset_and_shift(data_primary, dict_lags[name])
-                setattr(self, f"{primary}_aligned_", data_primary)
+                # # shift primary
+                # data_primary = getattr(self, f"{primary}_aligned_")
+                # data_primary = self._reset_and_shift(data_primary, dict_lags[name])
+                # setattr(self, f"{primary}_aligned_", data_primary)
+
+        max_positive_lag = max(0, *[lag for lag in dict_lags.values()])
+        if max_positive_lag > 0:
+            data_primary = getattr(self, f"{primary}_aligned_")
+            data_primary = data_primary.iloc[max_positive_lag:]
+            setattr(self, f"{primary}_aligned_", data_primary)
+
+            for name, data in dict_data_pad.items():
+                data = getattr(self, f"{name}_aligned_")
+                data = data.iloc[max_positive_lag:]
+                setattr(self, f"{name}_aligned_", data)
+
+        for name, data in dict_data_pad.items():
+            data = getattr(self, f"{name}_aligned_")
+            data = data.set_index(data.columns[0])
+            setattr(self, f"{name}_aligned_", data)
 
         if reset_time_axis:
             data_primary = getattr(self, f"{primary}_aligned_")
@@ -501,19 +526,16 @@ class SyncedDataset:
         # primary -= 0.5
         # secondary -= 0.5
 
-        print("prim:", len(primary))
-        print("sec:", len(secondary))
-
         # find the cross-correlation values and the index of the maximum cross-correlation
         lag_values = np.arange((-len(primary) + 1) / fs, len(primary) / fs, 1 / fs)
 
         crosscorr = signal.correlate(primary, secondary, mode="full")
 
-        fig, axs = plt.subplots()
-        axs.plot(crosscorr)
+        # fig, axs = plt.subplots()
+        # axs.plot(crosscorr)
 
         max_crosscorr_idx = np.argmax(crosscorr)
-        print(max_crosscorr_idx)
+        # print(max_crosscorr_idx)
 
         # find the lag at the cross-correlation maximum (t-value) and the number of timesteps corresponding to this lag
         lag_samples = int(round(lag_values[max_crosscorr_idx] * fs))
