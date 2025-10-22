@@ -22,20 +22,7 @@ class D07PilotStudyDataset(Dataset):
     use_cache: bool
     exclude_missing: bool
 
-    SUBSETS_NO_MOCAP: ClassVar[str] = [
-        "Template_VP_xx",
-        "VP_07",
-        "VP_08",
-        "VP_09",
-        "VP_10",
-        "VP_11",
-        "VP_12",
-        "VP_13",
-        "VP_14",
-        "VP_15",
-        "VP_16",
-        "VP_99",
-    ]
+    SUBSETS_NO_MOCAP: ClassVar[str] = []
 
     data_to_exclude: Sequence[str]
 
