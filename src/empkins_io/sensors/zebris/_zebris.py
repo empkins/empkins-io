@@ -82,7 +82,7 @@ class ZebrisDataset:
         if not folder_path.is_dir():
             raise FileNotFoundError(f"Invalid path: '{folder_path}'. Not a directory.")
 
-        file_list = sorted(folder_path.glob("*.csv"))
+        file_list = sorted(f for f in folder_path.glob("*.csv") if f.is_file() and not f.stem.startswith("._"))
 
         data = cls._parse_data(file_list, read_metadata, read_stance_average, read_raw_pressure_data)
         return cls(data)
