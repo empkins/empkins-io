@@ -17,11 +17,32 @@ from empkins_io.utils.exceptions import (
 
 import bioread
 import json
+import h5py
+import re
 
 
 def _build_data_path(base_path: path_t, participant_id: str) -> Path:
     data_path = base_path.joinpath(f"data_per_subject/{participant_id}")
     assert data_path.exists()
+    return data_path
+
+
+def _build_location_data_path(
+        base_path: path_t,
+        participant_id: str,
+        location: str,
+        sub_dir: Optional[str],
+        file_name: str
+) -> Path:
+    if sub_dir is None:
+        data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+            f"data_per_location/{location}/{participant_id}_{file_name}.h5"
+        )
+    else:
+        data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
+            f"data_per_location/{location}/{sub_dir}/{participant_id}_{file_name}.h5"
+        )
+
     return data_path
 
 
@@ -47,7 +68,7 @@ def _load_biopac_data(
         fs: dict,
         channel_mapping: dict,
         state: str,
-        trigger_extraction: bool,
+        trigger_extraction: dict[str, bool],
         location: str
 ) -> pd.DataFrame:
     if state == "raw_unsynced":
@@ -91,7 +112,7 @@ def _load_radar_data(
         fs: dict,
         channel_mapping: dict,
         state: str,
-        trigger_extraction: bool,
+        trigger_extraction: dict[str, bool],
         location: str
 ) -> DataFrame:
     if state == "raw_unsynced":
@@ -130,15 +151,16 @@ def _load_radar_data(
 
 
 def _load_biopac_raw_unsynced_data(
-        base_path: path_t, participant_id: str, channel_mapping: dict, trigger_extraction: bool
+        base_path: path_t, participant_id: str, channel_mapping: dict, trigger_extraction: dict[str, bool]
 ) -> pd.DataFrame:
     biopac_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
         f"biopac/cleaned/{participant_id}_biopac_data.h5"
     )
 
-    if biopac_path.exists() and not trigger_extraction:
+    if biopac_path.exists() and not trigger_extraction["raw_unsynced"]:
         biopac_df = pd.read_hdf(biopac_path, key="biopac_data")
     else:
+        print("Extracting Biopac Raw Data")
         biopac_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
             "biopac/raw"
         )
@@ -160,22 +182,23 @@ def _load_biopac_raw_unsynced_data(
 
 
 def _load_radar_raw_unsynced_data(
-        base_path: path_t, participant_id: str, fs: float, trigger_extraction: bool
+        base_path: path_t, participant_id: str, fs: float, trigger_extraction: dict[str, bool]
 ) -> DataFrame:
     radar_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
         f"emrad/cleaned/{participant_id}_emrad_data.h5"
     )
 
-    if radar_path.exists() and not trigger_extraction:
+    if radar_path.exists() and not trigger_extraction["raw_unsynced"]:
         radar_df = pd.read_hdf(radar_path, key="emrad_data")
     else:
+        print("Extracting EMRAD Raw Data")
         radar_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
             "emrad/raw"
         )
         radar_file_path = radar_dir_path.joinpath(f"{participant_id}_emrad_data.h5")
 
         dataset_radar = EmradDataset.from_hd5_file(radar_file_path, sampling_rate_hz=fs)
-        radar_df = dataset_radar.data_as_df(index="local_datetime", add_sync_out=True)["rad1"]
+        radar_df = dataset_radar.data_as_df(index="local_datetime", add_sync_out=True)["rad2"]
 
         radar_df.to_hdf(radar_path, mode="w", key="emrad_data", index=True)
 
@@ -187,13 +210,14 @@ def _load_raw_synced_data(
         participant_id: str,
         fs: dict,
         channel_mapping: dict,
-        trigger_extraction: bool,
+        trigger_extraction: dict[str, bool],
         data_type: Literal["biopac", "emrad"]
 ) -> pd.DataFrame:
     data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
         f"{data_type}/processed/{participant_id}_{data_type}_data.h5"
     )
-    if not data_path.exists() or trigger_extraction:
+    if not data_path.exists() or trigger_extraction["raw_synced"]:
+        print("Extracting Raw Synced Data")
         synced_dataset = _sync_datasets(
             base_path=base_path,
             participant_id=participant_id,
@@ -212,7 +236,7 @@ def _load_location_synced_data(
         participant_id: str,
         fs: dict,
         channel_mapping: dict,
-        trigger_extraction: bool,
+        trigger_extraction: dict[str, bool],
         location: str,
         data_type: Literal["biopac", "emrad"]
 ) -> DataFrame:
@@ -220,7 +244,8 @@ def _load_location_synced_data(
         f"data_per_location/{location}/raw/{participant_id}_{data_type}_data.h5"
     )
     # for location syncing resampling is not necessary as it was already applied on the whole data recording
-    if not data_path.exists() or trigger_extraction:
+    if not data_path.exists() or trigger_extraction["location_synced"]:
+        print("Extracting Location Synced Data")
         synced_dataset = _sync_datasets_without_resample(
             base_path=base_path,
             participant_id=participant_id,
@@ -242,7 +267,7 @@ def _sync_datasets(
         participant_id: str,
         channel_mapping: dict,
         fs: dict,
-        trigger_extraction: bool,
+        trigger_extraction: dict[str, bool],
 ):
     biopac_data = _load_biopac_raw_unsynced_data(
         base_path=base_path,
@@ -256,7 +281,14 @@ def _sync_datasets(
         fs=fs["radar_original"],
         trigger_extraction=trigger_extraction
     )
-    # sync an resample entire data recording
+
+    # cut to overlapping time range
+    index_start = max(biopac_data.index[0], radar_data.index[0])
+    index_end = min(biopac_data.index[-1], radar_data.index[-1])
+    biopac_data = biopac_data.loc[index_start:index_end]
+    radar_data = radar_data.loc[index_start:index_end]
+
+    # sync and resample entire data recording
     synced_dataset = SyncedDataset(sync_type="m-sequence")
     synced_dataset.add_dataset("biopac", data=biopac_data, sync_channel_name="sync",
                                sampling_rate=fs["biopac_original"])
@@ -274,7 +306,7 @@ def _sync_datasets_without_resample(
         participant_id: str,
         channel_mapping: dict,
         fs: dict,
-        trigger_extraction: bool,
+        trigger_extraction: dict[str, bool],
         location: str
 ):
     biopac_data = _load_raw_synced_data(
@@ -296,7 +328,7 @@ def _sync_datasets_without_resample(
     # cut measurement from current location
     timelog = _load_timelog(base_path=base_path, participant_id=participant_id)
     shift = _get_biopac_timelog_shift(
-        base_path=base_path, participant_id=participant_id, trigger_extraction=trigger_extraction
+        base_path=base_path, participant_id=participant_id
     )
     start = timelog[location]["start"][0] + shift - pd.Timedelta(seconds=5)
     end = timelog[location]["end"][0] + shift + pd.Timedelta(seconds=5)
@@ -414,17 +446,30 @@ def _save_data_to_location_h5(
         file_name: str,
         sub_dir: str
 ):
-    if sub_dir is None:
-        data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-            f"data_per_location/{location}/{participant_id}_{file_name}.h5"
-        )
-    else:
-        data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-            f"data_per_location/{location}/{sub_dir}/{participant_id}_{file_name}.h5"
-        )
-
+    data_path = _build_location_data_path(
+        base_path=base_path, participant_id=participant_id, location=location, sub_dir=sub_dir, file_name=file_name
+    )
     data_path.parent.mkdir(parents=True, exist_ok=True)
+
     data.to_hdf(data_path, mode="w", key="data", index=True)
+
+
+def _save_data_to_location_list_h5(
+        base_path: path_t,
+        participant_id: str,
+        data: list,
+        location: str,
+        file_name: str,
+        sub_dir: str
+):
+    data_path = _build_location_data_path(
+        base_path=base_path, participant_id=participant_id, location=location, sub_dir=sub_dir, file_name=file_name
+    )
+    data_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with h5py.File(data_path, 'w') as f:
+        for i, seg in enumerate(data):
+            f.create_dataset(f'Data_{i}', data=seg)
 
 
 def _load_data_from_location_h5(
@@ -434,27 +479,45 @@ def _load_data_from_location_h5(
         file_name: str,
         sub_dir: str
 ):
-    if sub_dir is None:
-        data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-            f"data_per_location/{location}/{participant_id}_{file_name}.h5"
-        )
-    else:
-        data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-            f"data_per_location/{location}/{sub_dir}/{participant_id}_{file_name}.h5"
-        )
+    data_path = _build_location_data_path(
+        base_path=base_path, participant_id=participant_id, location=location, sub_dir=sub_dir, file_name=file_name
+    )
     data = pd.read_hdf(data_path, key="data")
 
     return data
 
 
-def _get_biopac_timelog_shift(base_path: path_t, participant_id: str, trigger_extraction: bool) -> pd.Timedelta:
+def _load_data_from_location_list_h5(
+        base_path: path_t,
+        participant_id: str,
+        location: str,
+        file_name: str,
+        sub_dir: str
+):
+    data_path = _build_location_data_path(
+        base_path=base_path, participant_id=participant_id, location=location, sub_dir=sub_dir, file_name=file_name
+    )
+
+    data_loaded = []
+    with h5py.File(data_path, 'r') as f:
+        keys = sorted(f.keys(), key=lambda x: int(re.findall(r'\d+', x)[0]))
+        for key in keys:
+            print(key)
+            data = f[key][()]  # read the dataset as a NumPy array
+            data_loaded.append(data)
+
+    return data_loaded
+
+
+def _get_biopac_timelog_shift(base_path: path_t, participant_id: str) -> pd.Timedelta:
     shift_path = _build_data_path(base_path, participant_id).joinpath(
         f"timelog/processed/{participant_id}_timelog_shift.json"
     )
-    if shift_path.exists() and not trigger_extraction:
+    if shift_path.exists():
         shift_dict = json.load(shift_path.open(encoding="utf-8"))
         shift = pd.Timedelta(seconds=shift_dict["biopac_timelog_shift"])
     else:
+        print("Extracting Biopac Timelog Shift")
         shift = _calc_biopac_timelog_shift(base_path, participant_id)
 
     return shift

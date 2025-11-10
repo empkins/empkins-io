@@ -16,7 +16,9 @@ from empkins_io.datasets.radarcardia.study.helper import (
     _get_biopac_timelog_shift,
     _load_protocol,
     _save_data_to_location_h5,
+    _save_data_to_location_list_h5,
     _load_data_from_location_h5,
+    _load_data_from_location_list_h5,
     _load_apnea_segmentation,
     _load_visual_segmentation,
 )
@@ -29,12 +31,11 @@ class RadarCardiaStudyDataset(Dataset):
 
     base_path: path_t
     use_cache: bool
-    calc_biopac_timelog_shift: bool
     trigger_data_extraction: bool
     bp_tl_shift: Union[pd.Timedelta, None]
-
     exclude_ecg_seg_failed: bool
     exclude_ecg_corrupted: bool
+    exclude_baseline: bool
 
     _SAMPLING_RATES: Dict[str, float] = {
         "radar_original": 8000000 / 4096,
@@ -63,7 +64,8 @@ class RadarCardiaStudyDataset(Dataset):
             use_cache: Optional[bool] = False,
             trigger_data_extraction: Optional[bool] = False,
             exclude_ecg_seg_failed: Optional[bool] = True,
-            exclude_ecg_corrupted: Optional[bool] = True
+            exclude_ecg_corrupted: Optional[bool] = True,
+            exclude_baseline: Optional[bool] = True,
     ):
         """
         Creates new instance of the RadarCardiaStudyDataset class
@@ -85,6 +87,7 @@ class RadarCardiaStudyDataset(Dataset):
         self.trigger_data_extraction = trigger_data_extraction
         self.exclude_ecg_seg_failed = exclude_ecg_seg_failed
         self.exclude_ecg_corrupted = exclude_ecg_corrupted
+        self.exclude_baseline = exclude_baseline
 
         self.bp_tl_shift = None
 
@@ -95,6 +98,7 @@ class RadarCardiaStudyDataset(Dataset):
             subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_*")
         ]
 
+        # exclude participants for which the ecg segmentation failed
         if self.exclude_ecg_seg_failed:
             for subject_id in self.SUBJECTS_ECG_SEG_FAILED:
                 if subject_id in subject_ids:
@@ -113,6 +117,9 @@ class RadarCardiaStudyDataset(Dataset):
             for subject_id, body_part, breathing in self.SUBJECT_ECG_CORRUPTED:
                 if (subject_id, body_part, breathing) in index:
                     index.remove((subject_id, body_part, breathing))
+
+        if self.exclude_baseline:
+            index = [row for row in index if row[1] != "baseline"]
 
         index = pd.DataFrame(index, columns=["subject", "location", "breathing"])
 
@@ -377,6 +384,34 @@ class RadarCardiaStudyDataset(Dataset):
             sub_dir=sub_dir
         )
 
+    def save_data_to_location_list(self, data: list, file_name: str, sub_dir: Optional[str] = None):
+        """
+        Save a list of arrays as file to "data_per_location" sub-folder for the respective participant. In this folder,
+        all intermediate data can be stored, e.g. the results of the preprocessing steps.
+        Args:
+            data: list (list containing single arrays to be saved)
+            file_name: str (name of the file to be saved)
+            sub_dir: Optional[str] (path to subdirectory in "data_per_location", e.g., "ensemble_averaging/all")
+        Returns:
+        """
+
+        if not self.is_single(["subject"]):
+            raise ValueError("Data can only be saved for a single participant at once")
+
+        if not self.is_single(["measurement"]): #or not self.is_single(["breathing"]):
+            raise ValueError("Data can only be saved for a single location-breathing combination")
+
+        location = self._get_locationbreathingcombi_from_index()[0]
+
+        _save_data_to_location_list_h5(
+            base_path=self.base_path,
+            participant_id=self.subject,
+            data=data,
+            location=location,
+            file_name=file_name,
+            sub_dir=sub_dir
+        )
+
     def load_data_from_location(self, file_name: str, sub_dir: Optional[str] = None):
         """
         Load a dataframe from a file in the "data_per_location" sub-folder for the respective participant.
@@ -403,19 +438,55 @@ class RadarCardiaStudyDataset(Dataset):
         )
         return data
 
+    def load_data_from_location_list(self, file_name: str, sub_dir: Optional[str] = None):
+        """
+        Load a list of arrays from a file in the "data_per_location" sub-folder for the respective participant.
+        Args:
+            file_name: str (name of the file to be loaded)
+            sub_dir: Optional[str] (path to subdirectory in "data_per_location", e.g., "ensemble_averaging/all")
+        Returns:
+            data: pd.DataFrame (data frame containing the loaded data)
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError("Data can only be loaded for a single participant at once")
+
+        if not self.is_single(["measurement"]): # or not self.is_single(["breathing"]):
+            raise ValueError("Data can only be saved for a single location-breathing combination")
+
+        location = self._get_locationbreathingcombi_from_index()[0]
+
+        data = _load_data_from_location_list_h5(
+            base_path=self.base_path,
+            participant_id=self.subject,
+            location=location,
+            file_name=file_name,
+            sub_dir=sub_dir
+        )
+        return data
+
     def _get_locationbreathingcombi_from_index(self):
         locations = self.index.drop(columns="subject").values.tolist()
         locations = ["_".join(i) for i in locations]
         return locations
 
     def _get_biopac_data(self, participant_id: str, state: str):
+
+        trigger_data_extraction = {
+            "time_shift": False,
+            "raw_unsynced": False,
+            "raw_synced": False,
+            "location_synced": False
+        }
+        if self.trigger_data_extraction:
+            trigger_data_extraction[state] = True
+
         biopac = _load_biopac_data(
             self.base_path,
             participant_id=participant_id,
             fs=self._SAMPLING_RATES,
             channel_mapping=self.BIOPAC_CHANNEL_MAPPING,
             state=state,
-            trigger_extraction=self.trigger_data_extraction,
+            trigger_extraction=trigger_data_extraction,
             location=self._get_locationbreathingcombi_from_index()[0]
         )
 
@@ -431,13 +502,23 @@ class RadarCardiaStudyDataset(Dataset):
         return biopac
 
     def _get_radar_data(self, participant_id: str, state: str):
+
+        trigger_data_extraction = {
+            "time_shift": False,
+            "raw_unsynced": False,
+            "raw_synced": False,
+            "location_synced": False
+        }
+        if self.trigger_data_extraction:
+            trigger_data_extraction[state] = True
+
         radar = _load_radar_data(
             self.base_path,
             participant_id=participant_id,
             fs=self._SAMPLING_RATES,
             channel_mapping=self.BIOPAC_CHANNEL_MAPPING,
             state=state,
-            trigger_extraction=self.trigger_data_extraction,
+            trigger_extraction=trigger_data_extraction,
             location=self._get_locationbreathingcombi_from_index()[0]
         )
 
@@ -460,7 +541,7 @@ class RadarCardiaStudyDataset(Dataset):
 
     def _get_biopac_timelog_shift(self, participant_id: str):
         return _get_biopac_timelog_shift(
-            base_path=self.base_path, participant_id=participant_id, trigger_extraction=self.trigger_data_extraction
+            base_path=self.base_path, participant_id=participant_id
         )
 
     def _get_apnea_segmentation(self, participant_id: str) -> Dict:
