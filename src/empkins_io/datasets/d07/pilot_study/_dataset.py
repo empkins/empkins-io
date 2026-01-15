@@ -22,24 +22,10 @@ class D07PilotStudyDataset(Dataset):
     use_cache: bool
     exclude_missing: bool
 
-    """SUBSETS_NO_MOCAP: ClassVar[str] = [
-        "Template_VP_xx",
-        "VP_07",
-        "VP_08",
-        "VP_09",
-        "VP_10",
-        "VP_11",
-        "VP_12",
-        "VP_13",
-        "VP_14",
-        "VP_15",
-        "VP_16",
-        "VP_17",
-        "VP_18",
-        "VP_19",
-        "VP_99",
-    ]"""
-    SUBSETS_NO_MOCAP: ClassVar[str] = []
+    SUBSETS_NO_MOCAP: ClassVar[str] = [
+        ("VP_07", "Control"),
+        ("VP_12", "Control"),
+    ]
 
     data_to_exclude: Sequence[str]
 
@@ -79,7 +65,7 @@ class D07PilotStudyDataset(Dataset):
     def create_index(self) -> pd.DataFrame:
         p_ids = [
             subject_dir.name
-            for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_participant"), "VP_*")
+            for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_participant"), "VP_\d+")
         ]
         index_cols = ["participant", "condition", "phase"]
         index = list(product(p_ids, self.CONDITIONS, self.PHASES))
@@ -133,12 +119,6 @@ class D07PilotStudyDataset(Dataset):
         condition = self.group_label.condition
         phase = self.group_label.phase
 
-        # condition_order = self.condition_order.loc[p_id, "condition_order"]
-        # condition_order_map = self.CONDITION_ORDER_MAPPING[condition_order]
-        # condition_key = next(i for i, cond in condition_order_map.items() if cond == condition)
-        # file_path = self.base_path.joinpath(
-        #    f"data_per_participant/{p_id}/mocap/processed/VP_99-00{condition_key + 1}.mvnx"
-        # )
         file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/mocap/export/")
         mocap_files = sorted(file_path.glob(f"D07_{p_id}_{condition.lower()}*.mvnx"))
         if len(mocap_files) == 1:
