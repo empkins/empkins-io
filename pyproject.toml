@@ -6,9 +6,9 @@ authors = [
     { name = "Robert Richer", email = "robert.richer@fau.de" },
     { name = "Luca Abel", email = "luca.abel@fau.de" },
 ]
-requires-python = ">=3.9,<4.0"
+requires-python = ">=3.10,<4.0"
 dependencies = [
-    "numpy>=1.19,<1.25",
+    "numpy>=1.19",
     "scipy>=1.7.0,<2",
     "seaborn<1",
     "statsmodels>=0,<1",
@@ -20,6 +20,7 @@ dependencies = [
     "avro>=1.11.3,<2",
     "fastavro>=1.4.0,<2",
     "construct",
+    "PyWavelets"
 ]
 
 [project.optional-dependencies]

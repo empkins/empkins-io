@@ -140,17 +140,20 @@ class DipStudyDataset(Dataset):
 
     @property
     def questionnaire_data(self) -> pd.DataFrame:
-        quest_df = pd.read_csv(self.base_path.joinpath("data_tabular/processed/gap_vii_healthy_total.csv"), index_col="vpn")
+        quest_df = pd.read_csv(
+            self.base_path.joinpath("data_tabular/processed/gap_vii_healthy_total.csv"),
+            index_col="vpn",
+        )
         quest_df.index.name = "subject"
         return quest_df
 
     @property
     def ipos(self) -> pd.DataFrame:
-        return self.questionnaire_data.filter(like='IPOS')
+        return self.questionnaire_data.filter(like="IPOS")
 
     @property
     def distress_thermometer(self) -> pd.DataFrame:
-        return self.questionnaire_data.filter(like='Distress')
+        return self.questionnaire_data.filter(like="Distress")
 
     @property
     def ordered_phases(self):
@@ -258,10 +261,7 @@ class DipStudyDataset(Dataset):
             return self.tfm_data["icg_der"][f"start_{phase}"]
 
         if self.is_single(["subject"]):
-            return (
-                pd.concat(self.tfm_raw_data["icg_der"])
-                .droplevel(0)
-            )
+            return pd.concat(self.tfm_raw_data["icg_der"]).droplevel(0)
 
         raise ValueError(
             "ECG data can only be accessed for a single participant and a single condition at once!"
@@ -295,12 +295,12 @@ class DipStudyDataset(Dataset):
         if not path.exists():
             raise FileNotFoundError(f"HR data not found for subject {self.subject}.")
         hr_data = pd.read_csv(path, index_col=0)
-        hr_data.index = pd.to_datetime(hr_data.index)
+        hr_data.index = pd.to_datetime(hr_data.index, format="ISO8601")
 
         if self.is_single(None):
             return hr_data.loc[
                 self.phase_time["start"]
-                - pd.Timedelta(f"{start_offset_sec}S") : self.phase_time["end"]
+                - pd.Timedelta(f"{start_offset_sec}s") : self.phase_time["end"]
             ]
         if self.is_single(["subject"]):
             return hr_data
