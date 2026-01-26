@@ -1,6 +1,7 @@
 import datetime
 import json
 from pathlib import Path
+from typing import Literal
 
 import bioread
 import numpy as np
@@ -15,7 +16,7 @@ from empkins_io.utils.exceptions import SynchronizationError, SamplingRateMismat
 
 
 def _get_locations_from_index(index: pd.DataFrame):
-    locations = index.drop(columns="subject").to_numpy().tolist()
+    locations = index.drop(columns="subject").values.tolist()
     locations = ["_".join(i) for i in locations]
     return locations
 
@@ -160,22 +161,64 @@ def _load_biopac_raw(base_path: path_t, participant_id: str, channel_mapping: di
     return biopac_df
 
 
-def _sync_datasets(base_path: path_t, participant_id: str, channel_mapping: dict, fs: dict) -> SyncedDataset:
-    biopac_data = _load_biopac_raw(base_path=base_path, participant_id=participant_id, channel_mapping=channel_mapping)
-    radar_data = _load_radar_raw(base_path=base_path, participant_id=participant_id, fs=fs["radar_original"])
+def _sync_datasets(
+    base_path: path_t, participant_id: str, channel_mapping: dict, fs: dict, location: str, resample: bool
+) -> SyncedDataset:
+    if resample:
+        biopac_data = _load_biopac_raw(
+            base_path=base_path, participant_id=participant_id, channel_mapping=channel_mapping
+        )
+        radar_data = _load_radar_raw(base_path=base_path, participant_id=participant_id, fs=fs["radar_original"])
+    else:
+        # TODO ensure synced
+        emrad_path = base_path.joinpath(
+            f"data_per_subject/{participant_id}/emrad/processed/{participant_id}_emrad_data.h5"
+        )
+        biopac_path = base_path.joinpath(
+            f"data_per_subject/{participant_id}/biopac/processed/{participant_id}_biopac_data.h5"
+        )
 
-    index_start = max(biopac_data.index[0], radar_data.index[0])
-    index_end = min(biopac_data.index[-1], radar_data.index[-1])
-    biopac_data = biopac_data.loc[index_start:index_end]
-    radar_data = radar_data.loc[index_start:index_end]
+        biopac_data = pd.read_hdf(biopac_path, key=f"biopac_data")
+        radar_data = pd.read_hdf(emrad_path, key=f"emrad_data")
+
+    # index_start = max(biopac_data.index[0], radar_data.index[0])
+    # index_end = min(biopac_data.index[-1], radar_data.index[-1])
+    # biopac_data = biopac_data.loc[index_start:index_end]
+    # radar_data = radar_data.loc[index_start:index_end]
+
+    """if not resample:
+        print("richtiger Pfad 2")
+        timelog_file_path = base_path.joinpath(
+            f"data_per_subject/{participant_id}/timelog/processed/{participant_id}_timelog.csv"
+        )
+        timelog = _load_atimelogger_file(timelog_file_path, timezone="Europe/Berlin")
+        shift_path = base_path.joinpath(
+            f"data_per_subject/{participant_id}/timelog/processed/{participant_id}_timelog_shift.json"
+        )
+        if shift_path.exists():
+            shift_dict = json.load(shift_path.open(encoding="utf-8"))
+            shift = pd.Timedelta(seconds=shift_dict["biopac_timelog_shift"])
+        else:
+            shift = _calc_biopac_timelog_shift(base_path, participant_id)
+        start = timelog[location]["start"][0] + shift - pd.Timedelta(seconds=5)
+        end = timelog[location]["end"][0] + shift + pd.Timedelta(seconds=5)
+
+        biopac_data = biopac_data.loc[start:end]
+        radar_data = radar_data.loc[start:end]"""
 
     synced_dataset = SyncedDataset(sync_type="m-sequence")
-    synced_dataset.add_dataset(
-        "biopac", data=biopac_data, sync_channel_name="sync", sampling_rate=fs["biopac_original"]
-    )
-    synced_dataset.add_dataset(
-        "radar", data=radar_data, sync_channel_name="Sync_Out", sampling_rate=fs["radar_original"]
-    )
-    synced_dataset.resample_datasets(fs_out=fs["resampled"], method="dynamic", wave_frequency=10)
+    if resample:
+        synced_dataset.add_dataset(
+            "biopac", data=biopac_data, sync_channel_name="sync", sampling_rate=fs["biopac_original"]
+        )
+        synced_dataset.add_dataset(
+            "radar", data=radar_data, sync_channel_name="Sync_Out", sampling_rate=fs["radar_original"]
+        )
+        synced_dataset.resample_datasets(fs_out=fs["resampled"], method="dynamic", wave_frequency=10)
+    else:
+        synced_dataset.add_dataset("biopac", data=biopac_data, sync_channel_name="sync", sampling_rate=fs["resampled"])
+        synced_dataset.add_dataset(
+            "radar", data=radar_data, sync_channel_name="Sync_Out", sampling_rate=fs["resampled"]
+        )
     synced_dataset.align_and_cut_m_sequence(primary="radar", reset_time_axis=True, cut_to_shortest=True)
     return synced_dataset

@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Dict, Optional, Sequence
 import pandas as pd
 
@@ -19,7 +20,6 @@ from tpcp import Dataset
 
 
 class RadarCardiaStenosisTest(Dataset):
-
     base_path: path_t
     _SAMPLING_RATES: Dict[str, float] = {
         "radar_original": 8000000 / 4096 / 2,
@@ -84,6 +84,14 @@ class RadarCardiaStenosisTest(Dataset):
         return index
 
     @property
+    def sampling_rates(self) -> dict[str, float]:
+        return self._SAMPLING_RATES
+
+    @property
+    def sampling_rate(self):
+        return self._SAMPLING_RATES["resampled"]
+
+    @property
     def subject(self) -> str:
         if not self.is_single(["subject"]):
             raise ValueError("Subject can only be accessed for one single participant at once")
@@ -140,7 +148,7 @@ class RadarCardiaStenosisTest(Dataset):
         if not self.is_single(["subject"]):
             raise ValueError("Radar data can only be accessed for one single participant at once")
 
-        self._ensure_synced()
+        self._ensure_synced(resample=True)
         data = pd.read_hdf(data_path, key=f"emrad_data")
         return data
 
@@ -153,11 +161,53 @@ class RadarCardiaStenosisTest(Dataset):
         data_path = self.base_path.joinpath(
             f"data_per_subject/{self.subject}/biopac/processed/{self.subject}_biopac_data.h5"
         )
-        self._ensure_synced()
+        self._ensure_synced(resample=True)
         data = pd.read_hdf(data_path, key=f"biopac_data")
         return data
 
-    def _ensure_synced(self) -> None:
+    @property
+    def biopac_data(self) -> pd.DataFrame:
+        if not self.is_single(None):
+            raise ValueError("BIOPAC data can only be accessed for one single location at once")
+        location = _get_locations_from_index(self.index)[0]
+        data_path = self.base_path.joinpath(
+            f"data_per_subject/{self.subject}/data_per_location/{location}/{self.subject}_biopac_data.h5"
+        )
+        self._ensure_synced_2(location)
+        data = pd.read_hdf(data_path, key=f"biopac_data")
+
+        if self.is_single(None):
+            location = _get_locations_from_index(self.index)[0]
+            print("BIOPAC FKT:")
+            print(location)
+            print(type(location))
+            tl = self.timelog
+            start = tl[location]["start"][0] + self.biopac_timelog_shift
+            end = tl[location]["end"][0] + self.biopac_timelog_shift
+            return data.loc[start:end]
+
+        return data
+
+    @property
+    def emrad_data(self) -> pd.DataFrame:
+        if not self.is_single(None):
+            raise ValueError("BIOPAC data can only be accessed for one single location at once")
+        location = _get_locations_from_index(self.index)[0]
+        data_path = self.base_path.joinpath(
+            f"data_per_subject/{self.subject}/data_per_location/{location}/{self.subject}_emrad_data.h5"
+        )
+        self._ensure_synced_2(location)
+        data = pd.read_hdf(data_path, key=f"emrad_data")
+
+        if self.is_single(None):
+            location = _get_locations_from_index(self.index)[0]
+            tl = self.timelog
+            start = tl[location]["start"][0] + self.biopac_timelog_shift
+            end = tl[location]["end"][0] + self.biopac_timelog_shift
+            return data.loc[start:end]
+        return data
+
+    def _ensure_synced(self, resample: bool) -> None:
         radar_path = self.base_path.joinpath(
             f"data_per_subject/{self.subject}/emrad/processed/{self.subject}_emrad_data.h5"
         )
@@ -168,7 +218,12 @@ class RadarCardiaStenosisTest(Dataset):
             return
         else:
             synced_datasets = _sync_datasets(
-                self.base_path, self.subject, self.BIOPAC_CHANNEL_MAPPING, self._SAMPLING_RATES
+                self.base_path,
+                participant_id=self.subject,
+                channel_mapping=self.BIOPAC_CHANNEL_MAPPING,
+                fs=self._SAMPLING_RATES,
+                location=_get_locations_from_index(self.index)[0],
+                resample=resample,
             )
             synced_datasets.datasets_aligned["radar_aligned_"].to_hdf(
                 radar_path, mode="w", key="emrad_data", index=True
@@ -176,3 +231,58 @@ class RadarCardiaStenosisTest(Dataset):
             synced_datasets.datasets_aligned["biopac_aligned_"].to_hdf(
                 biopac_path, mode="w", key="biopac_data", index=True
             )
+
+    def _ensure_synced_2(self, location) -> None:
+        radar_path = self.base_path.joinpath(
+            f"data_per_subject/{self.subject}/data_per_location/{location}/{self.subject}_emrad_data.h5"
+        )
+        biopac_path = self.base_path.joinpath(
+            f"data_per_subject/{self.subject}/data_per_location/{location}/{self.subject}_biopac_data.h5"
+        )
+        if radar_path.exists() and biopac_path.exists():
+            return
+        else:
+            synced_datasets = _sync_datasets(
+                base_path=self.base_path,
+                participant_id=self.subject,
+                channel_mapping=self.BIOPAC_CHANNEL_MAPPING,
+                fs=self._SAMPLING_RATES,
+                location=location,
+                resample=False,
+            )
+            base_path1 = self.base_path.joinpath(f"data_per_subject/{self.subject}/data_per_location/{location}")
+            base_path1.mkdir(parents=True, exist_ok=True)
+            print(base_path1)
+
+            synced_datasets.datasets_aligned["radar_aligned_"].to_hdf(
+                radar_path, mode="w", key="emrad_data", index=True
+            )
+            synced_datasets.datasets_aligned["biopac_aligned_"].to_hdf(
+                biopac_path, mode="w", key="biopac_data", index=True
+            )
+
+    def save_data_to_location(self, data: pd.DataFrame, file_name: str, sub_dir: str | None = None):
+        locations = self.index.drop(columns="subject").columns.tolist()
+        if not self.is_single(locations):
+            raise ValueError("Data can only be saved for a single location-breathing combination")
+
+        participant_id = self.index["subject"][0]
+        location = _get_locations_from_index(self.index)[0]
+        data_path = self.base_path.joinpath(
+            f"data_per_subject/{self.subject}/data_per_location/{location}/{self.subject}_{file_name}.h5"
+        )
+        data_path.parent.mkdir(parents=True, exist_ok=True)
+        data.to_hdf(data_path, mode="w", key="data", index=True)
+
+    def load_data_from_location(self, file_name: str, sub_dir: str | None = None):
+        locations = self.index.drop(columns="subject").columns.tolist()
+        if not self.is_single(locations):
+            raise ValueError("Data can only be loaded for a single location-breathing combination")
+
+        participant_id = self.index["subject"][0]
+        location = _get_locations_from_index(self.index)[0]
+        data_path = self.base_path.joinpath(
+            f"data_per_subject/{self.subject}/data_per_location/{location}/{self.subject}_{file_name}.h5"
+        )
+        data = pd.read_hdf(data_path, key="data")
+        return data
