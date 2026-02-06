@@ -135,6 +135,7 @@ def _load_radar_raw(base_path: path_t, participant_id: str, fs: float) -> pd.Dat
         )
         dataset_radar = EmradDataset.from_hd5_file(radar_file_path, sampling_rate_hz=fs)
         radar_df = dataset_radar.data_as_df(index="local_datetime", add_sync_out=True)["rad2"]
+        radar_path.parent.mkdir(parents=True, exist_ok=True)
         radar_df.to_hdf(radar_path, mode="w", key="emrad_data", index=True)
     return radar_df
 
@@ -157,6 +158,7 @@ def _load_biopac_raw(base_path: path_t, participant_id: str, channel_mapping: di
             raise SamplingRateMismatchError(
                 f"Biopac sampling rates are not the same for every channel! Found sampling rates: {sampling_rates}"
             )
+        biopac_path.parent.mkdir(parents=True, exist_ok=True)
         biopac_df.to_hdf(biopac_path, mode="w", key="biopac_data", index=True)
     return biopac_df
 
@@ -171,6 +173,7 @@ def _sync_datasets(
         radar_data = _load_radar_raw(base_path=base_path, participant_id=participant_id, fs=fs["radar_original"])
     else:
         # TODO ensure synced
+        print("kein Problem")
         emrad_path = base_path.joinpath(
             f"data_per_subject/{participant_id}/emrad/processed/{participant_id}_emrad_data.h5"
         )
@@ -180,31 +183,12 @@ def _sync_datasets(
 
         biopac_data = pd.read_hdf(biopac_path, key=f"biopac_data")
         radar_data = pd.read_hdf(emrad_path, key=f"emrad_data")
+        print("problem")
 
-    # index_start = max(biopac_data.index[0], radar_data.index[0])
-    # index_end = min(biopac_data.index[-1], radar_data.index[-1])
-    # biopac_data = biopac_data.loc[index_start:index_end]
-    # radar_data = radar_data.loc[index_start:index_end]
-
-    """if not resample:
-        print("richtiger Pfad 2")
-        timelog_file_path = base_path.joinpath(
-            f"data_per_subject/{participant_id}/timelog/processed/{participant_id}_timelog.csv"
-        )
-        timelog = _load_atimelogger_file(timelog_file_path, timezone="Europe/Berlin")
-        shift_path = base_path.joinpath(
-            f"data_per_subject/{participant_id}/timelog/processed/{participant_id}_timelog_shift.json"
-        )
-        if shift_path.exists():
-            shift_dict = json.load(shift_path.open(encoding="utf-8"))
-            shift = pd.Timedelta(seconds=shift_dict["biopac_timelog_shift"])
-        else:
-            shift = _calc_biopac_timelog_shift(base_path, participant_id)
-        start = timelog[location]["start"][0] + shift - pd.Timedelta(seconds=5)
-        end = timelog[location]["end"][0] + shift + pd.Timedelta(seconds=5)
-
-        biopac_data = biopac_data.loc[start:end]
-        radar_data = radar_data.loc[start:end]"""
+    index_start = max(biopac_data.index[0], radar_data.index[0])
+    index_end = min(biopac_data.index[-1], radar_data.index[-1])
+    biopac_data = biopac_data.loc[index_start:index_end]
+    radar_data = radar_data.loc[index_start:index_end]
 
     synced_dataset = SyncedDataset(sync_type="m-sequence")
     if resample:
