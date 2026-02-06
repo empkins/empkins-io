@@ -163,8 +163,24 @@ def _load_biopac_raw(base_path: path_t, participant_id: str, channel_mapping: di
     return biopac_df
 
 
+def _load_radar_synced(base_path, subject, BIOPAC_CHANNEL_MAPPING, _SAMPLING_RATES, index):
+    data_path = base_path.joinpath(f"data_per_subject/{subject}/emrad/processed/{subject}_emrad_data.h5")
+    data_path.parent.mkdir(parents=True, exist_ok=True)
+    _ensure_synced(base_path, subject, BIOPAC_CHANNEL_MAPPING, _SAMPLING_RATES, index, resample=True)
+    data = pd.read_hdf(data_path, key=f"emrad_data")
+    return data
+
+
+def _load_biopac_synced(base_path, subject, BIOPAC_CHANNEL_MAPPING, _SAMPLING_RATES, index):
+    data_path = base_path.joinpath(f"data_per_subject/{subject}/biopac/processed/{subject}_biopac_data.h5")
+    data_path.parent.mkdir(parents=True, exist_ok=True)
+    _ensure_synced(base_path, subject, BIOPAC_CHANNEL_MAPPING, _SAMPLING_RATES, index, resample=True)
+    data = pd.read_hdf(data_path, key=f"biopac_data")
+    return data
+
+
 def _sync_datasets(
-    base_path: path_t, participant_id: str, channel_mapping: dict, fs: dict, location: str, resample: bool
+    base_path: path_t, participant_id: str, channel_mapping: dict, fs: dict, index, location: str, resample: bool
 ) -> SyncedDataset:
     if resample:
         biopac_data = _load_biopac_raw(
@@ -172,18 +188,8 @@ def _sync_datasets(
         )
         radar_data = _load_radar_raw(base_path=base_path, participant_id=participant_id, fs=fs["radar_original"])
     else:
-        # TODO ensure synced
-        print("kein Problem")
-        emrad_path = base_path.joinpath(
-            f"data_per_subject/{participant_id}/emrad/processed/{participant_id}_emrad_data.h5"
-        )
-        biopac_path = base_path.joinpath(
-            f"data_per_subject/{participant_id}/biopac/processed/{participant_id}_biopac_data.h5"
-        )
-
-        biopac_data = pd.read_hdf(biopac_path, key=f"biopac_data")
-        radar_data = pd.read_hdf(emrad_path, key=f"emrad_data")
-        print("problem")
+        radar_data = _load_radar_synced(base_path, participant_id, channel_mapping, fs, index)
+        biopac_data = _load_biopac_synced(base_path, participant_id, channel_mapping, fs, index)
 
     index_start = max(biopac_data.index[0], radar_data.index[0])
     index_end = min(biopac_data.index[-1], radar_data.index[-1])
@@ -206,3 +212,37 @@ def _sync_datasets(
         )
     synced_dataset.align_and_cut_m_sequence(primary="radar", reset_time_axis=True, cut_to_shortest=True)
     return synced_dataset
+
+
+def _ensure_synced(
+    base_path, subject, BIOPAC_CHANNEL_MAPPING, _SAMPLING_RATES, index, resample: bool, location=""
+) -> None:
+    if resample:
+        radar_path = base_path.joinpath(f"data_per_subject/{subject}/emrad/processed/{subject}_emrad_data.h5")
+        radar_path.parent.mkdir(parents=True, exist_ok=True)
+        biopac_path = base_path.joinpath(f"data_per_subject/{subject}/biopac/processed/{subject}_biopac_data.h5")
+        biopac_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        radar_path = base_path.joinpath(
+            f"data_per_subject/{subject}/data_per_location/{location}/{subject}_emrad_data.h5"
+        )
+        biopac_path = base_path.joinpath(
+            f"data_per_subject/{subject}/data_per_location/{location}/{subject}_biopac_data.h5"
+        )
+    if radar_path.exists() and biopac_path.exists():
+        return
+    else:
+        synced_datasets = _sync_datasets(
+            base_path,
+            participant_id=subject,
+            channel_mapping=BIOPAC_CHANNEL_MAPPING,
+            fs=_SAMPLING_RATES,
+            index=index,
+            location=_get_locations_from_index(index)[0],
+            resample=resample,
+        )
+        if not resample:
+            base_path1 = base_path.joinpath(f"data_per_subject/{subject}/data_per_location/{location}")
+            base_path1.mkdir(parents=True, exist_ok=True)
+        synced_datasets.datasets_aligned["radar_aligned_"].to_hdf(radar_path, mode="w", key="emrad_data", index=True)
+        synced_datasets.datasets_aligned["biopac_aligned_"].to_hdf(biopac_path, mode="w", key="biopac_data", index=True)

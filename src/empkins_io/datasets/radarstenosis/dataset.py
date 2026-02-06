@@ -9,7 +9,9 @@ from empkins_io.datasets.radarstenosis.helper import (
     _calc_biopac_timelog_shift,
     _load_radar_raw,
     _load_biopac_raw,
-    _sync_datasets,
+    _ensure_synced,
+    _load_radar_synced,
+    _load_biopac_synced,
 )
 
 from itertools import product
@@ -120,16 +122,13 @@ class RadarCardiaStenosisTest(Dataset):
     @property
     def emrad_synced(self) -> pd.DataFrame:
         # radar data synchronized
-        data_path = self.base_path.joinpath(
-            f"data_per_subject/{self.subject}/emrad/processed/{self.subject}_emrad_data.h5"
-        )
         if not self.is_single(["subject"]):
             raise ValueError("Radar data can only be accessed for one single participant at once")
 
-        data_path.parent.mkdir(parents=True, exist_ok=True)
-        self._ensure_synced(resample=True)
-        data = pd.read_hdf(data_path, key=f"emrad_data")
-        return data
+        emrad = _load_radar_synced(
+            self.base_path, self.subject, self.BIOPAC_CHANNEL_MAPPING, self._SAMPLING_RATES, self.index
+        )
+        return emrad
 
     @property
     def biopac_synced(self) -> pd.DataFrame:
@@ -137,13 +136,11 @@ class RadarCardiaStenosisTest(Dataset):
         if not self.is_single(["subject"]):
             raise ValueError("BIOPAC data can only be accessed for one single participant at once")
 
-        data_path = self.base_path.joinpath(
-            f"data_per_subject/{self.subject}/biopac/processed/{self.subject}_biopac_data.h5"
+        biopac = _load_biopac_synced(
+            self.base_path, self.subject, self.BIOPAC_CHANNEL_MAPPING, self._SAMPLING_RATES, self.index
         )
-        data_path.parent.mkdir(parents=True, exist_ok=True)
-        self._ensure_synced(resample=True)
-        data = pd.read_hdf(data_path, key=f"biopac_data")
-        return data
+
+        return biopac
 
     @property
     def biopac_data(self) -> pd.DataFrame:
@@ -153,7 +150,15 @@ class RadarCardiaStenosisTest(Dataset):
         data_path = self.base_path.joinpath(
             f"data_per_subject/{self.subject}/data_per_location/{location}/{self.subject}_biopac_data.h5"
         )
-        self._ensure_synced(resample=False, location=location)
+        _ensure_synced(
+            self.base_path,
+            self.subject,
+            self.BIOPAC_CHANNEL_MAPPING,
+            self._SAMPLING_RATES,
+            self.index,
+            resample=False,
+            location=location,
+        )
         data = pd.read_hdf(data_path, key=f"biopac_data")
 
         if self.is_single(None):
@@ -172,7 +177,15 @@ class RadarCardiaStenosisTest(Dataset):
         data_path = self.base_path.joinpath(
             f"data_per_subject/{self.subject}/data_per_location/{location}/{self.subject}_emrad_data.h5"
         )
-        self._ensure_synced(resample=False, location=location)
+        _ensure_synced(
+            self.base_path,
+            self.subject,
+            self.BIOPAC_CHANNEL_MAPPING,
+            self._SAMPLING_RATES,
+            self.index,
+            resample=False,
+            location=location,
+        )
         data = pd.read_hdf(data_path, key=f"emrad_data")
 
         if self.is_single(None):
@@ -182,44 +195,6 @@ class RadarCardiaStenosisTest(Dataset):
             end = tl[location]["end"].iloc[0] + self.biopac_timelog_shift
             return data.loc[start:end]
         return data
-
-    def _ensure_synced(self, resample: bool, location="") -> None:
-        if resample:
-            radar_path = self.base_path.joinpath(
-                f"data_per_subject/{self.subject}/emrad/processed/{self.subject}_emrad_data.h5"
-            )
-            radar_path.parent.mkdir(parents=True, exist_ok=True)
-            biopac_path = self.base_path.joinpath(
-                f"data_per_subject/{self.subject}/biopac/processed/{self.subject}_biopac_data.h5"
-            )
-            biopac_path.parent.mkdir(parents=True, exist_ok=True)
-        else:
-            radar_path = self.base_path.joinpath(
-                f"data_per_subject/{self.subject}/data_per_location/{location}/{self.subject}_emrad_data.h5"
-            )
-            biopac_path = self.base_path.joinpath(
-                f"data_per_subject/{self.subject}/data_per_location/{location}/{self.subject}_biopac_data.h5"
-            )
-        if radar_path.exists() and biopac_path.exists():
-            return
-        else:
-            synced_datasets = _sync_datasets(
-                self.base_path,
-                participant_id=self.subject,
-                channel_mapping=self.BIOPAC_CHANNEL_MAPPING,
-                fs=self._SAMPLING_RATES,
-                location=_get_locations_from_index(self.index)[0],
-                resample=resample,
-            )
-            if not resample:
-                base_path1 = self.base_path.joinpath(f"data_per_subject/{self.subject}/data_per_location/{location}")
-                base_path1.mkdir(parents=True, exist_ok=True)
-            synced_datasets.datasets_aligned["radar_aligned_"].to_hdf(
-                radar_path, mode="w", key="emrad_data", index=True
-            )
-            synced_datasets.datasets_aligned["biopac_aligned_"].to_hdf(
-                biopac_path, mode="w", key="biopac_data", index=True
-            )
 
     def save_data_to_location(self, data: pd.DataFrame, file_name: str):
         locations = self.index.drop(columns="subject").columns.tolist()
