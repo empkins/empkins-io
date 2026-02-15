@@ -162,7 +162,7 @@ def _load_radar_synced(
 
 
 def _load_biopac_synced(
-    base_path: path_t, subject: str, channel_mapping: dict, fs: dict, index: pd.Dataframe
+    base_path: path_t, subject: str, channel_mapping: dict, fs: dict, index: pd.DataFrame
 ) -> pd.DataFrame:
     data_path = base_path.joinpath(f"data_per_subject/{subject}/biopac/processed/{subject}_biopac_data.h5")
     data_path.parent.mkdir(parents=True, exist_ok=True)

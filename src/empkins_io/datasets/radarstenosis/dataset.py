@@ -242,7 +242,7 @@ class RadarCardiaStenosisTest(Dataset):
             raise ValueError("Data can only be accessed for one single participant at once")
 
         measurement_names = []
-        for subset in self:
+        for subset in self.groupby("measurement"):
             if subset.measurement.startswith(measurement_position):
                 measurement_names.append(subset.measurement)
         data = self.get_subset(measurement=measurement_names)
