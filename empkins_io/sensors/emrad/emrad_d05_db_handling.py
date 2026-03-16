@@ -12,6 +12,8 @@ import json
 
 import matplotlib.pyplot as plt
 
+from openpyxl import load_workbook
+
 
 class EmradPatientDbHandler:
 
@@ -22,6 +24,8 @@ class EmradPatientDbHandler:
     study_end: str
     tz: str
     plot: bool
+    create_segment_dbs: bool
+    create_segment_blocks: bool
 
     SAMPLING_RATE_HZ = 8000000 / 4096 / 2
     N_SAMPLES_PER_PACKET = 32
@@ -37,7 +41,9 @@ class EmradPatientDbHandler:
             study_start: Optional[str] = "2024-09-01 00:00:00",
             study_end: Optional[str] = "2026-06-30 23:59:59",
             tz: Optional[str] = None,
-            plot: Optional[bool] = False
+            plot: Optional[bool] = False,
+            create_segment_dbs: Optional[bool] = False,
+            create_segment_blocks: Optional[bool] = False,
     ):
         self.patient_id = patient_id
         self.dir_path = Path(dir_path)
@@ -45,6 +51,8 @@ class EmradPatientDbHandler:
         self.study_end = study_end
         self.tz = tz
         self.plot = plot
+        self.create_segment_dbs = create_segment_dbs
+        self.create_segment_blocks = create_segment_blocks
 
         if not self.dir_path.is_dir():
             raise ValueError(f"The provided path {self.dir_path} is not a directory.")
@@ -72,10 +80,20 @@ class EmradPatientDbHandler:
         self.db_mapping_paths = {f"db_{i}": file for i, file in enumerate(db_files)}
 
         # create meta data dict
-        self.meta_data_dict = {f"db_{i}": self._check_consistency_of_db_file(file) for i, file in enumerate(db_files)}
+        self.meta_data_dict = {}
+        for i, file in enumerate(db_files):
+            print("Extracting: ", file.name)
+            try:
+                self.meta_data_dict[f"db_{i}"] = self._check_consistency_of_db_file(file)
+            except Exception as e:
+                print(e)
+
+        self.output_dir_path.mkdir(exist_ok=True)  # create output db directory
 
         # create meta data dataframe for the whole patient recording
         self.meta_data = self._create_patient_meta_data()
+
+        self.counts = self._count_packets_per_day()
 
         # create data segments
         self.segments = self._create_data_segments()
@@ -96,7 +114,7 @@ class EmradPatientDbHandler:
         connection = sqlite3.connect(file, check_same_thread=False)
         c = connection.cursor()
 
-        c.execute("SELECT rowid, * FROM measurements WHERE processed = 0")
+        c.execute("SELECT rowid, * FROM measurements")
         measurement_rows = c.fetchall()
 
         if len(measurement_rows) != 1:
@@ -107,8 +125,6 @@ class EmradPatientDbHandler:
         sensor_id = measurement_rows[0][3]
         start = measurement_rows[0][4]
         stop = measurement_rows[0][5]
-
-        print("Got ID:", measurement_id, "Comment:", comment)
 
         # check if the measurement is within the study period
         study_start_utc = pd.to_datetime(self.study_start).tz_localize(self.tz).timestamp()
@@ -150,7 +166,7 @@ class EmradPatientDbHandler:
     def _create_patient_meta_data(self):
 
         dbs = list(self.db_mapping.keys())
-        data_cols = list(self.meta_data_dict["db_0"].columns)
+        data_cols = list(next(iter(self.meta_data_dict.values())).columns)
 
         # create list of column names
         cols = dbs.copy()
@@ -192,6 +208,15 @@ class EmradPatientDbHandler:
         df_meta_data = df_meta_data.rename(columns={"index": "patient_index"})
 
         return df_meta_data
+
+    def _count_packets_per_day(self):
+        data = pd.to_datetime(self.meta_data["timestamp"], unit="s", utc=True).dt.tz_convert("Europe/Berlin").dt.date
+        counts = data.value_counts().sort_index()
+        counts.index.name = "date"
+        counts.name = "packet_count"
+        file_name = self.output_dir_path.joinpath(f"{self.patient_id}_packet_counts_per_day.csv")
+        counts.to_csv(file_name)
+        return counts
 
     def _create_data_segments(self):
 
@@ -302,8 +327,6 @@ class EmradPatientDbHandler:
 
     def _store_segments_as_db(self):
 
-        self.output_dir_path.mkdir(exist_ok=True)  # create output db directory
-
         # loop through all segments
         for segment_id in self.segments.keys():
 
@@ -311,16 +334,20 @@ class EmradPatientDbHandler:
             df_segment = self.segments[segment_id]["data"]
 
             # create data blocks per segment
-            blocks = {
-                i: df_segment.iloc[i * self.MAX_N_PACKETS_PER_DB: (i + 1) * self.MAX_N_PACKETS_PER_DB]
-                for i in range((len(df_segment) + self.MAX_N_PACKETS_PER_DB - 1) // self.MAX_N_PACKETS_PER_DB)
-            }
+            if self.create_segment_blocks:
+                blocks = {
+                    i: df_segment.iloc[i * self.MAX_N_PACKETS_PER_DB: (i + 1) * self.MAX_N_PACKETS_PER_DB]
+                    for i in range((len(df_segment) + self.MAX_N_PACKETS_PER_DB - 1) // self.MAX_N_PACKETS_PER_DB)
+                }
+            else:
+                blocks = {
+                    0: df_segment
+                }
 
             # loop through blocks of segment
             for block_id, df_block in blocks.items():
 
                 file_name = f"{self.patient_id}_segment_{segment_id:03d}_block_{block_id:03d}.db"
-                print(file_name)
 
                 db_block_path = self.output_dir_path.joinpath(file_name)
 
@@ -343,33 +370,33 @@ class EmradPatientDbHandler:
                     discontinuous_sequence_id=segment_meta_data["discontinuous_sequence_id"],
                 )
 
-                # if segment_meta_data["check_passed"]:
-                #     self._add_meta_data_table_to_db(
-                #         db_path=db_block_path,
-                #         segment_id=segment_id,
-                #         block_id=block_id,
-                #         block_start=df_block["timestamp"].min(),
-                #         block_end=df_block["timestamp"].max(),
-                #         n_blocks_in_segment=len(blocks.keys()),
-                #         sensor_id=int(df_block["sensor_id"].unique()[0]),
-                #         db=", ".join(str(db) for db in df_block["db"].unique())
-                #     )
-                #
-                #     self._add_packet_meta_data_to_db(
-                #         db_path=db_block_path,
-                #         df_block=df_block
-                #     )
-                #
-                #     for db_in in list(df_block["db"].unique()):
-                #         self._add_data_packets_to_db(
-                #             db_path_in=self.db_mapping_paths[db_in],
-                #             db_path_out=db_block_path,
-                #             db_in=db_in
-                #         )
+                if segment_meta_data["check_passed"] and self.create_segment_dbs:
+                    self._add_meta_data_table_to_db(
+                        db_path=db_block_path,
+                        segment_id=segment_id,
+                        block_id=block_id,
+                        block_start=df_block["timestamp"].min(),
+                        block_end=df_block["timestamp"].max(),
+                        n_blocks_in_segment=len(blocks.keys()),
+                        sensor_id=int(df_block["sensor_id"].unique()[0]),
+                        db=", ".join(str(db) for db in df_block["db"].unique())
+                    )
 
-        pd.DataFrame(self.segments_overview).to_excel(
-                self.output_dir_path.joinpath(f"{self.patient_id}_data_overview.xlsx")
-        )
+                    self._add_packet_meta_data_to_db(
+                        db_path=db_block_path,
+                        df_block=df_block
+                    )
+
+                    for db_in in list(df_block["db"].unique()):
+                        self._add_data_packets_to_db(
+                            db_path_in=self.db_mapping_paths[db_in],
+                            db_path_out=db_block_path,
+                            db_in=db_in
+                        )
+
+        # create overview file
+        file_name_overview = self.output_dir_path.joinpath(f"{self.patient_id}_data_overview.csv")
+        pd.DataFrame(self.segments_overview).to_csv(file_name_overview)
 
     def _add_row_to_data_overview(
             self,
