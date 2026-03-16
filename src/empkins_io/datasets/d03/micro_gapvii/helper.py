@@ -36,11 +36,14 @@ def _build_data_path(base_path: path_t, participant_id: str, condition: str) -> 
 
 
 def _load_biopac_data(
-    base_path: path_t, participant_id: str, condition: str, start_time: Optional[pd.Timestamp] = None
+    base_path: path_t,
+    participant_id: str,
+    condition: str,
+    start_time: Optional[pd.Timestamp] = None,
 ) -> Tuple[pd.DataFrame, int]:
-    biopac_dir_path = _build_data_path(base_path, participant_id=participant_id, condition=condition).joinpath(
-        "biopac/raw"
-    )
+    biopac_dir_path = _build_data_path(
+        base_path, participant_id=participant_id, condition=condition
+    ).joinpath("biopac/raw")
 
     biopac_file_path = biopac_dir_path.joinpath(
         f"biopac_data_{participant_id}_{condition}.acq"
@@ -79,12 +82,18 @@ def _load_radar_data(
 
 
 def _load_timelog(
-    base_path: path_t, participant_id: str, condition: str, phase: str, phases_fine: bool = False
+    base_path: path_t,
+    participant_id: str,
+    condition: str,
+    phase: str,
+    phases_fine: bool = False,
 ) -> pd.DataFrame:
-    timelog_dir_path = _build_data_path(base_path, participant_id=participant_id, condition=condition).joinpath(
-        "timelog/processed"
+    timelog_dir_path = _build_data_path(
+        base_path, participant_id=participant_id, condition=condition
+    ).joinpath("timelog/processed")
+    timelog_file_path = timelog_dir_path.joinpath(
+        f"{participant_id}_{condition}_processed_timelog.csv"
     )
-    timelog_file_path = timelog_dir_path.joinpath(f"{participant_id}_{condition}_processed_timelog.csv")
     timelog = load_atimelogger_file(timelog_file_path, timezone="Europe/Berlin")
 
     if not phases_fine:
@@ -94,7 +103,9 @@ def _load_timelog(
         timelog_coarse = timelog_coarse.drop("Math_2", axis=1, level=0)
         if phase == "all":
             return timelog_coarse
-        return timelog_coarse.iloc[:, timelog_coarse.columns.get_level_values(0) == phase]
+        return timelog_coarse.iloc[
+            :, timelog_coarse.columns.get_level_values(0) == phase
+        ]
     timelog = timelog.iloc[:, timelog.columns.get_level_values(0) == phase]
     return timelog
 
@@ -531,7 +542,9 @@ def get_opendbm_derived_features(
 
 def load_labeling_borders(file_path: path_t) -> pd.DataFrame:
     data = pd.read_csv(file_path)
-    data = data.assign(description=data["description"].apply(lambda s: ast.literal_eval(s)))
+    data = data.assign(
+        description=data["description"].apply(lambda s: ast.literal_eval(s))
+    )
 
     data = data.set_index("timestamp").sort_index()
     return data
@@ -554,9 +567,16 @@ def _fill_unlabeled_artefacts(
     # set the sample to the middle of the heartbeat
     artefact_ids = list(heartbeat_ids.difference(points.droplevel("channel").index))
     for artefact_id in artefact_ids:
-        start_abs, end_abs = reference_data.xs(artefact_id, level="heartbeat_id")["sample_absolute"]
-        start_rel, end_rel = reference_data.xs(artefact_id, level="heartbeat_id")["sample_relative"]
-        points.loc[(artefact_id, "Artefact"), :] = (int((start_abs + end_abs) / 2), int((start_rel + end_rel) / 2))
+        start_abs, end_abs = reference_data.xs(artefact_id, level="heartbeat_id")[
+            "sample_absolute"
+        ]
+        start_rel, end_rel = reference_data.xs(artefact_id, level="heartbeat_id")[
+            "sample_relative"
+        ]
+        points.loc[(artefact_id, "Artefact"), :] = (
+            int((start_abs + end_abs) / 2),
+            int((start_rel + end_rel) / 2),
+        )
 
     points = points.sort_index()
     return points
@@ -567,19 +587,28 @@ def compute_reference_pep(subset: Dataset) -> pd.DataFrame:
     reference_icg = subset.reference_labels_icg
     reference_ecg = subset.reference_labels_ecg
 
-    b_points = reference_icg.reindex(["ICG", "Artefact"], level="channel").droplevel("label")
+    b_points = reference_icg.reindex(["ICG", "Artefact"], level="channel").droplevel(
+        "label"
+    )
     b_points = _fill_unlabeled_artefacts(b_points, reference_icg, heartbeats)
-    b_point_artefacts = b_points.reindex(["Artefact"], level="channel").droplevel("channel")
+    b_point_artefacts = b_points.reindex(["Artefact"], level="channel").droplevel(
+        "channel"
+    )
     b_points = b_points.reindex(["ICG"], level="channel").droplevel("channel")
 
-    q_peaks = reference_ecg.reindex(["ECG", "Artefact"], level="channel").droplevel("label")
+    q_peaks = reference_ecg.reindex(["ECG", "Artefact"], level="channel").droplevel(
+        "label"
+    )
     q_peaks = _fill_unlabeled_artefacts(q_peaks, reference_ecg, heartbeats)
-    q_peak_artefacts = q_peaks.reindex(["Artefact"], level="channel").droplevel("channel")
+    q_peak_artefacts = q_peaks.reindex(["Artefact"], level="channel").droplevel(
+        "channel"
+    )
     q_peaks = q_peaks.reindex(["ECG"], level="channel").droplevel("channel")
 
     pep_reference = heartbeats.copy()
     pep_reference.columns = [
-        f"heartbeat_{col}" if col != "r_peak_sample" else "r_peak_sample" for col in heartbeats.columns
+        f"heartbeat_{col}" if col != "r_peak_sample" else "r_peak_sample"
+        for col in heartbeats.columns
     ]
 
     pep_reference = pep_reference.assign(
@@ -591,8 +620,12 @@ def compute_reference_pep(subset: Dataset) -> pd.DataFrame:
     pep_reference.loc[b_point_artefacts.index, "nan_reason"] = "icg_artefact"
     pep_reference.loc[q_peak_artefacts.index, "nan_reason"] = "ecg_artefact"
 
-    pep_reference = pep_reference.assign(pep_sample=pep_reference["b_point_sample"] - pep_reference["q_peak_sample"])
-    pep_reference = pep_reference.assign(pep_ms=pep_reference["pep_sample"] / subset.sampling_rate_ecg * 1000)
+    pep_reference = pep_reference.assign(
+        pep_sample=pep_reference["b_point_sample"] - pep_reference["q_peak_sample"]
+    )
+    pep_reference = pep_reference.assign(
+        pep_ms=pep_reference["pep_sample"] / subset.sampling_rate_ecg * 1000
+    )
 
     # reorder columns
     pep_reference = pep_reference[

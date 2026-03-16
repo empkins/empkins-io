@@ -67,6 +67,22 @@ class MacroStudyTsstDataset(MacroBaseDataset):
     def ecg_baseline(self) -> pd.DataFrame:
         return self._load_ecg_data(True)
 
+    @property
+    def start_mocap_timestamp(self):
+        if not self.is_single(None):
+            raise ValueError(
+                "Data can only be accessed for a single recording of a single participant in the subset"
+            )
+
+        return pd.Timestamp(
+            pd.read_csv(
+                self.base_path.joinpath(
+                    "data_tabular/_extras/mocap_start_timestamps.csv"
+                ),
+                index_col=["subject", "condition"],
+            ).loc[(self.subject, self.condition), "start_mocap_timestamp"]
+        )
+
     @cached_property
     def mocap_data(self) -> pd.DataFrame:
         if not self.is_single(None):
@@ -83,6 +99,27 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         data_total = data.loc[times["start"] : times["end"]]
 
         return data_total
+
+    @property
+    def synced_hr(self):
+        if not self.is_single(None):
+            raise ValueError(
+                "Data can only be accessed for a single recording of a single participant in the subset"
+            )
+
+        data = pd.read_csv(
+            self.base_path.joinpath(
+                f"data_per_subject/{self.subject}/{self.condition}/nilspod/processed/{self.subject}_{self.condition}_heart_rate_synced.csv"
+            )
+        )
+
+        synced_hr = data
+        synced_hr["time"] = pd.to_datetime(synced_hr["time"])
+        synced_hr.set_index("time", inplace=True)
+        synced_hr.index = synced_hr.index - self.start_mocap_timestamp
+        synced_hr = synced_hr.resample("1S").mean().interpolate()
+        synced_hr["relative_time"] = synced_hr.index.total_seconds()
+        return synced_hr.set_index("relative_time")
 
     def _get_mocap_data(
         self, subject_id: str, condition: str, *, verbose: bool = True

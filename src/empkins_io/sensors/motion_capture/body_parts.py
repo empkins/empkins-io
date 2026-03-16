@@ -157,7 +157,9 @@ BODY_PART_MEDIAPIPE = Literal[
     "RightFootIndex",
 ]
 
-BODY_PART_GROUP = Literal["TotalBody", "UpperExtremities", "LowerExtremities", "Trunk", "Lumbar"]
+BODY_PART_GROUP = Literal[
+    "TotalBody", "UpperExtremities", "LowerExtremities", "Trunk", "Lumbar"
+]
 
 BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[
     BODY_PART_GROUP, Sequence[BODY_PART_PERCEPTION_NEURON]
