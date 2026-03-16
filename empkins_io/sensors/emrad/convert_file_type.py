@@ -8,7 +8,6 @@ from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
 from pathlib import Path
 
-
 class EmradParser:
 
     def __init__(self):
@@ -49,7 +48,7 @@ class EmradFileConverter:
         connection = sqlite3.connect(self.file_path, check_same_thread=False)
         c = connection.cursor()
 
-        c.execute("SELECT rowid, * FROM measurements WHERE processed = 0")
+        c.execute("SELECT rowid, * FROM measurements")
         rows = c.fetchall()
 
         for row in rows:
@@ -61,11 +60,22 @@ class EmradFileConverter:
             stop = row[5]
             print("Got Measurement ID:", measurement_id)
 
-            c.execute("SELECT * FROM packets WHERE sensor_id = ? and timestamp BETWEEN ? and ?", (sensor_id, start, stop))
+            c.execute("SELECT sequence_id, data FROM packets WHERE sensor_id = ? and timestamp BETWEEN ? and ?", (sensor_id, start, stop))
             packets = c.fetchall()
+            packets = sorted(packets, key=lambda x: x[0])  # ensure order
+            packets_dict = {packet[0]: packet[1] for packet in packets}
+
+            seq_ids = [packet[0] for packet in packets]
+            nan_array = np.full((32, 10), np.nan)
+
             series = []
-            for packet in packets:
-                series.append(parser.parse(packet[6]))
+            for i in range(min(seq_ids), max(seq_ids)+1):
+                if i not in seq_ids:
+                    print(f"Missing sequence id: {i}")
+                    series.append(nan_array)
+                else:
+                    series.append(parser.parse(packets_dict[i]))
+
             try:
                 series = np.concatenate(series)
             except:
