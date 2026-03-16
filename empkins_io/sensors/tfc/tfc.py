@@ -205,13 +205,14 @@ class TfcLoader:
         # if both edf browser and cardio science files exist
         if edf_data_exist and cs_data_exist:
             if start_time_unix_cs != start_time_unix_edf:
-                warnings.warn("Start times extracted from edf browser and cardio science files are not the same,"
-                              "taking start time from edf browser")
+                warnings.warn(f"Start times extracted from edf browser and cardio science files are not the same,"
+                              f"taking start time from edf browser\n cardio_science:\n {start_time_unix_cs}\n edf browser\n {start_time_unix_edf}")
+
             start_time_unix = start_time_unix_edf
 
             if not((phases_edf == phases_cs).all().all()):
-                warnings.warn("Phases extracted from edf browser and cardio science files are not the same,"
-                              "taking phases from edf browser")
+                warnings.warn(f"Phases extracted from edf browser and cardio science files are not the same,"
+                              f"taking phases from edf browser\n cardio_science:\n {phases_cs}\n edf browser\n {phases_edf}")
             phases = phases_edf
 
             if rel_stop_time_cs != rel_stop_time_edf:
