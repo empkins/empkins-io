@@ -20,10 +20,10 @@ class EmpaticaDataset:
     _sensor_dict: ClassVar[dict[str, Sequence[str]]] = {
         "accelerometer": ["x", "y", "z"],
         "gyroscope": ["x", "y", "z"],
-        "eda": ["values"],
+        "eda": ["values"],  # electrodermal activity
         "temperature": ["values"],
-        # "tags": [],
-        "bvp": ["values"],
+        "tags": [],
+        "bvp": ["values"],  # blood volume pulse
         # "systolicPeaks": [],
         "steps": ["values"],
         # TODO: add all sensors
@@ -69,7 +69,8 @@ class EmpaticaDataset:
 
     @property
     def gyro(self) -> pd.DataFrame:
-        raise ValueError("Probably there is no gyro data in the Empatica dataset.")  # TODO check this
+        if self.data_as_df("gyroscope").empty:
+            raise ValueError("There is no gyroscope data in the Empatica dataset.")
         return self.data_as_df("gyroscope")
 
     @property
@@ -106,6 +107,7 @@ class EmpaticaDataset:
 
             df = self._add_index_for_stitching(df, sensor_dict["samplingFrequency"], sensor_dict["timestampStart"])
 
+            # TODO check if that is the right way to do.
             # check for gaps between files
             if prev_last_timestamp is not None and (df.index[0] - prev_last_timestamp) > (
                 pd.Timedelta(seconds=2 / sensor_dict["samplingFrequency"])
