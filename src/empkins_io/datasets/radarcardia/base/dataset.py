@@ -352,7 +352,6 @@ class BaseDataset(Dataset):
         Returns
         -------
         """
-
         if not self.is_single(["subject"]):
             raise ValueError("Data can only be saved for a single participant at once")
 

@@ -41,13 +41,11 @@ def _load_biopac_data(
     condition: str,
     start_time: Optional[pd.Timestamp] = None,
 ) -> Tuple[pd.DataFrame, int]:
-    biopac_dir_path = _build_data_path(
-        base_path, participant_id=participant_id, condition=condition
-    ).joinpath("biopac/raw")
-
-    biopac_file_path = biopac_dir_path.joinpath(
-        f"biopac_data_{participant_id}_{condition}.acq"
+    biopac_dir_path = _build_data_path(base_path, participant_id=participant_id, condition=condition).joinpath(
+        "biopac/raw"
     )
+
+    biopac_file_path = biopac_dir_path.joinpath(f"biopac_data_{participant_id}_{condition}.acq")
 
     dataset_biopac = BiopacDataset.from_acq_file(biopac_file_path)
     biopac_df = dataset_biopac.data_as_df(index="local_datetime", start_time=start_time)
@@ -64,15 +62,11 @@ def _load_biopac_data(
     return biopac_df, fs
 
 
-def _load_radar_data(
-    base_path: path_t, participant_id: str, condition: str
-) -> tuple[DataFrame, float]:
-    radar_dir_path = _build_data_path(
-        base_path, participant_id=participant_id, condition=condition
-    ).joinpath("emrad/raw")
-    radar_file_path = radar_dir_path.joinpath(
-        f"emrad_data_{participant_id}_{condition}.h5"
+def _load_radar_data(base_path: path_t, participant_id: str, condition: str) -> tuple[DataFrame, float]:
+    radar_dir_path = _build_data_path(base_path, participant_id=participant_id, condition=condition).joinpath(
+        "emrad/raw"
     )
+    radar_file_path = radar_dir_path.joinpath(f"emrad_data_{participant_id}_{condition}.h5")
 
     dataset_radar = EmradDataset.from_hd5_file(radar_file_path)
     radar_df = dataset_radar.data_as_df(index="local_datetime")
@@ -88,12 +82,10 @@ def _load_timelog(
     phase: str,
     phases_fine: bool = False,
 ) -> pd.DataFrame:
-    timelog_dir_path = _build_data_path(
-        base_path, participant_id=participant_id, condition=condition
-    ).joinpath("timelog/processed")
-    timelog_file_path = timelog_dir_path.joinpath(
-        f"{participant_id}_{condition}_processed_timelog.csv"
+    timelog_dir_path = _build_data_path(base_path, participant_id=participant_id, condition=condition).joinpath(
+        "timelog/processed"
     )
+    timelog_file_path = timelog_dir_path.joinpath(f"{participant_id}_{condition}_processed_timelog.csv")
     timelog = load_atimelogger_file(timelog_file_path, timezone="Europe/Berlin")
 
     if not phases_fine:
@@ -103,9 +95,7 @@ def _load_timelog(
         timelog_coarse = timelog_coarse.drop("Math_2", axis=1, level=0)
         if phase == "all":
             return timelog_coarse
-        return timelog_coarse.iloc[
-            :, timelog_coarse.columns.get_level_values(0) == phase
-        ]
+        return timelog_coarse.iloc[:, timelog_coarse.columns.get_level_values(0) == phase]
     timelog = timelog.iloc[:, timelog.columns.get_level_values(0) == phase]
     return timelog
 
@@ -118,12 +108,8 @@ def _time_convert_to_sec(time: str) -> float:
     return m * 60 + s
 
 
-def _load_nilspod_session(
-    base_path: path_t, participant_id: str, condition: str
-) -> Tuple[pd.DataFrame, float]:
-    data_path = _build_data_path(
-        base_path, participant_id=participant_id, condition=condition
-    )
+def _load_nilspod_session(base_path: path_t, participant_id: str, condition: str) -> Tuple[pd.DataFrame, float]:
+    data_path = _build_data_path(base_path, participant_id=participant_id, condition=condition)
     data_path = data_path.joinpath("nilspod/raw")
 
     nilspod_files = sorted(data_path.glob("NilsPodX-*.bin"))
@@ -146,9 +132,7 @@ def _load_nilspod_session(
     ) as e:
         raise NilsPodDataLoadException("Cannot load NilsPod data!") from e
 
-    _handle_counter_inconsistencies_session(
-        session, handle_counter_inconsistency="ignore"
-    )
+    _handle_counter_inconsistencies_session(session, handle_counter_inconsistency="ignore")
 
     # convert dataset to dataframe and localize timestamp
     df = session.data_as_df(index="local_datetime", concat_df=True)
@@ -171,9 +155,7 @@ def build_opendbm_tarfile_path(
     path = path.joinpath("video", "face", "processed")
 
     if suffix is None:
-        path = path.joinpath(
-            f"opendbm_output_video_face_{subject_id}_{condition}.tar.gz"
-        )
+        path = path.joinpath(f"opendbm_output_video_face_{subject_id}_{condition}.tar.gz")
         if not path.exists():
             print("path to tarfile does not exist")
 
@@ -183,17 +165,13 @@ def build_opendbm_tarfile_path(
     return path
 
 
-def build_opendbm_extracted_tar_path(
-    base_path: path_t, subject_id: str, condition: str
-) -> Path:
+def build_opendbm_extracted_tar_path(base_path: path_t, subject_id: str, condition: str) -> Path:
     path = build_data_path(base_path, subject_id, condition)
     path = path.joinpath("video", "processed", "output")
     return path
 
 
-def build_opendbm_raw_data_path(
-    subject_id: str, condition: str, group: str, subgroup: Optional[str] = None
-) -> list:
+def build_opendbm_raw_data_path(subject_id: str, condition: str, group: str, subgroup: Optional[str] = None) -> list:
     data_path = []
 
     if subgroup is None:
@@ -252,37 +230,25 @@ def build_opendbm_raw_data_path(
             data_path = [f"{path}jitter_recomputed/{subject_id}_{condition}_jitter.csv"]
 
         elif group == "acoustic" and subgroup == "shimmer_recomputed":
-            data_path = [
-                f"{path}shimmer_recomputed/{subject_id}_{condition}_shimmer.csv"
-            ]
+            data_path = [f"{path}shimmer_recomputed/{subject_id}_{condition}_shimmer.csv"]
 
         elif group == "acoustic" and subgroup == "gne_recomputed":
-            data_path = [
-                f"{path}glottal_noise_recomputed/{subject_id}_{condition}_gne.csv"
-            ]
+            data_path = [f"{path}glottal_noise_recomputed/{subject_id}_{condition}_gne.csv"]
 
         elif group == "acoustic" and subgroup == "pause_segment_recomputed":
-            data_path = [
-                f"{path}pause_segment_recomputed/{subject_id}_{condition}_pausechar.csv"
-            ]
+            data_path = [f"{path}pause_segment_recomputed/{subject_id}_{condition}_pausechar.csv"]
 
         elif group == "acoustic" and subgroup == "voice_frame_score_recomputed":
-            data_path = [
-                f"{path}voice_frame_score_recomputed/{subject_id}_{condition}_voiceprev.csv"
-            ]
+            data_path = [f"{path}voice_frame_score_recomputed/{subject_id}_{condition}_voiceprev.csv"]
 
         elif group == "movement" and subgroup == "eyeblink":
             data_path = [f"{path}eye_blink/{subject_id}_{condition}_eyeblinks.csv"]
 
         elif group == "movement" and subgroup == "eyeblink_binarized":
-            data_path = [
-                f"{path}eye_blink_binarized/{subject_id}_{condition}_eyeblinks.csv"
-            ]
+            data_path = [f"{path}eye_blink_binarized/{subject_id}_{condition}_eyeblinks.csv"]
 
         elif group == "movement" and subgroup == "voice_tremor_recomputed":
-            data_path = [
-                f"{path}voice_tremor_recomputed/{subject_id}_{condition}_vtremor.csv"
-            ]
+            data_path = [f"{path}voice_tremor_recomputed/{subject_id}_{condition}_vtremor.csv"]
 
     return data_path
 
@@ -298,12 +264,8 @@ def load_opendbm_facial_data(
     sampling_rate: float,
     suffix: str,
 ) -> pd.DataFrame:
-    tar_path = build_opendbm_tarfile_path(
-        base_path.joinpath("data_per_subject"), subject_id, condition, suffix=suffix
-    )
-    facial_paths = build_opendbm_raw_data_path(
-        subject_id=subject_id, condition=condition, group="facial"
-    )
+    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, suffix=suffix)
+    facial_paths = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="facial")
     columns_to_drop = [
         "frame",
         "error_reason",
@@ -342,12 +304,8 @@ def load_opendbm_acoustic_data(
     sampling_rate: float,
     suffix: str,
 ) -> pd.DataFrame:
-    tar_path = build_opendbm_tarfile_path(
-        base_path.joinpath("data_per_subject"), subject_id, condition, suffix=suffix
-    )
-    acoustic_paths = build_opendbm_raw_data_path(
-        subject_id=subject_id, condition=condition, group="acoustic"
-    )
+    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, suffix=suffix)
+    acoustic_paths = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="acoustic")
     columns_to_drop = ["error_reason", "Frames", "dbm_master_url"]
     tar = tarfile.open(name=tar_path, mode="r")
 
@@ -373,12 +331,8 @@ def load_opendbm_movement_data(
     sampling_rate: float,
     suffix: str,
 ) -> pd.DataFrame:
-    tar_path = build_opendbm_tarfile_path(
-        base_path.joinpath("data_per_subject"), subject_id, condition, suffix=suffix
-    )
-    movement_paths = build_opendbm_raw_data_path(
-        subject_id=subject_id, condition=condition, group="movement"
-    )
+    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, suffix=suffix)
+    movement_paths = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="movement")
     columns_to_drop = ["error", "error_reason", "Frames", "dbm_master_url"]
     tar = tarfile.open(name=tar_path, mode="r")
 
@@ -397,15 +351,9 @@ def load_opendbm_movement_data(
     return data
 
 
-def load_opendbm_acoustic_seg_data(
-    base_path: path_t, subject_id: str, condition: str, suffix: str
-) -> pd.DataFrame:
-    tar_path = build_opendbm_tarfile_path(
-        base_path.joinpath("data_per_subject"), subject_id, condition, suffix=suffix
-    )
-    acoustic_seg_path = build_opendbm_raw_data_path(
-        subject_id=subject_id, condition=condition, group="acoustic_seg"
-    )
+def load_opendbm_acoustic_seg_data(base_path: path_t, subject_id: str, condition: str, suffix: str) -> pd.DataFrame:
+    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, suffix=suffix)
+    acoustic_seg_path = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="acoustic_seg")
     columns_to_drop = ["error"]
     tar = tarfile.open(name=tar_path, mode="r")
 
@@ -423,15 +371,9 @@ def load_opendbm_acoustic_seg_data(
     return data
 
 
-def load_opendbm_audio_seg_data(
-    base_path: path_t, subject_id: str, condition: str, suffix: str
-) -> pd.DataFrame:
-    tar_path = build_opendbm_tarfile_path(
-        base_path.joinpath("data_per_subject"), subject_id, condition, suffix=suffix
-    )
-    audio_seg_path = build_opendbm_raw_data_path(
-        subject_id=subject_id, condition=condition, group="audio_seg"
-    )
+def load_opendbm_audio_seg_data(base_path: path_t, subject_id: str, condition: str, suffix: str) -> pd.DataFrame:
+    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, suffix=suffix)
+    audio_seg_path = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="audio_seg")
     columns_to_drop = ["error"]
     tar = tarfile.open(name=tar_path, mode="r")
 
@@ -456,12 +398,10 @@ def load_opendbm_facial_tremor_data(
     sampling_rate: float,
     suffix: str,
 ) -> pd.DataFrame:
-    tar_path = build_opendbm_tarfile_path(
-        base_path.joinpath("data_per_subject"), subject_id, condition, suffix=suffix
-    )
-    facial_tremor_path = build_opendbm_raw_data_path(
-        subject_id=subject_id, condition=condition, group="facial_tremor"
-    )[0]
+    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, suffix=suffix)
+    facial_tremor_path = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="facial_tremor")[
+        0
+    ]
     tar = tarfile.open(name=tar_path, mode="r")
     file = tar.extractfile(facial_tremor_path)
     data = pd.read_csv(file)
@@ -477,22 +417,14 @@ def load_speaker_diarization(base_path: path_t, subject_id: str, condition: str)
         subject_id=subject_id,
         condition=condition,
     )
-    data_path = data_path.joinpath(
-        "video", "processed", f"{subject_id}_{condition}_speaker_diarization.csv"
-    )
+    data_path = data_path.joinpath("video", "processed", f"{subject_id}_{condition}_speaker_diarization.csv")
     data = pd.read_csv(data_path, index_col="segment_id")
     return data
 
 
-def get_opendbm_pitch_data(
-    base_path: path_t, subject_id: str, condition: str, suffix: str
-) -> pd.DataFrame:
-    tar_path = build_opendbm_tarfile_path(
-        base_path.joinpath("data_per_subject"), subject_id, condition, suffix
-    )
-    path = build_opendbm_raw_data_path(
-        subject_id=subject_id, condition=condition, group="acoustic", subgroup="pitch"
-    )
+def get_opendbm_pitch_data(base_path: path_t, subject_id: str, condition: str, suffix: str) -> pd.DataFrame:
+    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, suffix)
+    path = build_opendbm_raw_data_path(subject_id=subject_id, condition=condition, group="acoustic", subgroup="pitch")
     tar = tarfile.open(name=tar_path, mode="r")
     file = tar.extractfile(path[0])
     data = pd.read_csv(file)
@@ -500,12 +432,8 @@ def get_opendbm_pitch_data(
     return data
 
 
-def get_opendbm_eyeblink_data(
-    base_path: path_t, subject_id: str, condition: str, suffix: str
-) -> pd.DataFrame:
-    tar_path = build_opendbm_tarfile_path(
-        base_path.joinpath("data_per_subject"), subject_id, condition, suffix
-    )
+def get_opendbm_eyeblink_data(base_path: path_t, subject_id: str, condition: str, suffix: str) -> pd.DataFrame:
+    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id, condition, suffix)
     path = build_opendbm_raw_data_path(
         subject_id=subject_id,
         condition=condition,
@@ -519,12 +447,8 @@ def get_opendbm_eyeblink_data(
     return data
 
 
-def get_opendbm_derived_features(
-    base_path: path_t, subject_id: str, condition: str, suffix: str
-) -> pd.DataFrame:
-    tar_path = build_opendbm_tarfile_path(
-        base_path.joinpath("data_per_subject"), subject_id.lower(), condition, suffix
-    )
+def get_opendbm_derived_features(base_path: path_t, subject_id: str, condition: str, suffix: str) -> pd.DataFrame:
+    tar_path = build_opendbm_tarfile_path(base_path.joinpath("data_per_subject"), subject_id.lower(), condition, suffix)
     file_path = build_opendbm_derived_data_path().joinpath("derived_output.csv")
     tar = tarfile.open(name=tar_path, mode="r")
     if type(file_path) == pathlib.WindowsPath:
@@ -542,9 +466,7 @@ def get_opendbm_derived_features(
 
 def load_labeling_borders(file_path: path_t) -> pd.DataFrame:
     data = pd.read_csv(file_path)
-    data = data.assign(
-        description=data["description"].apply(lambda s: ast.literal_eval(s))
-    )
+    data = data.assign(description=data["description"].apply(lambda s: ast.literal_eval(s)))
 
     data = data.set_index("timestamp").sort_index()
     return data
@@ -567,12 +489,8 @@ def _fill_unlabeled_artefacts(
     # set the sample to the middle of the heartbeat
     artefact_ids = list(heartbeat_ids.difference(points.droplevel("channel").index))
     for artefact_id in artefact_ids:
-        start_abs, end_abs = reference_data.xs(artefact_id, level="heartbeat_id")[
-            "sample_absolute"
-        ]
-        start_rel, end_rel = reference_data.xs(artefact_id, level="heartbeat_id")[
-            "sample_relative"
-        ]
+        start_abs, end_abs = reference_data.xs(artefact_id, level="heartbeat_id")["sample_absolute"]
+        start_rel, end_rel = reference_data.xs(artefact_id, level="heartbeat_id")["sample_relative"]
         points.loc[(artefact_id, "Artefact"), :] = (
             int((start_abs + end_abs) / 2),
             int((start_rel + end_rel) / 2),
@@ -587,28 +505,19 @@ def compute_reference_pep(subset: Dataset) -> pd.DataFrame:
     reference_icg = subset.reference_labels_icg
     reference_ecg = subset.reference_labels_ecg
 
-    b_points = reference_icg.reindex(["ICG", "Artefact"], level="channel").droplevel(
-        "label"
-    )
+    b_points = reference_icg.reindex(["ICG", "Artefact"], level="channel").droplevel("label")
     b_points = _fill_unlabeled_artefacts(b_points, reference_icg, heartbeats)
-    b_point_artefacts = b_points.reindex(["Artefact"], level="channel").droplevel(
-        "channel"
-    )
+    b_point_artefacts = b_points.reindex(["Artefact"], level="channel").droplevel("channel")
     b_points = b_points.reindex(["ICG"], level="channel").droplevel("channel")
 
-    q_peaks = reference_ecg.reindex(["ECG", "Artefact"], level="channel").droplevel(
-        "label"
-    )
+    q_peaks = reference_ecg.reindex(["ECG", "Artefact"], level="channel").droplevel("label")
     q_peaks = _fill_unlabeled_artefacts(q_peaks, reference_ecg, heartbeats)
-    q_peak_artefacts = q_peaks.reindex(["Artefact"], level="channel").droplevel(
-        "channel"
-    )
+    q_peak_artefacts = q_peaks.reindex(["Artefact"], level="channel").droplevel("channel")
     q_peaks = q_peaks.reindex(["ECG"], level="channel").droplevel("channel")
 
     pep_reference = heartbeats.copy()
     pep_reference.columns = [
-        f"heartbeat_{col}" if col != "r_peak_sample" else "r_peak_sample"
-        for col in heartbeats.columns
+        f"heartbeat_{col}" if col != "r_peak_sample" else "r_peak_sample" for col in heartbeats.columns
     ]
 
     pep_reference = pep_reference.assign(
@@ -620,12 +529,8 @@ def compute_reference_pep(subset: Dataset) -> pd.DataFrame:
     pep_reference.loc[b_point_artefacts.index, "nan_reason"] = "icg_artefact"
     pep_reference.loc[q_peak_artefacts.index, "nan_reason"] = "ecg_artefact"
 
-    pep_reference = pep_reference.assign(
-        pep_sample=pep_reference["b_point_sample"] - pep_reference["q_peak_sample"]
-    )
-    pep_reference = pep_reference.assign(
-        pep_ms=pep_reference["pep_sample"] / subset.sampling_rate_ecg * 1000
-    )
+    pep_reference = pep_reference.assign(pep_sample=pep_reference["b_point_sample"] - pep_reference["q_peak_sample"])
+    pep_reference = pep_reference.assign(pep_ms=pep_reference["pep_sample"] / subset.sampling_rate_ecg * 1000)
 
     # reorder columns
     pep_reference = pep_reference[

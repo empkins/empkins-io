@@ -1,7 +1,8 @@
 import json
+from collections.abc import Sequence
 from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional
 
 import pandas as pd
 
@@ -70,15 +71,11 @@ class MacroStudyTsstDataset(MacroBaseDataset):
     @property
     def start_mocap_timestamp(self):
         if not self.is_single(None):
-            raise ValueError(
-                "Data can only be accessed for a single recording of a single participant in the subset"
-            )
+            raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
         return pd.Timestamp(
             pd.read_csv(
-                self.base_path.joinpath(
-                    "data_tabular/_extras/mocap_start_timestamps.csv"
-                ),
+                self.base_path.joinpath("data_tabular/_extras/mocap_start_timestamps.csv"),
                 index_col=["subject", "condition"],
             ).loc[(self.subject, self.condition), "start_mocap_timestamp"]
         )
@@ -86,9 +83,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
     @cached_property
     def mocap_data(self) -> pd.DataFrame:
         if not self.is_single(None):
-            raise ValueError(
-                "Data can only be accessed for a single recording of a single participant in the subset"
-            )
+            raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
         subject_id = self.index["subject"][0]
         condition = self.index["condition"][0]
@@ -103,9 +98,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
     @property
     def synced_hr(self):
         if not self.is_single(None):
-            raise ValueError(
-                "Data can only be accessed for a single recording of a single participant in the subset"
-            )
+            raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
         data = pd.read_csv(
             self.base_path.joinpath(
@@ -115,35 +108,23 @@ class MacroStudyTsstDataset(MacroBaseDataset):
 
         synced_hr = data
         synced_hr["time"] = pd.to_datetime(synced_hr["time"])
-        synced_hr.set_index("time", inplace=True)
+        synced_hr = synced_hr.set_index("time")
         synced_hr.index = synced_hr.index - self.start_mocap_timestamp
         synced_hr = synced_hr.resample("1S").mean().interpolate()
         synced_hr["relative_time"] = synced_hr.index.total_seconds()
         return synced_hr.set_index("relative_time")
 
-    def _get_mocap_data(
-        self, subject_id: str, condition: str, *, verbose: bool = True
-    ) -> pd.DataFrame:
+    def _get_mocap_data(self, subject_id: str, condition: str, *, verbose: bool = True) -> pd.DataFrame:
         if self.use_cache:
-            return _cached_load_mocap_data(
-                self.base_path, subject_id, condition, verbose=verbose
-            )
-        return _load_tsst_mocap_data(
-            self.base_path, subject_id, condition, verbose=verbose
-        )
+            return _cached_load_mocap_data(self.base_path, subject_id, condition, verbose=verbose)
+        return _load_tsst_mocap_data(self.base_path, subject_id, condition, verbose=verbose)
 
     @property
     def movement_features(self) -> pd.DataFrame:
-        data = pd.read_csv(
-            self.data_tabular_path.joinpath(
-                "movement_features/final/movement_features.csv"
-            )
-        )
+        data = pd.read_csv(self.data_tabular_path.joinpath("movement_features/final/movement_features.csv"))
 
         # wide to long
-        features_long = data.melt(
-            id_vars=["subject"], var_name="feature", value_name="data"
-        )
+        features_long = data.melt(id_vars=["subject"], var_name="feature", value_name="data")
 
         idx_vars = [
             "subject",
@@ -157,27 +138,19 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         ]
 
         # split names
-        features_long[idx_vars[1:]] = features_long["feature"].str.split(
-            "-", expand=True
-        )
-        features_long.drop(columns=["feature"], inplace=True)
+        features_long[idx_vars[1:]] = features_long["feature"].str.split("-", expand=True)
+        features_long = features_long.drop(columns=["feature"])
 
-        features_long.set_index(idx_vars, inplace=True)
+        features_long = features_long.set_index(idx_vars)
 
         return features_long
 
     @property
     def movement_features_per_phase(self) -> pd.DataFrame:
-        data = pd.read_csv(
-            self.data_tabular_path.joinpath(
-                "movement_features/final/movement_features_per_phase.csv"
-            )
-        )
+        data = pd.read_csv(self.data_tabular_path.joinpath("movement_features/final/movement_features_per_phase.csv"))
 
         # wide to long
-        features_long = data.melt(
-            id_vars=["subject"], var_name="feature", value_name="data"
-        )
+        features_long = data.melt(id_vars=["subject"], var_name="feature", value_name="data")
 
         idx_vars = [
             "subject",
@@ -192,24 +165,18 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         ]
 
         # split names
-        features_long[idx_vars[1:]] = features_long["feature"].str.split(
-            "-", expand=True
-        )
-        features_long.drop(columns=["feature"], inplace=True)
+        features_long[idx_vars[1:]] = features_long["feature"].str.split("-", expand=True)
+        features_long = features_long.drop(columns=["feature"])
 
-        features_long.set_index(idx_vars, inplace=True)
+        features_long = features_long.set_index(idx_vars)
 
         return features_long
 
     @property
     def sync_path(self) -> Path:
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
-            raise ValueError(
-                "Path can only be accessed for a single condition of a single participant!"
-            )
-        data_path = self.base_path.joinpath("data_per_subject").joinpath(
-            f"{self.subject}/{self.condition}/sync.json"
-        )
+            raise ValueError("Path can only be accessed for a single condition of a single participant!")
+        data_path = self.base_path.joinpath("data_per_subject").joinpath(f"{self.subject}/{self.condition}/sync.json")
         return data_path
 
     @property
@@ -220,17 +187,13 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         column (and the `cfr_time_seconds` column) in the timestamps.csv file/video_timestamps property.
         """
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
-            raise ValueError(
-                "Path can only be accessed for a single condition of a single participant!"
-            )
+            raise ValueError("Path can only be accessed for a single condition of a single participant!")
 
         class JSONDecoder(json.JSONDecoder):
             """Class to properly convert ISO timestamps in json file to pd.Timestamps."""
 
             def __init__(self, *args, **kwargs):
-                json.JSONDecoder.__init__(
-                    self, object_hook=self.object_hook, *args, **kwargs
-                )
+                json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
 
             def object_hook(self, obj):
                 if type(obj) is dict:
@@ -249,9 +212,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         if not self.sync_path.exists():
             subject_id = self.subject
             condition = self.condition
-            raise SyncDataNotFoundException(
-                f"Sync data not found for subject {subject_id} and condition {condition}."
-            )
+            raise SyncDataNotFoundException(f"Sync data not found for subject {subject_id} and condition {condition}.")
 
         with open(self.sync_path) as f:
             sync_data = json.load(f, cls=JSONDecoder)
@@ -260,20 +221,14 @@ class MacroStudyTsstDataset(MacroBaseDataset):
     @property
     def body_video_path(self):
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
-            raise ValueError(
-                "Path can only be accessed for a single condition of a single participant!"
-            )
-        data_path = self.base_path.joinpath("data_per_subject").joinpath(
-            f"{self.subject}/{self.condition}/video/body"
-        )
+            raise ValueError("Path can only be accessed for a single condition of a single participant!")
+        data_path = self.base_path.joinpath("data_per_subject").joinpath(f"{self.subject}/{self.condition}/video/body")
         return data_path
 
     @property
     def _openpose_cleaned_path(self) -> Path:
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
-            raise ValueError(
-                "OpenPose data can only be accessed for a single condition of a single participant!"
-            )
+            raise ValueError("OpenPose data can only be accessed for a single condition of a single participant!")
 
         file_path = self.body_video_path.joinpath("cleaned/openpose.csv")
         return file_path
@@ -285,9 +240,7 @@ class MacroStudyTsstDataset(MacroBaseDataset):
         and the data was interpolated linearly and lowpass filtered.
         """
         if not (self.is_single(None) or self.is_single(["subject", "condition"])):
-            raise ValueError(
-                "OpenPose data can only be accessed for a single condition of a single participant!"
-            )
+            raise ValueError("OpenPose data can only be accessed for a single condition of a single participant!")
         file_path = self._openpose_cleaned_path
         return get_cleaned_openpose_data(file_path)
 

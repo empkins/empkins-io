@@ -15,16 +15,10 @@ class SyncedData:
 
         mocap_channels = mocap_resampled["mvnx_segment"]["T8"].filter(like="gyr")
 
-        start = self.subset.timelog_test["prep", "start"].iloc[0] - pd.Timedelta(
-            minutes=search_window_min
-        )
-        end = self.subset.timelog_test["math", "end"].iloc[0] + pd.Timedelta(
-            minutes=search_window_min
-        )
+        start = self.subset.timelog_test["prep", "start"].iloc[0] - pd.Timedelta(minutes=search_window_min)
+        end = self.subset.timelog_test["math", "end"].iloc[0] + pd.Timedelta(minutes=search_window_min)
 
-        nilspod_channels = self.subset.nilspod[
-            self.subset.NILSPOD_MAPPING["chest"]
-        ].filter(like="gyr")[start:end]
+        nilspod_channels = self.subset.nilspod[self.subset.NILSPOD_MAPPING["chest"]].filter(like="gyr")[start:end]
 
         if len(nilspod_channels) == 0:
             raise ValueError("No nilspod data found.")
@@ -33,9 +27,7 @@ class SyncedData:
         nilspod_norm = self.normalize(nilspod_channels)
 
         corr = np.correlate(nilspod_norm, mocap_norm, mode="full")
-        lags = scipy.signal.correlation_lags(
-            nilspod_norm.size, mocap_norm.size, mode="full"
-        )
+        lags = scipy.signal.correlation_lags(nilspod_norm.size, mocap_norm.size, mode="full")
 
         # Find the lag that maximizes correlation
         best_lag = lags[np.argmax(corr)]
@@ -66,8 +58,7 @@ class SyncedData:
         start_time_nilspod = nilspod_channels.iloc[best_lag].name
 
         shift = start_time_nilspod - (
-            pd.Timestamp(self.subset.start_mocap_timestamp)
-            + pd.Timedelta(seconds=self.subset.mocap_data.index[0])
+            pd.Timestamp(self.subset.start_mocap_timestamp) + pd.Timedelta(seconds=self.subset.mocap_data.index[0])
         )
         print(f"Shift in seconds: {shift.total_seconds()}")
 

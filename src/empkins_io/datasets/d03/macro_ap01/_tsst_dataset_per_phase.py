@@ -53,8 +53,6 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
             verbose=verbose,
         )
 
-
-
     def create_index(self):
         subject_ids = [
             subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_*")

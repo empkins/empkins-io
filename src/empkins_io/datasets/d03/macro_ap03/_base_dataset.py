@@ -58,27 +58,25 @@ class MacroBaseDataset(Dataset):
         ("VP_044", "ftsst", "talk"),  # no data
         ("VP_045", "tsst", "math"),  # short recording of 3.17 seconds
         ("VP_051", "tsst", "talk"),  # short recording of 160.72 seconds
-        ('VP_059', 'tsst', 'talk'), # no data
-        ('VP_069', 'ftsst', 'talk'), # no data
-        ('VP_069', 'ftsst', 'math'), # no data
-        ('VP_069', 'tsst', 'talk'), # no data
-        ('VP_069', 'tsst','math'), # no data
-
-
+        ("VP_059", "tsst", "talk"),  # no data
+        ("VP_069", "ftsst", "talk"),  # no data
+        ("VP_069", "ftsst", "math"),  # no data
+        ("VP_069", "tsst", "talk"),  # no data
+        ("VP_069", "tsst", "math"),  # no data
     )
 
     def __init__(
-            self,
-            base_path: path_t,
-            groupby_cols: Sequence[str] | None = None,
-            subset_index: Sequence[str] | None = None,
-            *,
-            use_phases: bool = False,
-            include_prep: bool = False,
-            exclude_complete_subjects_if_error: bool = True,
-            exclude_without_mocap: bool = True,
-            exclude_without_zebris: bool = True,
-            use_cache: bool = True,
+        self,
+        base_path: path_t,
+        groupby_cols: Sequence[str] | None = None,
+        subset_index: Sequence[str] | None = None,
+        *,
+        use_phases: bool = False,
+        include_prep: bool = False,
+        exclude_complete_subjects_if_error: bool = True,
+        exclude_without_mocap: bool = True,
+        exclude_without_zebris: bool = True,
+        use_cache: bool = True,
     ):
         # ensure pathlib
         self.base_path = base_path

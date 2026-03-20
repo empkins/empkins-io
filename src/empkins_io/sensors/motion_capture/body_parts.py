@@ -157,13 +157,9 @@ BODY_PART_MEDIAPIPE = Literal[
     "RightFootIndex",
 ]
 
-BODY_PART_GROUP = Literal[
-    "TotalBody", "UpperExtremities", "LowerExtremities", "Trunk", "Lumbar"
-]
+BODY_PART_GROUP = Literal["TotalBody", "UpperExtremities", "LowerExtremities", "Trunk", "Lumbar"]
 
-BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[
-    BODY_PART_GROUP, Sequence[BODY_PART_PERCEPTION_NEURON]
-] = {
+BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[BODY_PART_GROUP, Sequence[BODY_PART_PERCEPTION_NEURON]] = {
     "TotalBody": get_args(BODY_PART_PERCEPTION_NEURON),
     "UpperExtremities": [
         "RightShoulder",
@@ -288,9 +284,7 @@ def get_all_body_parts(system: MOTION_CAPTURE_SYSTEM) -> Sequence[str]:
 
     """
     if system not in get_args(MOTION_CAPTURE_SYSTEM):
-        raise ValueError(
-            f"Invalid 'system'! Expected one of {get_args(MOTION_CAPTURE_SYSTEM)}, got {system}."
-        )
+        raise ValueError(f"Invalid 'system'! Expected one of {get_args(MOTION_CAPTURE_SYSTEM)}, got {system}.")
     if system == "perception_neuron":
         return get_args(BODY_PART_PERCEPTION_NEURON)
     if system == "openpose":
@@ -327,9 +321,7 @@ def get_body_parts_by_group(
 
     """
     if system not in get_args(MOTION_CAPTURE_SYSTEM):
-        raise ValueError(
-            f"Invalid 'system'! Expected one of {get_args(MOTION_CAPTURE_SYSTEM)}, got {system}."
-        )
+        raise ValueError(f"Invalid 'system'! Expected one of {get_args(MOTION_CAPTURE_SYSTEM)}, got {system}.")
     if body_part_group not in get_args(BODY_PART_GROUP):
         raise ValueError(
             f"Invalid 'body_part_group'! Expected one of {get_args(BODY_PART_GROUP)}, got {body_part_group}."

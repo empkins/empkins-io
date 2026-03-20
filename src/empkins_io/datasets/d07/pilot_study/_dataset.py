@@ -65,7 +65,7 @@ class D07PilotStudyDataset(Dataset):
     def create_index(self) -> pd.DataFrame:
         p_ids = [
             subject_dir.name
-            for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_participant"), "VP_\d+")
+            for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_participant"), "VP_\\d+")
         ]
         index_cols = ["participant", "condition", "phase"]
         index = list(product(p_ids, self.CONDITIONS, self.PHASES))
