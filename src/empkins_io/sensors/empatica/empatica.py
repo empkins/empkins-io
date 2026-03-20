@@ -56,8 +56,16 @@ class EmpaticaDataset:
 
     @property
     def acc(self) -> pd.DataFrame:
-        """Get pandas DataFrame for accelerometer."""
-        return self.data_as_df("accelerometer")
+        """Get pandas DataFrame for accelerometer. Values are converted from ADC in g (gravitational acceleration)."""
+        imuParams = self._raw_data["rawData"]["accelerometer"]["imuParams"]
+        delta_physical = imuParams["physicalMax"] - imuParams["physicalMin"]
+        delta_digital = imuParams["digitalMax"] - imuParams["digitalMin"]
+
+        df = self.data_as_df("accelerometer")
+        df["accelerometer_x_g"] = [val * delta_physical / delta_digital for val in df["accelerometer_x"]]
+        df["accelerometer_y_g"] = [val * delta_physical / delta_digital for val in df["accelerometer_y"]]
+        df["accelerometer_z_g"] = [val * delta_physical / delta_digital for val in df["accelerometer_z"]]
+        return df
 
     @property
     def gyro(self) -> pd.DataFrame:
