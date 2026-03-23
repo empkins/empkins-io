@@ -24,7 +24,7 @@ class EmpaticaDataset:
         "temperature": ["values"],
         "tags": [],
         "bvp": ["values"],  # blood volume pulse
-        # "systolicPeaks": [],
+        "systolicPeaks": [],
         "steps": ["values"],
         # TODO: add all sensors
     }
@@ -33,6 +33,8 @@ class EmpaticaDataset:
         "accelerometer": 64.0,
         "eda": 4.0,
         "temperature": 1.0,
+        "bvp": 64.0,
+        "steps": 2.0
     }
 
     def __init__(
@@ -82,6 +84,16 @@ class EmpaticaDataset:
     def temperature(self) -> pd.DataFrame:
         """Get pandas DataFrame for temperature."""
         return self.data_as_df("temperature")
+
+    @property
+    def bvp(self) -> pd.DataFrame:
+        """Get pandas DataFrame for blood volumne pulse."""
+        return self.data_as_df("bvp")
+
+    @property
+    def steps(self) -> pd.DataFrame:
+        """Get pandas DataFrame for steps."""
+        return self.data_as_df("steps")
 
     def data_as_df(self, sensor: str) -> pd.DataFrame:
         """Get pandas DataFrame for a specific sensor."""
