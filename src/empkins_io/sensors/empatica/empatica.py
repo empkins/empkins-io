@@ -22,11 +22,10 @@ class EmpaticaDataset:
         "gyroscope": ["x", "y", "z"],
         "eda": ["values"],  # electrodermal activity
         "temperature": ["values"],
-        "tags": [],
+        "tags": ["tagsTimeMicros"],
         "bvp": ["values"],  # blood volume pulse
-        "systolicPeaks": [],
+        "systolicPeaks": ["peaksTimeNanos"],
         "steps": ["values"],
-        # TODO: add all sensors
     }
 
     _sampling_rates_hz: ClassVar[dict[str, float]] = {
@@ -71,8 +70,6 @@ class EmpaticaDataset:
 
     @property
     def gyro(self) -> pd.DataFrame:
-        if self.data_as_df("gyroscope").empty:
-            raise ValueError("There is no gyroscope data in the Empatica dataset.")
         return self.data_as_df("gyroscope")
 
     @property
@@ -94,6 +91,20 @@ class EmpaticaDataset:
     def steps(self) -> pd.DataFrame:
         """Get pandas DataFrame for steps."""
         return self.data_as_df("steps")
+
+    def systolic_peaks(self, series=False) -> pd.DataFrame:
+        """ Get pandas Dataframe for systolic peaks (Event Data)"""
+        if series:
+            return pd.DataFrame(self.data_as_df("systolicPeaks").index)
+        else:
+            return self.data_as_df("systolicPeaks")
+
+    def tag_events(self, series=True) -> pd.DataFrame:
+        """ Get pandas Dataframe for Tagging Events"""
+        if series:
+            return pd.DataFrame(self.data_as_df("tags").index)
+        else:
+            return self.data_as_df("tags")
 
     def data_as_df(self, sensor: str) -> pd.DataFrame:
         """Get pandas DataFrame for a specific sensor."""
@@ -145,7 +156,6 @@ class EmpaticaDataset:
     def _data_as_df_single_file(self, sensor: str) -> pd.DataFrame:
         """Get pandas DataFrame for a specific sensor."""
         sensor_dict = self._raw_data["rawData"][sensor]
-
         df = pd.DataFrame({f"{sensor}_{channel}": sensor_dict[channel] for channel in self._sensor_dict[sensor]})
 
         if df.empty:
@@ -170,8 +180,8 @@ class EmpaticaDataset:
         self,
         data: pd.DataFrame,
         index: str,
-        sampling_rate_hz: float,
-        start_time_unix: int,
+        sampling_rate_hz: float = None,
+        start_time_unix: int = None,
     ) -> pd.DataFrame:
         index_names = {
             None: "n_samples",
@@ -184,22 +194,41 @@ class EmpaticaDataset:
             raise ValueError(f"Supplied value for index ({index}) is not allowed. Allowed values: {index_names.keys()}")
         index_name = index_names[index]
 
+        # standard time unit is micro seconds
+        units = "us"
+        factor = 1e6
+        if any("TimeNanos" in col for col in data.columns):
+            units = "ns"
+            factor = 1e9
+
         if index is None:
             return data
         if index == "time":
-            data.index -= data.index[0]
-            data.index /= sampling_rate_hz
-            return data
+            if sampling_rate_hz is None:
+                data.index = data.iloc[:, 0]
+                data.index.name = index_name
+                data.index -= data.index[0]
+                data.index /= factor
+                return data
+            else:
+                data.index -= data.index[0]
+                data.index /= sampling_rate_hz
+                data.index.name = index_name
+                return data
 
-        data.index = [round(start_time_unix + i * (1e6 / sampling_rate_hz)) for i in range(len(data.index))]
+        if sampling_rate_hz is None:
+            data.index = data.iloc[:, 0]
+        else:
+            data.index = [round(start_time_unix + i * (factor / sampling_rate_hz)) for i in range(len(data.index))]
+
         data.index.name = index_name
 
         if index == "utc_datetime":
             # convert unix timestamps to datetime
-            data.index = pd.to_datetime(data.index, unit="us")
+            data.index = pd.to_datetime(data.index, unit=units)
             data.index = data.index.tz_localize("UTC")
         if index == "local_datetime":
-            data.index = pd.to_datetime(data.index, unit="us")
+            data.index = pd.to_datetime(data.index, unit=units)
             data.index = data.index.tz_localize("UTC").tz_convert(self.timezone)
 
         return data
