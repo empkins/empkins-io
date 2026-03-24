@@ -33,14 +33,14 @@ class EmpaticaDataset:
         "eda": 4.0,
         "temperature": 1.0,
         "bvp": 64.0,
-        "steps": 2.0
+        "steps": 2.0,
     }
 
     def __init__(
         self,
         path: path_t,
-        index_type: str | None = None, #can be e.g. local_datetime, utc_datetime, time, None
-        tz: str | None = None, #can be e.g. "Europe/Berlin"
+        index_type: str | None = None,  # can be e.g. local_datetime, utc_datetime, time, None
+        tz: str | None = None,  # can be e.g. "Europe/Berlin"
     ):
         self.path = path
         if path.is_dir():
@@ -93,14 +93,14 @@ class EmpaticaDataset:
         return self.data_as_df("steps")
 
     def systolic_peaks(self, series=False) -> pd.DataFrame:
-        """ Get pandas Dataframe for systolic peaks (Event Data)"""
+        """Get pandas Dataframe for systolic peaks (Event Data)."""
         if series:
             return pd.DataFrame(self.data_as_df("systolicPeaks").index)
         else:
             return self.data_as_df("systolicPeaks")
 
     def tag_events(self, series=True) -> pd.DataFrame:
-        """ Get pandas Dataframe for Tagging Events"""
+        """Get pandas Dataframe for Tagging Events."""
         if series:
             return pd.DataFrame(self.data_as_df("tags").index)
         else:
@@ -163,10 +163,7 @@ class EmpaticaDataset:
 
         # Sesnor only contains event data
         if "samplingFrequency" not in sensor_dict:
-            return self._add_index(
-                df,
-                self._index_type
-            )
+            return self._add_index(df, self._index_type)
 
         # Sensor contains a sampled signal
         return self._add_index(
