@@ -40,8 +40,8 @@ class EmpaticaDataset:
     def __init__(
         self,
         path: path_t,
-        index_type: str | None = None,
-        tz: str | None = None,
+        index_type: str | None = None, #can be e.g. local_datetime, utc_datetime, time, None
+        tz: str | None = None, #can be e.g. "Europe/Berlin"
     ):
         self.path = path
         if path.is_dir():
@@ -148,6 +148,17 @@ class EmpaticaDataset:
 
         df = pd.DataFrame({f"{sensor}_{channel}": sensor_dict[channel] for channel in self._sensor_dict[sensor]})
 
+        if df.empty:
+            raise ValueError(f"There is no {sensor} data in the Empatica dataset.")
+
+        # Sesnor only contains event data
+        if "samplingFrequency" not in sensor_dict:
+            return self._add_index(
+                df,
+                self._index_type
+            )
+
+        # Sensor contains a sampled signal
         return self._add_index(
             df,
             self._index_type,
