@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Sequence
 from pathlib import Path
 from typing import ClassVar
@@ -109,7 +111,11 @@ class EmradDataset:
         if isinstance(nodes, str):
             nodes = [nodes]
 
-        radar_data = {node: self.radar_data[node] for node in nodes if not self.radar_data[node].empty}
+        radar_data = {
+            node: self.radar_data[node]
+            for node in nodes
+            if not self.radar_data[node].empty
+        }
         data = pd.concat(radar_data, axis=1, names=["node"])
 
         if not add_sync_in:
@@ -130,7 +136,9 @@ class EmradDataset:
             "local_datetime": f"date ({self.timezone})",
         }
         if index and index not in index_names:
-            raise ValueError(f"Supplied value for index ({index}) is not allowed. Allowed values: {index_names.keys()}")
+            raise ValueError(
+                f"Supplied value for index ({index}) is not allowed. Allowed values: {index_names.keys()}"
+            )
         index_name = index_names[index]
         data.index.name = index_name
 
@@ -156,7 +164,10 @@ class EmradDataset:
 
     @classmethod
     def from_hd5_file(
-        cls, path: path_t, tz: str | None = "Europe/Berlin", sampling_rate_hz: float | None = 1953.125
+        cls,
+        path: path_t,
+        tz: str | None = "Europe/Berlin",
+        sampling_rate_hz: float | None = 1953.125,
     ) -> Self:
         """Create a new Dataset from a valid .hd5 file.
 
@@ -184,7 +195,10 @@ class EmradDataset:
         start_time = file.attrs["start"]
 
         data = {
-            key: pd.DataFrame(file[key], columns=pd.Index(["I", "Q", "Sync_In", "Sync_Out"], name="channel"))
+            key: pd.DataFrame(
+                file[key],
+                columns=pd.Index(["I", "Q", "Sync_In", "Sync_Out"], name="channel"),
+            )
             for key in file
         }
 

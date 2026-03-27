@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from biopsykit.signals.ecg.plotting import hr_plot
-from biopsykit.utils.datatype_helper import HeartRateDataFrame, RPeakDataFrame
 from fau_colors import colors_all
 from matplotlib.colors import to_rgb
 from matplotlib.legend_handler import HandlerTuple
@@ -9,7 +9,7 @@ from matplotlib.legend_handler import HandlerTuple
 __all__ = ["hr_plot_ecg_radar"]
 
 
-def hr_plot_ecg_radar(hr_ecg: HeartRateDataFrame, hr_radar: HeartRateDataFrame, **kwargs):
+def hr_plot_ecg_radar(hr_ecg: pd.DataFrame, hr_radar: pd.DataFrame, **kwargs):
     ax: plt.Axes = kwargs.pop("ax", None)
 
     if ax is None:
@@ -30,7 +30,12 @@ def hr_plot_ecg_radar(hr_ecg: HeartRateDataFrame, hr_radar: HeartRateDataFrame, 
         ax_qual: plt.Axes = ax.twinx()
         qual_handles, qual_labels = _hr_plot_ecg_radar_quality(hr_radar, ax_qual)
         legend = ax.legend(
-            qual_handles, qual_labels, ncol=3, title="Radar Heart Sound Quality", fontsize="small", loc="upper left"
+            qual_handles,
+            qual_labels,
+            ncol=3,
+            title="Radar Heart Sound Quality",
+            fontsize="small",
+            loc="upper left",
         )
         ax.add_artist(legend)
 
@@ -61,18 +66,35 @@ def _hr_plot_ecg_radar(
     mean_color_radar = colors_all.med_dark
     outlier_color_radar = colors_all.phil
 
-    hr_plot(heart_rate=hr_ecg, ax=ax, color=color_ecg, mean_color=mean_color_ecg, **kwargs)
-    hr_plot(heart_rate=hr_radar, ax=ax, color=color_radar, mean_color=mean_color_radar, **kwargs)
+    hr_plot(
+        heart_rate=hr_ecg, ax=ax, color=color_ecg, mean_color=mean_color_ecg, **kwargs
+    )
+    hr_plot(
+        heart_rate=hr_radar,
+        ax=ax,
+        color=color_radar,
+        mean_color=mean_color_radar,
+        **kwargs,
+    )
 
     handles = []
     labels = ["ECG", "Radar"]
     if plot_outlier:
-        for hr, outlier_color in zip([hr_ecg, hr_radar], [outlier_color_ecg, outlier_color_radar], strict=False):
+        for hr, outlier_color in zip(
+            [hr_ecg, hr_radar], [outlier_color_ecg, outlier_color_radar], strict=False
+        ):
             h = _hr_plot_ecg_radar_outlier(hr, outlier_color, ax=ax)
             handles.append(h)
 
         if all(x is not None for x in handles):
-            legend = ax.legend(handles, labels, title="Outlier", ncol=2, fontsize="small", loc="upper center")
+            legend = ax.legend(
+                handles,
+                labels,
+                title="Outlier",
+                ncol=2,
+                fontsize="small",
+                loc="upper center",
+            )
             ax.add_artist(legend)
 
 
@@ -81,14 +103,22 @@ def _hr_plot_ecg_radar_outlier(data: RPeakDataFrame, color: str, ax: plt.Axes):
     if "R_Peak_Outlier" in data.columns:
         outlier = data["R_Peak_Outlier"]
         outlier = data.index[np.where(outlier == 1)[0]]
-        h = ax.scatter(x=outlier, y=data.loc[outlier, "Heart_Rate"], color=color, alpha=0.8, zorder=3)
+        h = ax.scatter(
+            x=outlier,
+            y=data.loc[outlier, "Heart_Rate"],
+            color=color,
+            alpha=0.8,
+            zorder=3,
+        )
     return h
 
 
 def _hr_plot_ecg_radar_quality(hr_radar: HeartRateDataFrame, ax: plt.Axes):
     qual_handles = []
     qual_labels = ["Bad", "OK", "Good"]
-    for lims, color in zip([(0.0, 1.8), (1.8, 2.5), (2.5, 100)], ["wiso", "phil", "nat"], strict=False):
+    for lims, color in zip(
+        [(0.0, 1.8), (1.8, 2.5), (2.5, 100)], ["wiso", "phil", "nat"], strict=False
+    ):
         edgecolor = (*to_rgb(getattr(colors_all, color)), 0.3)
         facecolor = (*to_rgb(getattr(colors_all, color)), 0.05)
         mask = hr_radar["Heartsound_Quality"].between(*lims)
@@ -109,13 +139,18 @@ def _hr_plot_ecg_radar_quality(hr_radar: HeartRateDataFrame, ax: plt.Axes):
     return qual_handles, qual_labels
 
 
-def _hr_plot_ecg_radar_add_legend(mean_ecg: float, mean_radar: float, ax: plt.Axes, **kwargs):
+def _hr_plot_ecg_radar_add_legend(
+    mean_ecg: float, mean_radar: float, ax: plt.Axes, **kwargs
+):
     plot_mean = kwargs.get("plot_mean", True)
     handles, labels = ax.get_legend_handles_labels()
     if plot_mean:
         handles = [tuple(handles[0:2]), tuple(handles[2:])]
 
-    labels = [f"{s}; Mean: {mean:.2f} bpm" for s, mean in zip(["ECG", "Radar"], [mean_ecg, mean_radar], strict=False)]
+    labels = [
+        f"{s}; Mean: {mean:.2f} bpm"
+        for s, mean in zip(["ECG", "Radar"], [mean_ecg, mean_radar], strict=False)
+    ]
     legend = ax.legend(
         handles,
         labels,

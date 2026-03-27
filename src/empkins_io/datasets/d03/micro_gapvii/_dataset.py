@@ -1,8 +1,9 @@
+import warnings
 from collections.abc import Sequence
 from functools import cached_property, lru_cache
 from itertools import product
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Tuple
 
 import pandas as pd
 from biopsykit.io.io import load_long_format_csv
@@ -968,10 +969,10 @@ class MicroBaseDataset(Dataset):
     def _all_phases_selected(self) -> bool:
         # check if all phases are selected
         all_phases_fine = self.phase_fine and (
-            len(self.index["phase"]) == len(self.PHASE_FINE)
+            len(self.index["phase"]) == len(self.PHASES_FINE)
         )
         all_phases_coarse = not self.phase_fine and (
-            len(self.index["phase"]) == len(self.PHASE_COARSE)
+            len(self.index["phase"]) == len(self.PHASES_COARSE)
         )
         return all_phases_fine or all_phases_coarse
 

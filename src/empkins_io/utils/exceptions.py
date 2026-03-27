@@ -67,3 +67,23 @@ class TimestampDataNotFoundError(Exception):
 
 class ZebrisDataNotFoundError(Exception):
     """An error indicating that no Zebris data are available."""
+
+
+class NilsPodDataLoadException(Exception):
+    """An error indicating that an error occurred while attempting to load the NilsPod data."""
+
+
+class NilsPodDataNotFoundException(Exception):
+    """An error indicating that no NilsPod sensor data are available."""
+
+
+class SamplingRateMismatchException(Exception):
+    """An error indicating that the sampling rates of sensors do not match."""
+
+
+class SyncDataNotFoundException(Exception):
+    """An error indicating that no sync.json file is available."""
+
+
+class TimestampDataNotFoundException(Exception):
+    """An error indicating that no timestamps.csv file is available."""

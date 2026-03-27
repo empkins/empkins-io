@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Sequence
 from functools import lru_cache
 from pathlib import Path
@@ -105,7 +107,9 @@ class BaseDataset(Dataset):
 
         if not self.bp_tl_shift:
             participant_id = self.index["subject"][0]
-            self.bp_tl_shift = self._get_biopac_timelog_shift(participant_id=participant_id)
+            self.bp_tl_shift = self._get_biopac_timelog_shift(
+                participant_id=participant_id
+            )
 
         return self.bp_tl_shift
 
@@ -119,10 +123,14 @@ class BaseDataset(Dataset):
             sampling_rate: float.
         """
         if not self.is_single(["subject"]):
-            raise ValueError("BIOPAC data can only be accessed for one single participant at once")
+            raise ValueError(
+                "BIOPAC data can only be accessed for one single participant at once"
+            )
 
         participant_id = self.index["subject"][0]
-        biopac_data = self._get_biopac_data(participant_id=participant_id, state="raw_unsynced")
+        biopac_data = self._get_biopac_data(
+            participant_id=participant_id, state="raw_unsynced"
+        )
 
         return biopac_data, self.sampling_rates["biopac_original"]
 
@@ -136,10 +144,14 @@ class BaseDataset(Dataset):
             sampling_rate: float.
         """
         if not self.is_single(["subject"]):
-            raise ValueError("Radar data can only be accessed for one single participant at once")
+            raise ValueError(
+                "Radar data can only be accessed for one single participant at once"
+            )
 
         participant_id = self.index["subject"][0]
-        radar_data = self._get_radar_data(participant_id=participant_id, state="raw_unsynced")
+        radar_data = self._get_radar_data(
+            participant_id=participant_id, state="raw_unsynced"
+        )
 
         return radar_data, self.sampling_rates["radar_original"]
 
@@ -153,10 +165,14 @@ class BaseDataset(Dataset):
             sampling_rate: float.
         """
         if not self.is_single(["subject"]):
-            raise ValueError("BIOPAC data can only be accessed for one single participant at once")
+            raise ValueError(
+                "BIOPAC data can only be accessed for one single participant at once"
+            )
 
         participant_id = self.index["subject"][0]
-        biopac_data = self._get_biopac_data(participant_id=participant_id, state="raw_synced")
+        biopac_data = self._get_biopac_data(
+            participant_id=participant_id, state="raw_synced"
+        )
 
         return biopac_data, self.sampling_rates["resampled"]
 
@@ -170,10 +186,14 @@ class BaseDataset(Dataset):
             sampling_rate: float.
         """
         if not self.is_single(["subject"]):
-            raise ValueError("Radar data can only be accessed for one single participant at once")
+            raise ValueError(
+                "Radar data can only be accessed for one single participant at once"
+            )
 
         participant_id = self.index["subject"][0]
-        radar_data = self._get_radar_data(participant_id=participant_id, state="raw_synced")
+        radar_data = self._get_radar_data(
+            participant_id=participant_id, state="raw_synced"
+        )
 
         return radar_data, self.sampling_rates["resampled"]
 
@@ -187,10 +207,14 @@ class BaseDataset(Dataset):
             sampling_rate: float.
         """
         if not self.is_single(None):
-            raise ValueError("BIOPAC data can only be accessed for one single location at once")
+            raise ValueError(
+                "BIOPAC data can only be accessed for one single location at once"
+            )
 
         participant_id = self.index["subject"][0]
-        biopac_data = self._get_biopac_data(participant_id=participant_id, state="location_synced")
+        biopac_data = self._get_biopac_data(
+            participant_id=participant_id, state="location_synced"
+        )
 
         return biopac_data, self.sampling_rates["resampled"]
 
@@ -204,10 +228,14 @@ class BaseDataset(Dataset):
             sampling_rate: float.
         """
         if not self.is_single(None):
-            raise ValueError("Radar data can only be accessed for one single location at once")
+            raise ValueError(
+                "Radar data can only be accessed for one single location at once"
+            )
 
         participant_id = self.index["subject"][0]
-        radar_data = self._get_radar_data(participant_id=participant_id, state="location_synced")
+        radar_data = self._get_radar_data(
+            participant_id=participant_id, state="location_synced"
+        )
 
         return radar_data, self.sampling_rates["resampled"]
 
@@ -220,7 +248,9 @@ class BaseDataset(Dataset):
             timelog: pd.DataFrame.
         """
         if not self.is_single(["subject"]):
-            raise ValueError("Timelog can only be accessed for one single participant at once")
+            raise ValueError(
+                "Timelog can only be accessed for one single participant at once"
+            )
         locations = self._get_locations_from_index()
         participant_id = self.index["subject"][0]
         tl = self._get_timelog(participant_id)
@@ -235,7 +265,9 @@ class BaseDataset(Dataset):
             timelog: pd.DataFrame.
         """
         if not self.is_single(["subject"]):
-            raise ValueError("Timelog can only be accessed for one single participant at once")
+            raise ValueError(
+                "Timelog can only be accessed for one single participant at once"
+            )
         participant_id = self.index["subject"][0]
         return self._get_timelog(participant_id)
 
@@ -248,7 +280,9 @@ class BaseDataset(Dataset):
             protocol: pd.DataFrame.
         """
         if not self.is_single(["subject"]):
-            raise ValueError("Protocol Information can only be accessed for one single participant at once")
+            raise ValueError(
+                "Protocol Information can only be accessed for one single participant at once"
+            )
         participant_id = self.index["subject"][0]
         return self._get_protocol(participant_id)
 
@@ -262,7 +296,9 @@ class BaseDataset(Dataset):
             apnea_seg: Dict.
         """
         if not self.is_single(["subject"]):
-            raise ValueError("Apnea Segmentation can only be accessed for one single participant at once")
+            raise ValueError(
+                "Apnea Segmentation can only be accessed for one single participant at once"
+            )
         participant_id = self.index["subject"][0]
         apnea_seg = self._get_apnea_segmentation(participant_id)
         return apnea_seg
@@ -276,9 +312,13 @@ class BaseDataset(Dataset):
             timelog_path: Path.
         """
         if not self.is_single(["subject"]):
-            raise ValueError("Timelog path can only be accessed for one single participant at once")
+            raise ValueError(
+                "Timelog path can only be accessed for one single participant at once"
+            )
         participant_id = self.index["subject"][0]
-        timelog_path = _build_timelog_path(base_path=self.base_path, participant_id=participant_id)
+        timelog_path = _build_timelog_path(
+            base_path=self.base_path, participant_id=participant_id
+        )
         return timelog_path
 
     @property
@@ -290,9 +330,13 @@ class BaseDataset(Dataset):
             protocol_path: Path.
         """
         if not self.is_single(["subject"]):
-            raise ValueError("Protocol path can only be accessed for one single participant at once")
+            raise ValueError(
+                "Protocol path can only be accessed for one single participant at once"
+            )
         participant_id = self.index["subject"][0]
-        protocol_path = _build_protocol_path(base_path=self.base_path, participant_id=participant_id)
+        protocol_path = _build_protocol_path(
+            base_path=self.base_path, participant_id=participant_id
+        )
         return protocol_path
 
     @property
@@ -304,7 +348,9 @@ class BaseDataset(Dataset):
             visual_seg: pd.DataFrame.
         """
         if not self.is_single(["subject"]):
-            raise ValueError("Visual Inspection Segmentation can only be accessed for one single participant at once")
+            raise ValueError(
+                "Visual Inspection Segmentation can only be accessed for one single participant at once"
+            )
         participant_id = self.index["subject"][0]
         data = self._get_visual_segmentation(participant_id)
         if self.is_single(None):
@@ -340,7 +386,9 @@ class BaseDataset(Dataset):
             return flipping_data[participant_id]
         return flipping_data
 
-    def save_data_to_location(self, data: pd.DataFrame, file_name: str, sub_dir: str | None = None):
+    def save_data_to_location(
+        self, data: pd.DataFrame, file_name: str, sub_dir: str | None = None
+    ):
         """
         Save a dataframe as file to "data_per_location" sub-folder for the respective participant. In this folder,
         all intermediate data can be stored, e.g. the results of the preprocessing steps.
@@ -358,7 +406,9 @@ class BaseDataset(Dataset):
 
         locations = self.index.drop(columns="subject").columns.tolist()
         if not self.is_single(locations):
-            raise ValueError("Data can only be saved for a single location-breathing combination")
+            raise ValueError(
+                "Data can only be saved for a single location-breathing combination"
+            )
 
         participant_id = self.index["subject"][0]
         location = self._get_locations_from_index()[0]
@@ -387,7 +437,9 @@ class BaseDataset(Dataset):
 
         locations = self.index.drop(columns="subject").columns.tolist()
         if not self.is_single(locations):
-            raise ValueError("Data can only be loaded for a single location-breathing combination")
+            raise ValueError(
+                "Data can only be loaded for a single location-breathing combination"
+            )
 
         participant_id = self.index["subject"][0]
         location = self._get_locations_from_index()[0]
@@ -419,7 +471,9 @@ class BaseDataset(Dataset):
         if self.is_single(None):
             location = self._get_locations_from_index()
             if len(location) > 1:
-                raise ValueError("BIOPAC data can be accessed for all or only one single location at the same time.")
+                raise ValueError(
+                    "BIOPAC data can be accessed for all or only one single location at the same time."
+                )
             tl = self.timelog
             start = tl[location[0]]["start"][0] + self.biopac_timelog_shift
             end = tl[location[0]]["end"][0] + self.biopac_timelog_shift
@@ -441,7 +495,9 @@ class BaseDataset(Dataset):
         if self.is_single(None):
             location = self._get_locations_from_index()
             if len(location) > 1:
-                raise ValueError("Radar data can be accessed for all or only one single location at the same time.")
+                raise ValueError(
+                    "Radar data can be accessed for all or only one single location at the same time."
+                )
             tl = self.timelog
             start = tl[location[0]]["start"][0] + self.biopac_timelog_shift
             end = tl[location[0]]["end"][0] + self.biopac_timelog_shift
@@ -457,7 +513,9 @@ class BaseDataset(Dataset):
 
     def _get_biopac_timelog_shift(self, participant_id: str):
         return _get_biopac_timelog_shift(
-            base_path=self.base_path, participant_id=participant_id, trigger_extraction=self.trigger_data_extraction
+            base_path=self.base_path,
+            participant_id=participant_id,
+            trigger_extraction=self.trigger_data_extraction,
         )
 
     def _get_apnea_segmentation(self, participant_id: str) -> dict:

@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import warnings
 from collections.abc import Sequence
 from functools import cached_property, lru_cache
 from itertools import product
 from pathlib import Path
-from typing import Dict, Optional, Sequence, Tuple
-from unittest.mock import inplace
+from typing import Dict, Optional, Sequence, Tuple, ClassVar
 
 import pandas as pd
 from biopsykit.io import (

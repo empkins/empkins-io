@@ -20,7 +20,8 @@ dependencies = [
     "avro>=1.11.3,<2",
     "fastavro>=1.4.0,<2",
     "construct",
-    "PyWavelets"
+    "PyWavelets",
+    "mne"
 ]
 
 [project.optional-dependencies]
@@ -45,7 +46,7 @@ build-backend = "hatchling.build"
 
 [tool.black]
 line-length = 120
-target-version = ['py38']
+target-version = ['py310']
 exclude = '''
 (
   /(

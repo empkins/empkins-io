@@ -71,7 +71,7 @@ def _load_tsst_mocap_data(
 
     mvnx_data = mvnx.MvnxData(mocap_file, verbose=verbose)
 
-    return mvnx_data.data, mvnx_data.start
+    return mvnx_data.data, mvnx_data.start_time
 
 
 def _load_gait_mocap_data(
@@ -124,8 +124,13 @@ def _get_times_for_mocap(
             phase = [phase]
         timelog = timelog.loc[:, phase]
 
+    # make start_time tz aware
+    start_time = pd.to_datetime(start_time).tz_localize("UTC")
+
     timelog = (timelog - start_time).apply(lambda x: x.dt.total_seconds())
+
     timelog = timelog.T["time"].unstack("start_end")
+
     return timelog
 
 

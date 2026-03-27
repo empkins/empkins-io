@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Literal, get_args
+from typing import Literal, get_args, Dict
 
 from empkins_io.sensors.motion_capture.motion_capture_systems import (
     MOTION_CAPTURE_SYSTEM,

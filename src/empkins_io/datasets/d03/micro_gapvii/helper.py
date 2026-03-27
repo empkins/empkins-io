@@ -29,6 +29,10 @@ from empkins_io.utils.exceptions import (
 )
 
 
+def _load_timelog_video():
+    pass
+
+
 def _build_data_path(base_path: path_t, participant_id: str, condition: str) -> Path:
     data_path = base_path.joinpath(f"data_per_subject/{participant_id}/{condition}")
     assert data_path.exists()
