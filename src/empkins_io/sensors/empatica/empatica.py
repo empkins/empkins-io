@@ -146,6 +146,56 @@ class EmpaticaDataset:
 
         return self._data_as_df_folder(sensor)
 
+    def plot_empatica(self, sensor: str) -> None:
+        """Plot empatica."""
+        if sensor == "accelerometer":
+            data = self.acc[["accelerometer_x_g", "accelerometer_y_g", "accelerometer_z_g"]]
+        else:
+            data = self.data_as_df(sensor)
+
+        sensor_name = self._sensor_name.get(sensor, sensor.replace("_", " ").title())
+        sensor_unit = self._sensor_unit.get(sensor)
+        y_label = sensor_name if not sensor_unit else f"{sensor_name} [{sensor_unit}]"
+        x_label = self._index_names.get(self._index_type, "index")
+
+        fig, ax = plt.subplots()
+        is_event_sensor = sensor in {"tags", "systolicPeaks"}
+        if is_event_sensor:
+            event_x = data.index
+            default_color = plt.rcParams["axes.prop_cycle"].by_key()["color"][0]
+            ax.eventplot(
+                [event_x.to_numpy()],
+                orientation="horizontal",
+                lineoffsets=0,
+                linelengths=0.8,
+                linewidths=1.2,
+                colors=default_color,
+            )
+            ax.set_ylim(-0.75, 0.75)
+            ax.set_yticks([0])
+            ax.set_yticklabels(["events"])
+        else:
+            for column in data.columns:
+                label = column.removeprefix(f"{sensor}_").replace("_", " ").title()
+                ax.plot(data.index, data[column], label=label)
+            if len(data.columns) > 1:
+                ax.legend()
+
+        if isinstance(data.index, pd.DatetimeIndex):
+            timezone = data.index.tz if data.index.tz is not None else None
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S", tz=timezone))
+            fig.autofmt_xdate()
+            if self._index_type == "local_datetime" and self.timezone:
+                x_label = f"date ({self.timezone})"
+
+        ax.set_xlabel(x_label)
+
+        ax.set_title(sensor_name)
+        ax.set_ylabel(y_label)
+        ax.grid(True, alpha=0.3)
+        fig.tight_layout()
+        plt.show()
+
     def _data_as_df_folder(self, sensor: str) -> pd.DataFrame:
         """Get pandas DataFrame for a specific sensor."""
         out = {}
