@@ -262,13 +262,7 @@ class EmpaticaDataset:
         sampling_rate_hz: float = None,
         start_time_unix: int = None,
     ) -> pd.DataFrame:
-        index_names = {
-            None: "n_samples",
-            "time": "t",
-            "utc": "utc",
-            "utc_datetime": "date",
-            "local_datetime": f"date ({self.timezone})",
-        }
+        index_names = self._index_names | {"local_datetime": f"date ({self.timezone})"}
         if index and index not in index_names:
             raise ValueError(f"Supplied value for index ({index}) is not allowed. Allowed values: {index_names.keys()}")
         index_name = index_names[index]
