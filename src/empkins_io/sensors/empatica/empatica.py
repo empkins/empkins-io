@@ -36,6 +36,36 @@ class EmpaticaDataset:
         "steps": 2.0,
     }
 
+    _sensor_unit: ClassVar[dict[str]] = {
+        "accelerometer": "g",
+        "gyroscope": "deg/s",
+        "eda": r"$\mu S$",
+        "temperature": "°C",
+        "bvp": "a.u.",
+        "tags": "event",
+        "steps": "count",
+        "systolicPeaks": "event",
+    }
+
+    _sensor_name: ClassVar[dict[str, str]] = {
+        "accelerometer": "Accelerometer",
+        "gyroscope": "Gyroscope",
+        "eda": "Electrodermal Activity",
+        "temperature": "Temperature",
+        "tags": "Tag Events",
+        "bvp": "Blood Volume Pulse",
+        "systolicPeaks": "Systolic Peaks",
+        "steps": "Steps",
+    }
+
+    _index_names: ClassVar[dict[str | None, str]] = {
+        None: "n_samples",
+        "time": "t (s)",
+        "utc": "utc",
+        "utc_datetime": "date",
+        "local_datetime": "date",
+    }
+
     def __init__(
         self,
         path: path_t,
