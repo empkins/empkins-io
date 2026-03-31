@@ -15,54 +15,71 @@ from empkins_io.utils._types import path_t
 class EmpaticaDataset:
     path: path_t
     _raw_data: dict
+    _accelerometer_specs: dict
 
     _index_type: str
     _tz: str
 
-    _sensor_dict: ClassVar[dict[str, Sequence[str]]] = {
-        "accelerometer": ["x", "y", "z"],
-        "gyroscope": ["x", "y", "z"],
-        "eda": ["values"],  # electrodermal activity
-        "temperature": ["values"],
-        "tags": ["tagsTimeMicros"],
-        "bvp": ["values"],  # blood volume pulse
-        "systolicPeaks": ["peaksTimeNanos"],
-        "steps": ["values"],
-    }
-
-    _sampling_rates_hz: ClassVar[dict[str, float]] = {
-        "accelerometer": 64.0,
-        "eda": 4.0,
-        "temperature": 1.0,
-        "bvp": 64.0,
-        "steps": 2.0,
-    }
-
-    _sensor_unit: ClassVar[dict[str]] = {
-        "accelerometer": "g",
-        "gyroscope": "deg/s",
-        "eda": r"$\mu S$",
-        "temperature": "°C",
-        "bvp": "a.u.",
-        "tags": "event",
-        "steps": "count",
-        "systolicPeaks": "event",
-    }
-
-    _sensor_name: ClassVar[dict[str, str]] = {
-        "accelerometer": "Accelerometer",
-        "gyroscope": "Gyroscope",
-        "eda": "Electrodermal Activity",
-        "temperature": "Temperature",
-        "tags": "Tag Events",
-        "bvp": "Blood Volume Pulse",
-        "systolicPeaks": "Systolic Peaks",
-        "steps": "Steps",
+    _sensor_specs: ClassVar[dict[str, dict[str, object]]] = {
+        "accelerometer": {
+            "channels": ("x", "y", "z"),
+            "name": "Accelerometer",
+            "unit": "g",
+            "kind": "signal",
+            "default_sampling_rate_hz": 64.0,
+        },
+        "gyroscope": {
+            "channels": ("x", "y", "z"),
+            "name": "Gyroscope",
+            "unit": "deg/s",
+            "kind": "signal",
+            "default_sampling_rate_hz": 64.0,
+        },
+        "eda": {
+            "channels": ("values",),
+            "name": "Electrodermal Activity",
+            "unit": r"$\mu S$",
+            "kind": "signal",
+            "default_sampling_rate_hz": 4.0,
+        },
+        "temperature": {
+            "channels": ("values",),
+            "name": "Temperature",
+            "unit": "°C",
+            "kind": "signal",
+            "default_sampling_rate_hz": 1.0,
+        },
+        "tags": {
+            "channels": ("tagsTimeMicros",),
+            "name": "Tag Events",
+            "unit": "event",
+            "kind": "event",
+        },
+        "bvp": {
+            "channels": ("values",),
+            "name": "Blood Volume Pulse",
+            "unit": "a.u.",
+            "kind": "signal",
+            "default_sampling_rate_hz": 64.0,
+        },
+        "systolicPeaks": {
+            "channels": ("peaksTimeNanos",),
+            "name": "Systolic Peaks",
+            "unit": "event",
+            "kind": "event",
+        },
+        "steps": {
+            "channels": ("values",),
+            "name": "Steps",
+            "unit": "count",
+            "kind": "signal",
+            "default_sampling_rate_hz": 2.0,
+        },
     }
 
     _index_names: ClassVar[dict[str | None, str]] = {
         None: "n_samples",
-        "time": "t (s)",
+        "time": "t",
         "utc": "utc",
         "utc_datetime": "date",
         "local_datetime": "date",
@@ -79,6 +96,7 @@ class EmpaticaDataset:
             self._raw_data = _from_folder(path)
         else:
             self._raw_data = _from_file(path)
+        self._accelerometer_specs = self._get_accelerometer_specs()
         self._index_type = index_type
         self._tz = tz
 
@@ -90,14 +108,11 @@ class EmpaticaDataset:
     @property
     def acc(self) -> pd.DataFrame:
         """Get pandas DataFrame for accelerometer. Values are converted from ADC in g (gravitational acceleration)."""
-        imuParams = self._raw_data["rawData"]["accelerometer"]["imuParams"]
-        delta_physical = imuParams["physicalMax"] - imuParams["physicalMin"]
-        delta_digital = imuParams["digitalMax"] - imuParams["digitalMin"]
-
         df = self.data_as_df("accelerometer")
-        df["accelerometer_x_g"] = [val * delta_physical / delta_digital for val in df["accelerometer_x"]]
-        df["accelerometer_y_g"] = [val * delta_physical / delta_digital for val in df["accelerometer_y"]]
-        df["accelerometer_z_g"] = [val * delta_physical / delta_digital for val in df["accelerometer_z"]]
+        conversion_factor = self._accelerometer_specs["delta_physical"] / self._accelerometer_specs["delta_digital"]
+        df["accelerometer_x_g"] = [val * conversion_factor for val in df["accelerometer_x"]]
+        df["accelerometer_y_g"] = [val * conversion_factor for val in df["accelerometer_y"]]
+        df["accelerometer_z_g"] = [val * conversion_factor for val in df["accelerometer_z"]]
         return df
 
     @property
@@ -140,8 +155,8 @@ class EmpaticaDataset:
 
     def data_as_df(self, sensor: str) -> pd.DataFrame:
         """Get pandas DataFrame for a specific sensor."""
-        if sensor not in self._sensor_dict:
-            raise ValueError(f"Supplied sensor ({sensor}) is not allowed. Allowed values: {self._sensor_dict.keys()}")
+        if sensor not in self._sensor_specs:
+            raise ValueError(f"Supplied sensor ({sensor}) is not allowed. Allowed values: {self._sensor_specs.keys()}")
 
         if self.path.is_file():
             return self._data_as_df_single_file(sensor)
@@ -155,13 +170,14 @@ class EmpaticaDataset:
         else:
             data = self.data_as_df(sensor)
 
-        sensor_name = self._sensor_name.get(sensor, sensor.replace("_", " ").title())
-        sensor_unit = self._sensor_unit.get(sensor)
+        sensor_spec = self._sensor_specs[sensor]
+        sensor_name = str(sensor_spec["name"])
+        sensor_unit = sensor_spec.get("unit")
         y_label = sensor_name if not sensor_unit else f"{sensor_name} [{sensor_unit}]"
         x_label = self._index_names.get(self._index_type, "index")
 
         fig, ax = plt.subplots()
-        is_event_sensor = sensor in {"tags", "systolicPeaks"}
+        is_event_sensor = sensor_spec["kind"] == "event"
         if is_event_sensor:
             event_x = data.index
             default_color = plt.rcParams["axes.prop_cycle"].by_key()["color"][0]
@@ -203,26 +219,37 @@ class EmpaticaDataset:
         out = {}
         prev_last_timestamp = None
         sampling_frequencies = []
+        explicit_timestamps = []
+        explicit_timestamp_unit = None
 
-        start_time_unix = self._raw_data[next(iter(self._raw_data.keys()))]["rawData"][sensor]["timestampStart"]
+        first_sensor_dict = self._raw_data[next(iter(self._raw_data.keys()))]["rawData"][sensor]
+        timestamp_key, timestamp_unit = type(self)._get_explicit_timestamp_info(first_sensor_dict)
+        start_time_unix = first_sensor_dict.get("timestampStart")
+        explicit_timestamp_unit = timestamp_unit
 
         for file in self._raw_data:
             sensor_dict = self._raw_data[file]["rawData"][sensor]
-            df = pd.DataFrame({f"{sensor}_{channel}": sensor_dict[channel] for channel in self._sensor_dict[sensor]})
+            df = pd.DataFrame(
+                {f"{sensor}_{channel}": sensor_dict[channel] for channel in self._sensor_channels(sensor)}
+            )
 
-            df = self._add_index_for_stitching(df, sensor_dict["samplingFrequency"], sensor_dict["timestampStart"])
+            if timestamp_key is not None:
+                explicit_timestamps.extend(sensor_dict[timestamp_key])
+            else:
+                sampling_rate_hz = self._get_sampling_rate(sensor, sensor_dict)
+                df = self._add_index_for_stitching(df, sampling_rate_hz, sensor_dict["timestampStart"])
 
-            # TODO check if that is the right way to do.
-            # check for gaps between files
-            if prev_last_timestamp is not None and (df.index[0] - prev_last_timestamp) > (
-                pd.Timedelta(seconds=2 / sensor_dict["samplingFrequency"])
-            ):
-                # if the difference between the last timestamp of the previous file and the first timestamp of the
-                # current file is larger than twice sampling distance, we assume that there is a gap between the
-                # two files
-                raise ValueError(f"Gap between files detected. Please check the files in {self.path}.")
-            prev_last_timestamp = df.index[-1]
-            sampling_frequencies.append(sensor_dict["samplingFrequency"])
+                # TODO check if that is the right way to do.
+                # check for gaps between files
+                if prev_last_timestamp is not None and (df.index[0] - prev_last_timestamp) > (
+                    pd.Timedelta(seconds=2 / sampling_rate_hz)
+                ):
+                    # if the difference between the last timestamp of the previous file and the first timestamp of the
+                    # current file is larger than twice sampling distance, we assume that there is a gap between the
+                    # two files
+                    raise ValueError(f"Gap between files detected. Please check the files in {self.path}.")
+                prev_last_timestamp = df.index[-1]
+                sampling_frequencies.append(sampling_rate_hz)
 
             out[file] = df
         out_df = pd.concat(out).droplevel(0)
@@ -231,68 +258,66 @@ class EmpaticaDataset:
         return self._add_index(
             out_df,
             self._index_type,
-            np.mean(sampling_frequencies),
+            np.mean(sampling_frequencies) if sampling_frequencies else None,
             start_time_unix,
+            explicit_timestamps=explicit_timestamps or None,
+            explicit_timestamp_unit=explicit_timestamp_unit,
         )
 
     def _data_as_df_single_file(self, sensor: str) -> pd.DataFrame:
         """Get pandas DataFrame for a specific sensor."""
         sensor_dict = self._raw_data["rawData"][sensor]
-        df = pd.DataFrame({f"{sensor}_{channel}": sensor_dict[channel] for channel in self._sensor_dict[sensor]})
+        df = pd.DataFrame({f"{sensor}_{channel}": sensor_dict[channel] for channel in self._sensor_channels(sensor)})
 
         if df.empty:
             raise ValueError(f"There is no {sensor} data in the Empatica dataset.")
 
-        # Sesnor only contains event data
-        if "samplingFrequency" not in sensor_dict:
-            return self._add_index(df, self._index_type)
+        timestamp_key, timestamp_unit = type(self)._get_explicit_timestamp_info(sensor_dict)
 
-        # Sensor contains a sampled signal
         return self._add_index(
             df,
             self._index_type,
-            sensor_dict["samplingFrequency"],
-            sensor_dict["timestampStart"],
+            self._get_sampling_rate(sensor, sensor_dict),
+            sensor_dict.get("timestampStart"),
+            explicit_timestamps=sensor_dict.get(timestamp_key) if timestamp_key else None,
+            explicit_timestamp_unit=timestamp_unit,
         )
 
     def _add_index(
         self,
         data: pd.DataFrame,
         index: str,
-        sampling_rate_hz: float = None,
-        start_time_unix: int = None,
+        sampling_rate_hz: float | None = None,
+        start_time_unix: int | None = None,
+        explicit_timestamps: Sequence[int] | None = None,
+        explicit_timestamp_unit: str | None = None,
     ) -> pd.DataFrame:
         index_names = self._index_names | {"local_datetime": f"date ({self.timezone})"}
         if index and index not in index_names:
             raise ValueError(f"Supplied value for index ({index}) is not allowed. Allowed values: {index_names.keys()}")
         index_name = index_names[index]
 
-        # standard time unit is micro seconds
-        units = "us"
-        factor = 1e6
-        if any("TimeNanos" in col for col in data.columns):
-            units = "ns"
-            factor = 1e9
-
         if index is None:
             return data
         if index == "time":
-            if sampling_rate_hz is None:
-                data.index = data.iloc[:, 0]
-                data.index.name = index_name
-                data.index -= data.index[0]
-                data.index /= factor
-                return data
+            if explicit_timestamps is not None:
+                data.index = self._timestamps_to_seconds(explicit_timestamps, explicit_timestamp_unit)
             else:
+                if sampling_rate_hz is None:
+                    raise ValueError("sampling_rate_hz must be provided for regularly sampled data.")
                 data.index -= data.index[0]
                 data.index /= sampling_rate_hz
-                data.index.name = index_name
-                return data
+            data.index.name = index_name
+            return data
 
-        if sampling_rate_hz is None:
-            data.index = data.iloc[:, 0]
+        if explicit_timestamps is not None:
+            units = "us"
+            data.index = self._timestamps_to_microseconds(explicit_timestamps, explicit_timestamp_unit)
         else:
-            data.index = [round(start_time_unix + i * (factor / sampling_rate_hz)) for i in range(len(data.index))]
+            units = "us"
+            if sampling_rate_hz is None or start_time_unix is None:
+                raise ValueError("sampling_rate_hz and start_time_unix must be provided for regularly sampled data.")
+            data.index = [round(start_time_unix + i * (1e6 / sampling_rate_hz)) for i in range(len(data.index))]
 
         data.index.name = index_name
 
@@ -310,6 +335,60 @@ class EmpaticaDataset:
         self, data: pd.DataFrame, sampling_rate_hz: float, start_time_unix: int
     ) -> pd.DataFrame:
         return self._add_index(data, "utc_datetime", sampling_rate_hz, start_time_unix)
+
+    def _sensor_channels(self, sensor: str) -> Sequence[str]:
+        return self._sensor_specs[sensor]["channels"]  # type: ignore[return-value]
+
+    def _get_sampling_rate(self, sensor: str, sensor_dict: dict) -> float | None:
+        sampling_rate = sensor_dict.get("samplingFrequency")
+        if sampling_rate is None:
+            return None
+        if sampling_rate == 0:
+            fallback_sampling_rate = self._sensor_specs[sensor].get("default_sampling_rate_hz")
+            if fallback_sampling_rate is None:
+                raise ValueError(f"Sampling frequency for {sensor} is 0. Please check the data in {self.path}.")
+            return float(fallback_sampling_rate)
+        return float(sampling_rate)
+
+    @staticmethod
+    def _get_explicit_timestamp_info(sensor_dict: dict) -> tuple[str | None, str | None]:
+        for key in sensor_dict:
+            if key.endswith("TimeNanos"):
+                return key, "ns"
+            if key.endswith("TimeMicros"):
+                return key, "us"
+        return None, None
+
+    @staticmethod
+    def _timestamps_to_microseconds(timestamps: Sequence[int], unit: str | None) -> pd.Index:
+        if unit == "ns":
+            return pd.Index([round(timestamp / 1000) for timestamp in timestamps], dtype="int64")
+        if unit == "us":
+            return pd.Index(timestamps, dtype="int64")
+        raise ValueError(f"Unsupported timestamp unit: {unit}")
+
+    @staticmethod
+    def _timestamps_to_seconds(timestamps: Sequence[int], unit: str | None) -> pd.Index:
+        if unit == "ns":
+            divisor = 1e9
+        elif unit == "us":
+            divisor = 1e6
+        else:
+            raise ValueError(f"Unsupported timestamp unit: {unit}")
+
+        start_time = timestamps[0]
+        return pd.Index([(timestamp - start_time) / divisor for timestamp in timestamps], dtype="float64")
+
+    def _get_accelerometer_specs(self) -> dict:
+        if self.path.is_dir():
+            first_file = next(iter(self._raw_data.values()))
+            imu_params = dict(first_file["rawData"]["accelerometer"]["imuParams"])
+        else:
+            imu_params = dict(self._raw_data["rawData"]["accelerometer"]["imuParams"])
+
+        imu_params["delta_physical"] = imu_params["physicalMax"] - imu_params["physicalMin"]
+        imu_params["delta_digital"] = imu_params["digitalMax"] - imu_params["digitalMin"]
+        return imu_params
 
 
 @lru_cache(maxsize=2)
