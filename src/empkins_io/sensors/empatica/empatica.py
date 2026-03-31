@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 from avro.datafile import DataFileReader
 from avro.io import DatumReader
+from matplotlib import dates as mdates
+from matplotlib import pyplot as plt
 
 from empkins_io.utils._types import path_t
 
