@@ -214,20 +214,17 @@ class EmpaticaDataset:
         fig.tight_layout()
         plt.show()
 
-    def _data_as_df_folder(self, sensor: str) -> pd.DataFrame | dict[str, pd.DataFrame]:
+    def _data_as_df_folder(self, sensor: str) -> pd.DataFrame:
         """Get pandas DataFrame for a specific sensor."""
-        current_segment = {}
-        segmented_out = {}
-        segment_idx = 0
+        out = {}
         prev_last_timestamp = None
         sampling_frequencies = []
         explicit_timestamps = []
         explicit_timestamp_unit = None
-        current_start_time_unix = None
 
-        first_file = next(iter(self._raw_data.keys()))
-        first_sensor_dict = self._raw_data[first_file]["rawData"][sensor]
+        first_sensor_dict = self._raw_data[next(iter(self._raw_data.keys()))]["rawData"][sensor]
         timestamp_key, timestamp_unit = type(self)._get_explicit_timestamp_info(first_sensor_dict)
+        start_time_unix = first_sensor_dict.get("timestampStart")
         explicit_timestamp_unit = timestamp_unit
 
         for file in self._raw_data:
@@ -237,68 +234,35 @@ class EmpaticaDataset:
             )
 
             if timestamp_key is not None:
-                file_timestamps = sensor_dict[timestamp_key]
-                file_start_timestamp = file_timestamps[0]
-                file_end_timestamp = file_timestamps[-1]
-
-                if (
-                    prev_last_timestamp is not None
-                    and self._timestamp_gap_seconds(prev_last_timestamp, file_start_timestamp, timestamp_unit) > 2
-                ):
-                    segmented_out[f"{sensor}_segment_{segment_idx}"] = self._finalize_folder_segment(
-                        current_segment,
-                        sensor,
-                        None,
-                        None,
-                        explicit_timestamps=explicit_timestamps,
-                        explicit_timestamp_unit=explicit_timestamp_unit,
-                    )
-                    segment_idx += 1
-                    current_segment = {}
-                    explicit_timestamps = []
-
-                explicit_timestamps.extend(file_timestamps)
-                prev_last_timestamp = file_end_timestamp
+                explicit_timestamps.extend(sensor_dict[timestamp_key])
             else:
                 sampling_rate_hz = self._get_sampling_rate(sensor, sensor_dict)
                 df = self._add_index_for_stitching(df, sampling_rate_hz, sensor_dict["timestampStart"])
 
-                if current_start_time_unix is None:
-                    current_start_time_unix = sensor_dict["timestampStart"]
-
+                # TODO check if that is the right way to do.
                 # check for gaps between files
-                # if the gap is bigger than 2 seconds, a new dataframe is generated
                 if prev_last_timestamp is not None and (df.index[0] - prev_last_timestamp) > (
                     pd.Timedelta(seconds=2 / sampling_rate_hz)
                 ):
-                    segmented_out[f"{sensor}_segment_{segment_idx}"] = self._finalize_folder_segment(
-                        current_segment,
-                        sensor,
-                        sampling_frequencies,
-                        current_start_time_unix,
-                    )
-                    segment_idx += 1
-                    current_segment = {}
-                    sampling_frequencies = []
-                    current_start_time_unix = sensor_dict["timestampStart"]
+                    # if the difference between the last timestamp of the previous file and the first timestamp of the
+                    # current file is larger than twice sampling distance, we assume that there is a gap between the
+                    # two files
+                    raise ValueError(f"Gap between files detected. Please check the files in {self.path}.")
                 prev_last_timestamp = df.index[-1]
                 sampling_frequencies.append(sampling_rate_hz)
 
-            current_segment[file] = df
+            out[file] = df
+        out_df = pd.concat(out).droplevel(0)
+        out_df = out_df.reset_index(drop=True)
 
-        segmented_out[f"{sensor}_segment_{segment_idx}"] = self._finalize_folder_segment(
-            current_segment,
-            sensor,
-            sampling_frequencies if timestamp_key is None else None,
-            current_start_time_unix,
-            explicit_timestamps=explicit_timestamps if timestamp_key is not None else None,
+        return self._add_index(
+            out_df,
+            self._index_type,
+            np.mean(sampling_frequencies) if sampling_frequencies else None,
+            start_time_unix,
+            explicit_timestamps=explicit_timestamps or None,
             explicit_timestamp_unit=explicit_timestamp_unit,
         )
-
-        if len(segmented_out) == 1:
-            return next(iter(segmented_out.values()))
-
-        return segmented_out
 
     def _data_as_df_single_file(self, sensor: str) -> pd.DataFrame:
         """Get pandas DataFrame for a specific sensor."""
@@ -371,38 +335,6 @@ class EmpaticaDataset:
         self, data: pd.DataFrame, sampling_rate_hz: float, start_time_unix: int
     ) -> pd.DataFrame:
         return self._add_index(data, "utc_datetime", sampling_rate_hz, start_time_unix)
-
-    def _finalize_folder_segment(
-        self,
-        segment_data: dict[str, pd.DataFrame],
-        sensor: str,
-        sampling_frequencies: Sequence[float] | None,
-        start_time_unix: int | None,
-        explicit_timestamps: Sequence[int] | None = None,
-        explicit_timestamp_unit: str | None = None,
-    ) -> pd.DataFrame:
-        out_df = pd.concat(segment_data).droplevel(0)
-        out_df = out_df.reset_index(drop=True)
-
-        return self._add_index(
-            out_df,
-            self._index_type,
-            np.mean(sampling_frequencies) if sampling_frequencies else None,
-            start_time_unix,
-            explicit_timestamps=explicit_timestamps or None,
-            explicit_timestamp_unit=explicit_timestamp_unit,
-        )
-
-    @staticmethod
-    def _timestamp_gap_seconds(previous_timestamp: int, current_timestamp: int, unit: str | None) -> float:
-        if unit == "ns":
-            divisor = 1e9
-        elif unit == "us":
-            divisor = 1e6
-        else:
-            raise ValueError(f"Unsupported timestamp unit: {unit}")
-
-        return (current_timestamp - previous_timestamp) / divisor
 
     def _sensor_channels(self, sensor: str) -> Sequence[str]:
         return self._sensor_specs[sensor]["channels"]  # type: ignore[return-value]
