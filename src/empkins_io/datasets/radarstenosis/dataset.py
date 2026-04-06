@@ -56,11 +56,16 @@ class RadarCardiaStenosisTest(Dataset):
                 f"data_per_subject/{subject_id}/timelog/processed/{subject_id}_timelog.csv"
             )
             timelogs = pd.read_csv(timelog_file_path, encoding="utf-8")
-            measurements = timelogs["Aktivitätstyp"]
-            index = pd.DataFrame({"subject": subject_id, "measurement": measurements})
-            indices = pd.concat([indices, index], axis=0)
-        indices = indices[indices["measurement"] != "sync"]
 
+            measurements = timelogs["Aktivitätstyp"]
+
+            pressures = timelogs["Kommentar"]
+            index = pd.DataFrame({"subject": subject_id, "measurement": measurements, "pressure": pressures})
+            index = index[index["measurement"] != "sync"].reset_index(drop=True)
+            index["pressure"] = index["pressure"].astype(int)
+            indices = pd.concat([indices, index], axis=0)
+
+            indices = self.add_labels(indices)
         return indices
 
     @property
@@ -82,6 +87,12 @@ class RadarCardiaStenosisTest(Dataset):
         if not self.is_single(["measurement"]):
             raise ValueError("Measurement can only be accessed for a single measurement at once")
         return self.index["measurement"][0]
+
+    @property
+    def pressure(self) -> str:
+        if not self.is_single(["pressure"]):
+            raise ValueError("Pressure can only be accessed for a single measurement at once")
+        return self.index["pressure"][0]
 
     @property
     def timelog(self) -> pd.DataFrame:
@@ -252,3 +263,36 @@ class RadarCardiaStenosisTest(Dataset):
         signals, r_peaks = nk.ecg_process(ecg_signal=data.ecg, sampling_rate=self.sampling_rate)
         r_peaks = r_peaks["ECG_R_Peaks"]
         return r_peaks
+
+    def add_labels(self, data):
+        data["label_multiclass"] = data.apply(self.add_multiclass_label, axis=1)
+        data["label_binary"] = data["label_multiclass"].apply(self.add_binary_label)
+        return data
+
+    def add_multiclass_label(self, row):
+        ultrasound = pd.read_csv(self.base_path.joinpath("ultrasound.csv"))
+        subject = row["subject"]
+        measurement = row["measurement"]
+        pressure = row["pressure"]
+
+        location = measurement.split("_")[0]
+
+        subset = ultrasound[
+            (ultrasound["Proband"] == subject) & (ultrasound["ort_stenose"].str.lower() == location.lower())
+        ]
+
+        biphasic = subset["biphasisch_ab"].values[0]
+        monophasic = subset["monophasisch_ab"].values[0]
+        no_flow = subset["kein_fluss_ab"].values[0]
+
+        if pressure < biphasic:
+            return 3
+        elif pressure < monophasic:
+            return 2
+        elif pressure < no_flow:
+            return 1
+        else:
+            return 0
+
+    def add_binary_label(self, multiclass_label):
+        return 0 if multiclass_label == 3 else 1

@@ -16,8 +16,8 @@ from empkins_io.utils.exceptions import SynchronizationError, SamplingRateMismat
 
 
 def _get_locations_from_index(index: pd.DataFrame) -> list[str]:
-    locations = index.drop(columns="subject").values.tolist()
-    locations = ["_".join(i) for i in locations]
+    locations = index.drop(columns=["subject", "label_multiclass", "label_binary"]).values.tolist()
+    locations = ["_".join(map(str, i)) for i in locations]
     return locations
 
 
@@ -63,7 +63,10 @@ def _load_atimelogger_file(file_path: path_t, timezone: datetime.tzinfo | str | 
         phase_col = "phase"
         time_cols = ["start", "end"]
 
-    timelog = timelog.set_index(phase_col)
+    timelog[phase_col] = timelog[phase_col].astype(str) + "_" + timelog["Kommentar"].fillna(0).astype(int).astype(str)
+    timelog[phase_col] = timelog[phase_col].replace("sync_0", "sync")
+
+    timelog = timelog.set_index([phase_col])
     timelog = timelog[time_cols]
 
     timelog = timelog.rename(columns={time_cols[0]: "start", time_cols[1]: "end"})
@@ -96,7 +99,6 @@ def _calc_biopac_timelog_shift(base_path: path_t, subject: str) -> pd.Timedelta:
         raise NotImplementedError("Two or more Biopac Event Markers have been detected. Handling is not implemented.")
 
     sync_event_time = sync_event.date_created_utc
-
     timelog_file_path = base_path.joinpath(f"data_per_subject/{subject}/timelog/processed/{subject}_timelog.csv")
     timelog = _load_atimelogger_file(timelog_file_path, timezone="Europe/Berlin")
     timelog_sync_start_time = timelog["sync"]["start"].time
@@ -126,7 +128,7 @@ def _load_radar_raw(base_path: path_t, subject: str, fs: float) -> pd.DataFrame:
     else:
         radar_file_path = base_path.joinpath(f"data_per_subject/{subject}/emrad/raw/{subject}_emrad_data.h5")
         dataset_radar = EmradDataset.from_hd5_file(radar_file_path, sampling_rate_hz=fs)
-        radar_df = dataset_radar.data_as_df(index="local_datetime", add_sync_out=True)["rad2"]
+        radar_df = dataset_radar.data_as_df(index="local_datetime", add_sync_out=True)["rad1"]
         radar_path.parent.mkdir(parents=True, exist_ok=True)
         radar_df.to_hdf(radar_path, mode="w", key="emrad_data", index=True)
     return radar_df
