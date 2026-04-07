@@ -1,8 +1,11 @@
+"""Class for reading data from empatica. Can be used for single files and folders containing multiple -avro files."""
+from __future__ import annotations
+
+import warnings
 from collections.abc import Sequence
 from functools import lru_cache
 from typing import ClassVar
 
-import numpy as np
 import pandas as pd
 from avro.datafile import DataFileReader
 from avro.io import DatumReader
