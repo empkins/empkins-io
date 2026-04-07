@@ -220,52 +220,42 @@ class EmpaticaDataset:
     def _data_as_df_folder(self, sensor: str) -> pd.DataFrame:
         """Get pandas DataFrame for a specific sensor."""
         out = {}
-        prev_last_timestamp = None
-        sampling_frequencies = []
-        explicit_timestamps = []
-        explicit_timestamp_unit = None
-
-        first_sensor_dict = self._raw_data[next(iter(self._raw_data.keys()))]["rawData"][sensor]
-        timestamp_key, timestamp_unit = type(self)._get_explicit_timestamp_info(first_sensor_dict)
-        start_time_unix = first_sensor_dict.get("timestampStart")
-        explicit_timestamp_unit = timestamp_unit
-
         for file in self._raw_data:
             sensor_dict = self._raw_data[file]["rawData"][sensor]
             df = pd.DataFrame(
                 {f"{sensor}_{channel}": sensor_dict[channel] for channel in self._sensor_channels(sensor)}
             )
+            if df.empty:
+                warnings.warn(f"Warning: {file} contains no data for {sensor}. Continuation without this file. ")
+                continue
 
-            if timestamp_key is not None:
-                explicit_timestamps.extend(sensor_dict[timestamp_key])
-            else:
-                sampling_rate_hz = self._get_sampling_rate(sensor, sensor_dict)
-                df = self._add_index_for_stitching(df, sampling_rate_hz, sensor_dict["timestampStart"])
+            timestamp_key, timestamp_unit = type(self)._get_explicit_timestamp_info(sensor_dict)
+            out[file] = self._add_index(
+                df,
+                self._index_type,
+                self._get_sampling_rate(sensor, sensor_dict),
+                sensor_dict.get("timestampStart"),
+                explicit_timestamps=sensor_dict.get(timestamp_key) if timestamp_key else None,
+                explicit_timestamp_unit=timestamp_unit,
+            )
 
-                # TODO check if that is the right way to do.
-                # check for gaps between files
-                if prev_last_timestamp is not None and (df.index[0] - prev_last_timestamp) > (
-                    pd.Timedelta(seconds=2 / sampling_rate_hz)
-                ):
-                    # if the difference between the last timestamp of the previous file and the first timestamp of the
-                    # current file is larger than twice sampling distance, we assume that there is a gap between the
-                    # two files
-                    raise ValueError(f"Gap between files detected. Please check the files in {self.path}.")
-                prev_last_timestamp = df.index[-1]
-                sampling_frequencies.append(sampling_rate_hz)
+        df_out = pd.concat(out).droplevel(0)
 
-            out[file] = df
-        out_df = pd.concat(out).droplevel(0)
-        out_df = out_df.reset_index(drop=True)
+        if sensor == "tags" or sensor == "systolicPeaks":
+            return df_out
+        # fill dataframe gaps with nans
+        intervall_seconds = 1 / self._get_sampling_rate(sensor, sensor_dict)
+        freq_str = f"{intervall_seconds}s"
 
-        return self._add_index(
-            out_df,
-            self._index_type,
-            np.mean(sampling_frequencies) if sampling_frequencies else None,
-            start_time_unix,
-            explicit_timestamps=explicit_timestamps or None,
-            explicit_timestamp_unit=explicit_timestamp_unit,
+        target_index = pd.date_range(
+            start=df_out.index.min().round(freq_str), end=df_out.index.max().round(freq_str), freq=freq_str
         )
+        # define tolerance for index since the sampling frequency is slightly varying
+        tolerance_val = pd.Timedelta(seconds=intervall_seconds / 2)
+
+        df_fixed = df_out.reindex(target_index, method="nearest", tolerance=tolerance_val)
+
+        return df_fixed
 
     def _data_as_df_single_file(self, sensor: str) -> pd.DataFrame:
         """Get pandas DataFrame for a specific sensor."""
@@ -334,15 +324,10 @@ class EmpaticaDataset:
 
         return data
 
-    def _add_index_for_stitching(
-        self, data: pd.DataFrame, sampling_rate_hz: float, start_time_unix: int
-    ) -> pd.DataFrame:
-        return self._add_index(data, "utc_datetime", sampling_rate_hz, start_time_unix)
-
     def _sensor_channels(self, sensor: str) -> Sequence[str]:
         return self._sensor_specs[sensor]["channels"]  # type: ignore[return-value]
 
-    def _get_sampling_rate(self, sensor: str, sensor_dict: dict) -> float | None:
+    def _get_sampling_rate(self, sensor: str, sensor_dict: dict) -> int | None:
         sampling_rate = sensor_dict.get("samplingFrequency")
         if sampling_rate is None:
             return None
@@ -350,8 +335,8 @@ class EmpaticaDataset:
             fallback_sampling_rate = self._sensor_specs[sensor].get("default_sampling_rate_hz")
             if fallback_sampling_rate is None:
                 raise ValueError(f"Sampling frequency for {sensor} is 0. Please check the data in {self.path}.")
-            return float(fallback_sampling_rate)
-        return float(sampling_rate)
+            return round(fallback_sampling_rate)
+        return round(sampling_rate)
 
     @staticmethod
     def _get_explicit_timestamp_info(sensor_dict: dict) -> tuple[str | None, str | None]:
