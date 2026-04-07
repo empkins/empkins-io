@@ -16,6 +16,7 @@ from empkins_io.utils._types import path_t
 
 
 class EmpaticaDataset:
+    """Reader for Empatica avro recordings stored as single files or folders."""
     path: path_t
     _raw_data: dict
     _accelerometer_specs: dict
@@ -94,6 +95,18 @@ class EmpaticaDataset:
         index_type: str | None = None,  # can be e.g. local_datetime, utc_datetime, time, None
         tz: str | None = None,  # can be e.g. "Europe/Berlin"
     ):
+        """
+        Initialize the dataset and load raw Empatica data from file or folder.
+
+        Parameters
+        ----------
+        path : path_t
+            Path to a single Empatica avro file or to a folder containing multiple avro files.
+        index_type : str | None, optional
+            Type of index that should be added to the returned data.
+        tz : str | None, optional
+            Timezone used when ``index_type="local_datetime"``.
+        """
         self.path = path
         if path.is_dir():
             self._raw_data = _from_folder(path)
@@ -120,6 +133,7 @@ class EmpaticaDataset:
 
     @property
     def gyro(self) -> pd.DataFrame:
+        """Get pandas DataFrame for gyroscope data."""
         return self.data_as_df("gyroscope")
 
     @property
@@ -134,7 +148,7 @@ class EmpaticaDataset:
 
     @property
     def bvp(self) -> pd.DataFrame:
-        """Get pandas DataFrame for blood volumne pulse."""
+        """Get pandas DataFrame for blood volume pulse."""
         return self.data_as_df("bvp")
 
     @property
@@ -143,21 +157,62 @@ class EmpaticaDataset:
         return self.data_as_df("steps")
 
     def systolic_peaks(self, series=False) -> pd.DataFrame:
-        """Get pandas Dataframe for systolic peaks (Event Data)."""
+        """
+        Get systolic peak event data.
+
+        Parameters
+        ----------
+        series : bool, optional
+            If ``True``, return only the timestamps as a one-column DataFrame.
+
+        Returns
+        ----------
+        pd.DataFrame
+            DataFrame containing the systolic peak events.
+        """
         if series:
             return pd.DataFrame(self.data_as_df("systolicPeaks").index)
         else:
             return self.data_as_df("systolicPeaks")
 
     def tag_events(self, series=True) -> pd.DataFrame:
-        """Get pandas Dataframe for Tagging Events."""
+        """
+        Get tag event data.
+
+        Parameters
+        ----------
+        series : bool, optional
+            If ``True``, return only the timestamps as a one-column DataFrame.
+
+        Returns
+        ----------
+        pd.DataFrame
+            DataFrame containing the tag events.
+        """
         if series:
             return pd.DataFrame(self.data_as_df("tags").index)
         else:
             return self.data_as_df("tags")
 
     def data_as_df(self, sensor: str) -> pd.DataFrame:
-        """Get pandas DataFrame for a specific sensor."""
+        """
+        Get a pandas DataFrame for a specific sensor.
+
+        Parameters
+        ----------
+        sensor : str
+            Name of the sensor to load.
+
+        Returns
+        ----------
+        pd.DataFrame
+            DataFrame containing the requested sensor data.
+
+        Raises
+        ----------
+        ValueError
+            If the supplied sensor is not supported.
+        """
         if sensor not in self._sensor_specs:
             raise ValueError(f"Supplied sensor ({sensor}) is not allowed. Allowed values: {self._sensor_specs.keys()}")
 
@@ -167,7 +222,14 @@ class EmpaticaDataset:
         return self._data_as_df_folder(sensor)
 
     def plot_empatica(self, sensor: str) -> None:
-        """Plot empatica."""
+        """
+        Plot a single Empatica sensor using the configured index type.
+
+        Parameters
+        ----------
+        sensor : str
+            Name of the sensor to plot.
+        """
         if sensor == "accelerometer":
             data = self.acc[["accelerometer_x_g", "accelerometer_y_g", "accelerometer_z_g"]]
         else:
@@ -218,7 +280,19 @@ class EmpaticaDataset:
         plt.show()
 
     def _data_as_df_folder(self, sensor: str) -> pd.DataFrame:
-        """Get pandas DataFrame for a specific sensor."""
+        """
+        Load, index, and concatenate all files of one sensor from a recording folder.
+
+        Parameters
+        ----------
+        sensor : str
+            Name of the sensor to load.
+
+        Returns
+        ----------
+        pd.DataFrame
+            Concatenated sensor data from all files in the folder.
+        """
         out = {}
         for file in self._raw_data:
             sensor_dict = self._raw_data[file]["rawData"][sensor]
@@ -258,7 +332,24 @@ class EmpaticaDataset:
         return df_fixed
 
     def _data_as_df_single_file(self, sensor: str) -> pd.DataFrame:
-        """Get pandas DataFrame for a specific sensor."""
+        """
+        Load and index one sensor from a single Empatica avro file.
+
+        Parameters
+        ----------
+        sensor : str
+            Name of the sensor to load.
+
+        Returns
+        ----------
+        pd.DataFrame
+            DataFrame containing the indexed sensor data.
+
+        Raises
+        ----------
+        ValueError
+            If the requested sensor contains no data.
+        """
         sensor_dict = self._raw_data["rawData"][sensor]
         df = pd.DataFrame({f"{sensor}_{channel}": sensor_dict[channel] for channel in self._sensor_channels(sensor)})
 
@@ -285,6 +376,29 @@ class EmpaticaDataset:
         explicit_timestamps: Sequence[int] | None = None,
         explicit_timestamp_unit: str | None = None,
     ) -> pd.DataFrame:
+        """
+        Add the requested index representation to sampled or event-based sensor data.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Sensor data without a processed index.
+        index : str
+            Requested index type.
+        sampling_rate_hz : float | None, optional
+            Sampling rate of regularly sampled data.
+        start_time_unix : int | None, optional
+            Start timestamp of regularly sampled data in Unix microseconds.
+        explicit_timestamps : Sequence[int] | None, optional
+            Explicit timestamps for event-based data.
+        explicit_timestamp_unit : str | None, optional
+            Unit of ``explicit_timestamps``.
+
+        Returns
+        ----------
+        pd.DataFrame
+            Data with the requested index.
+        """
         index_names = self._index_names | {"local_datetime": f"date ({self.timezone})"}
         if index and index not in index_names:
             raise ValueError(f"Supplied value for index ({index}) is not allowed. Allowed values: {index_names.keys()}")
@@ -325,9 +439,37 @@ class EmpaticaDataset:
         return data
 
     def _sensor_channels(self, sensor: str) -> Sequence[str]:
+        """
+        Return the raw channel names defined for a sensor.
+
+        Parameters
+        ----------
+        sensor : str
+            Name of the sensor.
+
+        Returns
+        ----------
+        Sequence[str]
+            Raw channel names of the sensor.
+        """
         return self._sensor_specs[sensor]["channels"]  # type: ignore[return-value]
 
     def _get_sampling_rate(self, sensor: str, sensor_dict: dict) -> int | None:
+        """
+        Return the sampling rate for a sensor.
+
+        Parameters
+        ----------
+        sensor : str
+            Name of the sensor.
+        sensor_dict : dict
+            Raw sensor dictionary from the avro file.
+
+        Returns
+        ----------
+        int | None
+            Sampling rate of the sensor or ``None`` for event-based data.
+        """
         sampling_rate = sensor_dict.get("samplingFrequency")
         if sampling_rate is None:
             return None
@@ -340,6 +482,19 @@ class EmpaticaDataset:
 
     @staticmethod
     def _get_explicit_timestamp_info(sensor_dict: dict) -> tuple[str | None, str | None]:
+        """
+        Detect explicit event timestamp fields and return their key and unit.
+
+        Parameters
+        ----------
+        sensor_dict : dict
+            Raw sensor dictionary from the avro file.
+
+        Returns
+        ----------
+        tuple[str | None, str | None]
+            Timestamp key and timestamp unit.
+        """
         for key in sensor_dict:
             if key.endswith("TimeNanos"):
                 return key, "ns"
@@ -349,6 +504,21 @@ class EmpaticaDataset:
 
     @staticmethod
     def _timestamps_to_microseconds(timestamps: Sequence[int], unit: str | None) -> pd.Index:
+        """
+        Convert explicit timestamps in microseconds or nanoseconds to microseconds.
+
+        Parameters
+        ----------
+        timestamps : Sequence[int]
+            Sequence of timestamps.
+        unit : str | None
+            Unit of the timestamps.
+
+        Returns
+        ----------
+        pd.Index
+            Timestamp index in microseconds.
+        """
         if unit == "ns":
             return pd.Index([round(timestamp / 1000) for timestamp in timestamps], dtype="int64")
         if unit == "us":
@@ -357,6 +527,21 @@ class EmpaticaDataset:
 
     @staticmethod
     def _timestamps_to_seconds(timestamps: Sequence[int], unit: str | None) -> pd.Index:
+        """
+        Convert explicit timestamps to relative seconds from the first event.
+
+        Parameters
+        ----------
+        timestamps : Sequence[int]
+            Sequence of timestamps.
+        unit : str | None
+            Unit of the timestamps.
+
+        Returns
+        ----------
+        pd.Index
+            Relative time index in seconds.
+        """
         if unit == "ns":
             divisor = 1e9
         elif unit == "us":
@@ -368,6 +553,14 @@ class EmpaticaDataset:
         return pd.Index([(timestamp - start_time) / divisor for timestamp in timestamps], dtype="float64")
 
     def _get_accelerometer_specs(self) -> dict:
+        """
+        Extract accelerometer calibration values and derived conversion factors.
+
+        Returns
+        ----------
+        dict
+            Dictionary containing accelerometer calibration values.
+        """
         if self.path.is_dir():
             first_file = next(iter(self._raw_data.values()))
             imu_params = dict(first_file["rawData"]["accelerometer"]["imuParams"])
@@ -381,9 +574,20 @@ class EmpaticaDataset:
 
 @lru_cache(maxsize=2)
 def _from_folder(path: path_t) -> dict:
-    # this expects multiple .avro files, that belong to the same recording
+    """
+    Load all avro files from a folder into a dict keyed by file name.
 
-    # list all .avro files
+    Parameters
+    ----------
+    path : path_t
+        Path to a folder containing Empatica avro files.
+
+    Returns
+    ----------
+    dict
+        Dictionary containing all loaded avro files.
+    """
+
     files = sorted(path.glob("*.avro"))
 
     dict_out = {}
@@ -397,7 +601,24 @@ def _from_folder(path: path_t) -> dict:
 
 @lru_cache(maxsize=2)
 def _from_file(path: path_t) -> dict:
-    # check if path is a .avro file
+    """
+    Load a single Empatica avro file into a Python dict.
+
+    Parameters
+    ----------
+    path : path_t
+        Path to the Empatica avro file.
+
+    Returns
+    ----------
+    dict
+        Dictionary containing avro file data as a Python dict.
+
+    Raises
+    ----------
+    ValueError
+        If the supplied path does not point to a .avro file.
+    """
     if path.suffix != ".avro":
         raise ValueError(f"Supplied path ({path}) is not a .avro file.")
 
