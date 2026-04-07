@@ -17,6 +17,7 @@ from empkins_io.utils._types import path_t
 
 class EmpaticaDataset:
     """Reader for Empatica avro recordings stored as single files or folders."""
+
     path: path_t
     _raw_data: dict
     _accelerometer_specs: dict
@@ -166,7 +167,7 @@ class EmpaticaDataset:
             If ``True``, return only the timestamps as a one-column DataFrame.
 
         Returns
-        ----------
+        -------
         pd.DataFrame
             DataFrame containing the systolic peak events.
         """
@@ -185,7 +186,7 @@ class EmpaticaDataset:
             If ``True``, return only the timestamps as a one-column DataFrame.
 
         Returns
-        ----------
+        -------
         pd.DataFrame
             DataFrame containing the tag events.
         """
@@ -204,12 +205,12 @@ class EmpaticaDataset:
             Name of the sensor to load.
 
         Returns
-        ----------
+        -------
         pd.DataFrame
             DataFrame containing the requested sensor data.
 
         Raises
-        ----------
+        ------
         ValueError
             If the supplied sensor is not supported.
         """
@@ -289,7 +290,7 @@ class EmpaticaDataset:
             Name of the sensor to load.
 
         Returns
-        ----------
+        -------
         pd.DataFrame
             Concatenated sensor data from all files in the folder.
         """
@@ -341,12 +342,12 @@ class EmpaticaDataset:
             Name of the sensor to load.
 
         Returns
-        ----------
+        -------
         pd.DataFrame
             DataFrame containing the indexed sensor data.
 
         Raises
-        ----------
+        ------
         ValueError
             If the requested sensor contains no data.
         """
@@ -395,7 +396,7 @@ class EmpaticaDataset:
             Unit of ``explicit_timestamps``.
 
         Returns
-        ----------
+        -------
         pd.DataFrame
             Data with the requested index.
         """
@@ -448,7 +449,7 @@ class EmpaticaDataset:
             Name of the sensor.
 
         Returns
-        ----------
+        -------
         Sequence[str]
             Raw channel names of the sensor.
         """
@@ -466,7 +467,7 @@ class EmpaticaDataset:
             Raw sensor dictionary from the avro file.
 
         Returns
-        ----------
+        -------
         int | None
             Sampling rate of the sensor or ``None`` for event-based data.
         """
@@ -491,7 +492,7 @@ class EmpaticaDataset:
             Raw sensor dictionary from the avro file.
 
         Returns
-        ----------
+        -------
         tuple[str | None, str | None]
             Timestamp key and timestamp unit.
         """
@@ -515,7 +516,7 @@ class EmpaticaDataset:
             Unit of the timestamps.
 
         Returns
-        ----------
+        -------
         pd.Index
             Timestamp index in microseconds.
         """
@@ -538,7 +539,7 @@ class EmpaticaDataset:
             Unit of the timestamps.
 
         Returns
-        ----------
+        -------
         pd.Index
             Relative time index in seconds.
         """
@@ -557,7 +558,7 @@ class EmpaticaDataset:
         Extract accelerometer calibration values and derived conversion factors.
 
         Returns
-        ----------
+        -------
         dict
             Dictionary containing accelerometer calibration values.
         """
@@ -583,11 +584,10 @@ def _from_folder(path: path_t) -> dict:
         Path to a folder containing Empatica avro files.
 
     Returns
-    ----------
+    -------
     dict
         Dictionary containing all loaded avro files.
     """
-
     files = sorted(path.glob("*.avro"))
 
     dict_out = {}
@@ -610,12 +610,12 @@ def _from_file(path: path_t) -> dict:
         Path to the Empatica avro file.
 
     Returns
-    ----------
+    -------
     dict
         Dictionary containing avro file data as a Python dict.
 
     Raises
-    ----------
+    ------
     ValueError
         If the supplied path does not point to a .avro file.
     """
