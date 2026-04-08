@@ -231,7 +231,7 @@ class EmpaticaDataset:
         sensor : str
             Name of the sensor to plot.
         timestamps : pd.Series | list | None, optional
-            Additional timestamps that should be highlighted as vertical dashed lines.
+            Additional timestamps that are highlighted as vertical dashed lines to mark events of interest, e.g., tags.
         """
         if sensor == "accelerometer":
             data = self.acc[["accelerometer_x_g", "accelerometer_y_g", "accelerometer_z_g"]]
