@@ -222,7 +222,7 @@ class EmpaticaDataset:
 
         return self._data_as_df_folder(sensor)
 
-    def plot_empatica(self, sensor: str) -> None:
+    def plot_empatica(self, sensor: str, timestamps: pd.Series | list | None = None) -> None:
         """
         Plot a single Empatica sensor using the configured index type.
 
@@ -230,6 +230,8 @@ class EmpaticaDataset:
         ----------
         sensor : str
             Name of the sensor to plot.
+        timestamps : pd.Series | list | None, optional
+            Additional timestamps that should be highlighted as vertical dashed lines.
         """
         if sensor == "accelerometer":
             data = self.acc[["accelerometer_x_g", "accelerometer_y_g", "accelerometer_z_g"]]
@@ -271,6 +273,10 @@ class EmpaticaDataset:
             fig.autofmt_xdate()
             if self._index_type == "local_datetime" and self.timezone:
                 x_label = f"date ({self.timezone})"
+
+        if timestamps is not None:
+            for timestamp in timestamps:
+                ax.axvline(timestamp, linestyle="--", linewidth=1.0, color="0.3", alpha=0.8)
 
         ax.set_xlabel(x_label)
 
