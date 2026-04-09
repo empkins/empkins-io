@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from functools import lru_cache
 from typing import ClassVar
 
+import numpy as np
 import pandas as pd
 from avro.datafile import DataFileReader
 from avro.io import DatumReader
@@ -221,6 +222,65 @@ class EmpaticaDataset:
             return self._data_as_df_single_file(sensor)
 
         return self._data_as_df_folder(sensor)
+
+    def cut_data_at_time(
+        self,
+        sensor: str,
+        time: str,
+        duration_hours: float = 2.5,
+    ) -> tuple[pd.DataFrame | None, pd.Timedelta | None]:
+        """
+        Cut sensor data around the timestamp closest to a given clock time.
+
+        Parameters
+        ----------
+        sensor : str
+            Name of the sensor to cut.
+        time : str
+            Target clock time in the format ``HH:MM``.
+        duration_hours : float, optional
+            Duration of the requested window in hours.
+
+        Returns
+        -------
+        tuple[pd.DataFrame | None, pd.Timedelta | None]
+            Sliced DataFrame and valid data duration. Returns ``(None, None)`` if no valid duration is found.
+
+        Raises
+        ------
+        ValueError
+            If the sensor data does not use a ``DatetimeIndex``.
+        """
+        df = (
+            self.acc[["accelerometer_x_g", "accelerometer_y_g", "accelerometer_z_g"]]
+            if sensor == "accelerometer"
+            else self.data_as_df(sensor)
+        )
+
+        if not isinstance(df.index, pd.DatetimeIndex):
+            raise ValueError(
+                "cut_data_at_time requires a DatetimeIndex. Use utc_datetime or local_datetime as index type."
+            )
+
+        target_time = pd.Timedelta(f"{time}:00")
+        time_of_day = df.index - df.index.normalize()
+        t_start = df.index[np.abs(time_of_day - target_time).argmin()]
+        t_end = df.index[np.abs(df.index - (t_start + pd.Timedelta(hours=duration_hours))).argmin()]
+
+        df_sliced = df.loc[t_start:t_end]
+        valid_mask = df_sliced.notna().any(axis=1)
+
+        if not valid_mask.any():
+            return None, None
+
+        first_val = df_sliced.index[valid_mask.argmax()]
+        last_val = df_sliced.index[len(valid_mask) - valid_mask[::-1].argmax() - 1]
+        duration = last_val - first_val
+
+        if duration.total_seconds() <= 0:
+            return None, None
+
+        return df_sliced.loc[first_val:last_val], duration
 
     def plot_empatica(self, sensor: str, timestamps: pd.Series | list | None = None) -> None:
         """
