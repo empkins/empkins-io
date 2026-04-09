@@ -158,6 +158,7 @@ class EmpaticaDataset:
         """Get pandas DataFrame for steps."""
         return self.data_as_df("steps")
 
+    @property
     def systolic_peaks(self, series=False) -> pd.DataFrame:
         """
         Get systolic peak event data.
@@ -177,6 +178,7 @@ class EmpaticaDataset:
         else:
             return self.data_as_df("systolicPeaks")
 
+    @property
     def tag_events(self, series=True) -> pd.DataFrame:
         """
         Get tag event data.
