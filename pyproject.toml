@@ -20,7 +20,8 @@ dependencies = [
     "avro>=1.11.3,<2",
     "fastavro>=1.4.0,<2",
     "construct",
-    "PyWavelets"
+    "PyWavelets",
+    "pandas-stubs>=2.3.3.260113",
 ]
 
 [project.optional-dependencies]
@@ -35,9 +36,6 @@ dev = [
 ]
 
 [tool.uv]
-
-[tool.uv.sources]
-biopsykit = { path = "../biopsykit", editable = true }
 
 [build-system]
 requires = ["hatchling"]

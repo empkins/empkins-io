@@ -11,9 +11,7 @@ class CustomSyncedSession(SyncedSession):
     VALIDATE_ON_INIT = False
 
     @classmethod
-    def from_file_paths(
-        cls, paths, legacy_support="resolve", force_version=None, tz="Europe/Berlin"
-    ):
+    def from_file_paths(cls, paths, legacy_support="resolve", force_version=None, tz="Europe/Berlin"):
         ds = []
         for p in paths:
             if "NilsPodX-3FCF" in p.name:
@@ -26,9 +24,7 @@ class CustomSyncedSession(SyncedSession):
                     tz=tz,
                 )
             else:
-                dataset = Dataset.from_bin_file(
-                    p, legacy_support=legacy_support, force_version=force_version, tz=tz
-                )
+                dataset = Dataset.from_bin_file(p, legacy_support=legacy_support, force_version=force_version, tz=tz)
 
             ds.append(dataset)
 

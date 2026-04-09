@@ -1,13 +1,11 @@
-from typing import Dict, Optional, List
-import numpy as np
+import warnings
+from typing import Dict, List, Optional
 
+import numpy as np
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
-from typing_extensions import Self
-
 from scipy.io import loadmat
-
-import warnings
+from typing_extensions import Self
 
 
 class TfmLoader:
@@ -47,7 +45,7 @@ class TfmLoader:
         "icg_der": "rawICG",
         "ext_1": "EXT1",
         "ext_2": "EXT2",
-        "icg_raw": "Z0"
+        "icg_raw": "Z0",
     }
 
     # csv file: BeatToBeat
@@ -64,7 +62,7 @@ class TfmLoader:
         "TPRI": "TPRI",
         "dBP": "dBP",
         "mBP": "dBP",
-        "sBP": "sBP"
+        "sBP": "sBP",
     }
 
     # csv file: BPV
@@ -78,7 +76,7 @@ class TfmLoader:
         "LF_dBP": "LF_dBP",
         "LFnu_dBP": "LFnu_dBP",
         "PSD_dBP": "PSD_dBP",
-        "VLF_dBP": "VLF_dBP"
+        "VLF_dBP": "VLF_dBP",
     }
 
     # csv file: CardiacParams
@@ -97,7 +95,7 @@ class TfmLoader:
         "TPRI": "TPRI",
         "dBP": "dBP",
         "mBP": "mBP",
-        "sBP": "sBP"
+        "sBP": "sBP",
     }
 
     # csv file: HRV
@@ -122,13 +120,13 @@ class TfmLoader:
     _oscillatory_blood_pressure: pd.DataFrame
 
     def __init__(
-            self,
-            tz: str,
-            recording_date: str,
-            phase_information: pd.DataFrame,
-            osc_blood_pressure: pd.DataFrame,
-            tfm_b2b_data: Dict[str, Dict[str, Dict[str, np.ndarray]]],
-            tfm_raw_data: Dict[str, Dict[str, np.ndarray]]
+        self,
+        tz: str,
+        recording_date: str,
+        phase_information: pd.DataFrame,
+        osc_blood_pressure: pd.DataFrame,
+        tfm_b2b_data: Dict[str, Dict[str, Dict[str, np.ndarray]]],
+        tfm_raw_data: Dict[str, Dict[str, np.ndarray]],
     ):
         """Get new data loader instance.
 
@@ -216,11 +214,11 @@ class TfmLoader:
 
     @classmethod
     def from_mat_file(
-            cls,
-            path: str,
-            tz: Optional[str] = "Europe/Berlin",
-            recording_date: Optional[str] = "1970-01-01",
-            phase_mapping: Optional = None
+        cls,
+        path: str,
+        tz: Optional[str] = "Europe/Berlin",
+        recording_date: Optional[str] = "1970-01-01",
+        phase_mapping: Optional = None,
     ) -> Self:
         """Create a new TFM Loader instance from a valid MATLAB file.
 
@@ -269,11 +267,10 @@ class TfmLoader:
             If the loaded phase (intervention) names do not match the phase mapping
 
         """
-
         df_iv = pd.DataFrame()
 
         if phase_mapping is not None:
-            #if set(list(data["IV"].Name)) != set(list(phase_mapping.keys())):
+            # if set(list(data["IV"].Name)) != set(list(phase_mapping.keys())):
             #    raise ValueError("Phase mapping values are not compatible with TFM intervention names")
             df_iv.index = [phase_mapping.get(name) for name in list(data["IV"].Name)]
         else:
@@ -289,8 +286,10 @@ class TfmLoader:
             df_iv.index = df_iv.index.where(
                 ~df_iv.index.duplicated(), df_iv.index + "_" + df_iv.groupby(level=0).cumcount().astype(str)
             )
-            warnings.warn("The TFM Dataset contains duplicate intervention names. "
-                          "Intervention names were renamed to avoid overwriting of data.")
+            warnings.warn(
+                "The TFM Dataset contains duplicate intervention names. "
+                "Intervention names were renamed to avoid overwriting of data."
+            )
 
         # get relative start time of the recording
         relative_start_time = data["IV"].Reltime[0]
@@ -327,9 +326,7 @@ class TfmLoader:
 
         """
         info_tmp = [t.tolist() if isinstance(t, np.ndarray) else t for t in var]
-        info_tmp = [
-            item for sublist in info_tmp for item in (sublist if isinstance(sublist, list) else [sublist])
-        ]
+        info_tmp = [item for sublist in info_tmp for item in (sublist if isinstance(sublist, list) else [sublist])]
 
         return info_tmp
 
@@ -345,17 +342,16 @@ class TfmLoader:
             Phase (intervention) names.
 
         """
-
         dict_raw = cls._load_data(
-            data=data["RAW_SIGNALS"],
-            intervention_names=intervention_names,
-            mapping=cls._RAW_SIGNAL_CHANNEL_MAPPING
+            data=data["RAW_SIGNALS"], intervention_names=intervention_names, mapping=cls._RAW_SIGNAL_CHANNEL_MAPPING
         )
 
         return dict_raw
 
     @classmethod
-    def _load_beat_to_beat_parameters(cls, data, intervention_names, rel_start_time) -> Dict[str, Dict[str, Dict[str, np.ndarray]]]:
+    def _load_beat_to_beat_parameters(
+        cls, data, intervention_names, rel_start_time
+    ) -> Dict[str, Dict[str, Dict[str, np.ndarray]]]:
         """Load beat-to-beat parameters from MATLAB dict.
 
         Parameters
@@ -366,38 +362,37 @@ class TfmLoader:
             Phase (intervention) names.
 
         """
-
         dict_beat_parameters = {
             "hemodynamic_parameters": cls._load_data(
                 data=data["BeatToBeat"],
                 intervention_names=intervention_names,
                 mapping=cls._HEMODYNAMIC_PARAMETERS_MAPPING,
-                relative_start_time = rel_start_time
+                relative_start_time=rel_start_time,
             ),
             "bpv_parameters": cls._load_data(
                 data=data["BPV"],
                 intervention_names=intervention_names,
                 mapping=cls._BPV_PARAMETERS_MAPPING,
-                relative_start_time=rel_start_time
+                relative_start_time=rel_start_time,
             ),
             "hrv_parameters": cls._load_data(
                 data=data["HRV"],
                 intervention_names=intervention_names,
                 mapping=cls._HRV_PARAMETERS_MAPPING,
-                relative_start_time=rel_start_time
+                relative_start_time=rel_start_time,
             ),
             "cardiac_parameters": cls._load_data(
                 data=data["CardiacParams"],
                 intervention_names=intervention_names,
                 mapping=cls._CARDIAC_PARAMETERS_MAPPING,
-                relative_start_time=rel_start_time
-            )
+                relative_start_time=rel_start_time,
+            ),
         }
 
         return dict_beat_parameters
 
     @classmethod
-    def _load_data(cls, data, intervention_names, mapping, relative_start_time: Optional=None):
+    def _load_data(cls, data, intervention_names, mapping, relative_start_time: Optional = None):
         """Load data and assign correct parameters and phase names.
 
         Parameters
@@ -412,25 +407,25 @@ class TfmLoader:
             Relative start time of the recording - Relative time of the intervention "Beginn der Aufzeichnung"
 
         """
-
         data_dict_tmp = {key: getattr(data, value) for key, value in mapping.items()}
         data_dict = {}
 
         # check if data of one phase are missing
         first_param = list(data_dict_tmp.values())[0]
         if (len(intervention_names) - 1) != len(first_param):
-            warnings.warn("Number of data packages does not match the number of intervention phases when extracting "
-                          "beat-to-beat parameters.")
+            warnings.warn(
+                "Number of data packages does not match the number of intervention phases when extracting "
+                "beat-to-beat parameters."
+            )
             n_missing_phases = len(intervention_names) - 1 - len(first_param)
             missing_phases = cls._check_for_missing_phases(
                 data_time=data_dict_tmp["relative_time"],
                 intervention_names=intervention_names,
                 n_missing_phases=n_missing_phases,
-                relative_start_time=relative_start_time
+                relative_start_time=relative_start_time,
             )
         else:
             missing_phases = []
-
 
         # loop through parameters
         for key_param, value_param in data_dict_tmp.items():
@@ -441,8 +436,10 @@ class TfmLoader:
             for i in range(len(intervention_names) - 1):
                 index = intervention_names[i]
                 if index in missing_phases:
-                    warnings.warn(f"Phase {index} is missing for one beat-to-beat parameter group. "
-                                  f"Data are replaced with NaN.")
+                    warnings.warn(
+                        f"Phase {index} is missing for one beat-to-beat parameter group. "
+                        f"Data are replaced with NaN."
+                    )
                     data_dict[key_param][index] = np.nan
                 else:
                     data_dict[key_param][index] = value_param[data_cnt]
@@ -471,9 +468,6 @@ class TfmLoader:
 
         return missing_phases
 
-
-
-
     def raw_phase_data_as_df_dict(self, index: Optional[str] = None) -> Dict[str, Dict[str, pd.DataFrame]]:
         """Generate dictionary containing the raw data as dataframes separated in phases.
 
@@ -488,17 +482,14 @@ class TfmLoader:
             * None: For a simple index (0...N)
 
         """
-
         dict_df = {}
-        for sig in self.raw_data_dict.keys():
+        for sig in self.raw_data_dict:
             dict_df[sig] = {}
-            for phase in self.raw_data_dict[sig].keys():
+            for phase in self.raw_data_dict[sig]:
                 data = pd.DataFrame(self.raw_data_dict[sig][phase])
                 data.columns = [sig]
                 data = self._add_index_raw(
-                    data=data,
-                    index=index,
-                    start_time=self.phase_information.at[phase, "absolute_time"]
+                    data=data, index=index, start_time=self.phase_information.at[phase, "absolute_time"]
                 )
                 dict_df[sig][phase] = data
 
@@ -518,25 +509,25 @@ class TfmLoader:
             * None: For a simple index (0...N)
 
         """
-
         data_dict_inv = {}
-        for params_group in self.b2b_data_dict.keys():
+        for params_group in self.b2b_data_dict:
             data_dict = self.b2b_data_dict[params_group]
 
             data_dict_inv[params_group] = {}
 
-            for parameter in data_dict.keys():
-                for phase in data_dict[parameter].keys():
+            for parameter in data_dict:
+                for phase in data_dict[parameter]:
 
                     if phase not in data_dict_inv[params_group].keys():
                         data_dict_inv[params_group][phase] = {}
 
                     data_dict_inv[params_group][phase][parameter] = data_dict[parameter][phase]
 
-            for phase in data_dict_inv[params_group].keys():
+            for phase in data_dict_inv[params_group]:
                 df = pd.DataFrame.from_dict(data_dict_inv[params_group][phase])
                 df = self._add_index_beat(
-                    df, index=index,
+                    df,
+                    index=index,
                     start_time=self.phase_information.at[phase, "absolute_time"],
                     relative_start_time=self.phase_information.at[phase, "relative_time"],
                 )
@@ -580,7 +571,7 @@ class TfmLoader:
 
     def _concat_data_over_time(self, data):
         data_dict_concat = {}
-        for group in data.keys():
+        for group in data:
             df = pd.DataFrame()
             for value in data[group].values():
                 df = pd.concat([df, value], axis=0)
@@ -595,7 +586,7 @@ class TfmLoader:
 
     def _convert_time_to_unix(self, time):
         start_date_time = self._recording_date + " " + time
-        timestamp = pd.to_datetime(start_date_time, format='%Y-%m-%d %H:%M:%S.%f')
+        timestamp = pd.to_datetime(start_date_time, format="%Y-%m-%d %H:%M:%S.%f")
         timestamp = timestamp.tz_localize(self.timezone)
         return timestamp.timestamp()
 
@@ -626,11 +617,7 @@ class TfmLoader:
         return self._convert_index_to_datetime(data, start_time, index)
 
     def _add_index_beat(
-            self,
-            data: pd.DataFrame,
-            index: str,
-            start_time: str,
-            relative_start_time: float
+        self, data: pd.DataFrame, index: str, start_time: str, relative_start_time: float
     ) -> pd.DataFrame:
 
         index_names = {
@@ -667,7 +654,3 @@ class TfmLoader:
             data.index = data.index.tz_localize("UTC").tz_convert(self.timezone)
 
         return data
-
-
-
-
