@@ -648,7 +648,7 @@ class EmpaticaDataset:
         imu_params["delta_digital"] = imu_params["digitalMax"] - imu_params["digitalMin"]
         return imu_params
 
-    def save_dataset(self, save_path : path_t, time : str | None = None, sensors: list | None = None) -> None:
+    def save_dataset(self, save_path: path_t, time: str | None = None, sensors: list | None = None) -> None:
         if sensors is None:
             sensors = self._sensor_specs.keys()
 
@@ -669,8 +669,6 @@ class EmpaticaDataset:
                     continue
 
                 store.put(sensor, df)
-
-
 
 
 @lru_cache(maxsize=2)
