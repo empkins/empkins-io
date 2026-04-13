@@ -29,7 +29,7 @@ class EmpaticaDataset:
     _sensor_specs: ClassVar[dict[str, dict[str, object]]] = {
         "accelerometer": {
             "channels": ("x", "y", "z"),
-            "name": "Accelerometer",
+            "name": "accelerometer",
             "unit": "g",
             "kind": "signal",
             "default_sampling_rate_hz": 64.0,
@@ -124,8 +124,8 @@ class EmpaticaDataset:
         return self._tz
 
     @property
-    def acc(self) -> pd.DataFrame:
-        """Get pandas DataFrame for accelerometer. Values are converted from ADC in g (gravitational acceleration)."""
+    def accelerometer(self) -> pd.DataFrame:
+        """Get pandas DataFrame for accelerometer. Values are converted from ADC in g (gravitational accelerometereleration)."""
         df = self.data_as_df("accelerometer")
         conversion_factor = self._accelerometer_specs["delta_physical"] / self._accelerometer_specs["delta_digital"]
         df["accelerometer_x_g"] = [val * conversion_factor for val in df["accelerometer_x"]]
@@ -134,7 +134,7 @@ class EmpaticaDataset:
         return df
 
     @property
-    def gyro(self) -> pd.DataFrame:
+    def gyroscope(self) -> pd.DataFrame:
         """Get pandas DataFrame for gyroscope data."""
         return self.data_as_df("gyroscope")
 
@@ -159,7 +159,7 @@ class EmpaticaDataset:
         return self.data_as_df("steps")
 
     @property
-    def systolic_peaks(self, series=False) -> pd.DataFrame:
+    def systolicPeaks(self, series=False) -> pd.DataFrame:
         """
         Get systolic peak event data.
 
@@ -179,7 +179,7 @@ class EmpaticaDataset:
             return self.data_as_df("systolicPeaks")
 
     @property
-    def tag_events(self, series=True) -> pd.DataFrame:
+    def tags(self, series=True) -> pd.DataFrame:
         """
         Get tag event data.
 
@@ -254,10 +254,13 @@ class EmpaticaDataset:
             If the sensor data does not use a ``DatetimeIndex``.
         """
         df = (
-            self.acc[["accelerometer_x_g", "accelerometer_y_g", "accelerometer_z_g"]]
+            self.accelerometer[["accelerometer_x_g", "accelerometer_y_g", "accelerometer_z_g"]]
             if sensor == "accelerometer"
             else self.data_as_df(sensor)
         )
+
+        if df.empty:
+            return (None, None)
 
         if not isinstance(df.index, pd.DatetimeIndex):
             raise ValueError(
@@ -296,7 +299,7 @@ class EmpaticaDataset:
             Additional timestamps that are highlighted as vertical dashed lines to mark events of interest, e.g., tags.
         """
         if sensor == "accelerometer":
-            data = self.acc[["accelerometer_x_g", "accelerometer_y_g", "accelerometer_z_g"]]
+            data = self.accelerometer[["accelerometer_x_g", "accelerometer_y_g", "accelerometer_z_g"]]
         else:
             data = self.data_as_df(sensor)
 
@@ -382,10 +385,15 @@ class EmpaticaDataset:
                 explicit_timestamp_unit=timestamp_unit,
             )
 
-        df_out = pd.concat(out).droplevel(0)
+        try:
+            df_out = pd.concat(out).droplevel(0)
+        except:
+            warnings.warn(f"Warning: {file} contains no data for {sensor}. Continuation without this file. ")
+            return pd.DataFrame()
 
         if sensor == "tags" or sensor == "systolicPeaks":
             return df_out
+
         # fill dataframe gaps with nans
         intervall_seconds = 1 / self._get_sampling_rate(sensor, sensor_dict)
         freq_str = f"{intervall_seconds}s"
@@ -542,7 +550,7 @@ class EmpaticaDataset:
         sampling_rate = sensor_dict.get("samplingFrequency")
         if sampling_rate is None:
             return None
-        if sampling_rate == 0:
+        if sampling_rate == 0 or sampling_rate < 1:
             fallback_sampling_rate = self._sensor_specs[sensor].get("default_sampling_rate_hz")
             if fallback_sampling_rate is None:
                 raise ValueError(f"Sampling frequency for {sensor} is 0. Please check the data in {self.path}.")
