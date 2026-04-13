@@ -640,6 +640,30 @@ class EmpaticaDataset:
         imu_params["delta_digital"] = imu_params["digitalMax"] - imu_params["digitalMin"]
         return imu_params
 
+    def save_dataset(self, save_path : path_t, time : str | None = None, sensors: list | None = None) -> None:
+        if sensors is None:
+            sensors = self._sensor_specs.keys()
+
+        with pd.HDFStore(save_path) as store:
+            for sensor in sensors:
+                try:
+                    if time is None:
+                        df = getattr(self, sensor)
+                    else:
+                        df, _ = self.cut_data_at_time(sensor, time)
+
+                except:
+                    warnings.warn(f"Warning: There is no {sensor} data in the Empatica dataset.")
+                    continue
+
+                if df is None or df.empty:
+                    warnings.warn(f"Warning: There is no {sensor} data in the Empatica dataset.")
+                    continue
+
+                store.put(sensor, df)
+
+
+
 
 @lru_cache(maxsize=2)
 def _from_folder(path: path_t) -> dict:
