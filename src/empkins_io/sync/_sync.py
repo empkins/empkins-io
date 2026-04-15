@@ -37,6 +37,7 @@ SYNC_TYPE_ESB = [
 
 
 class SyncedDataset:
+
     _VALID_INDEX_NAMES = (r"t", r"utc", r"date", r"date \(.*\)")
 
     datasets: Dict[str, Dict[str, Any]]
@@ -97,6 +98,7 @@ class SyncedDataset:
                 fs_in = dataset["sampling_rate"]
             elif method == "dynamic":
                 fs_in = self._determine_actual_sampling_rate(dataset, **kwargs)
+
             else:
                 # this should never happen
                 raise ValueError(f"Method '{method}' not supported.")
@@ -139,6 +141,7 @@ class SyncedDataset:
             setattr(self, f"{name}_cut_", data_cut)
 
     def _cut_dataset_to_sync_region(self, dataset: Dict[str, Any], sync_params: Dict[str, Any]) -> pd.DataFrame:
+
         if self.sync_type == "m-sequence":
             raise NotImplementedError(
                 "For cutting and aligning datasets, please use the 'cut_to_sync_start_m_sequence' method."
@@ -165,6 +168,9 @@ class SyncedDataset:
             # sync_type is "trigger"
             sync_data = data[sync_channel]
             sync_params["max_expected_peaks"] = 2
+            if "falling" in self.sync_type:
+                # invert sync channel to achieve rising sync signal
+                sync_data = -1 * sync_data
         elif "edge" in self.sync_type:
             # sync_type is "edge"
             sync_data = np.abs(np.ediff1d(data[sync_channel]))
@@ -180,9 +186,6 @@ class SyncedDataset:
         else:
             raise AttributeError("This should never happen.")
 
-        if "falling" in self.sync_type:
-            # invert sync channel to achieve rising sync signal
-            sync_data = -1 * data[sync_channel]
         peaks = SyncedDataset._find_sync_peaks(sync_data, sync_params)
         # cut data to region between first and last peak
         data_cut = data.iloc[peaks[0] :] if len(peaks) == 1 else data.iloc[peaks[0] : peaks[-1]]
@@ -212,12 +215,13 @@ class SyncedDataset:
 
         fs = sync_params["sampling_rate"]
 
-        data_primary = self.datasets_aligned[primary]
+        data_primary = self.datasets_aligned[f"{primary}_aligned_"]
         data_primary = data_primary.copy()
         data_primary.loc[:, sync_channel_primary] = self._binarize_signal(data_primary[sync_channel_primary])
+        data_primary = data_primary.reset_index()
 
         for name, dataset in self.datasets_aligned.items():
-            if name == primary:
+            if name == f"{primary}_aligned_":
                 continue
 
             data_secondary = dataset
@@ -226,7 +230,6 @@ class SyncedDataset:
                 data_secondary[sync_channel_secondary]
             )
 
-            data_primary = data_primary.reset_index()
             data_secondary = data_secondary.reset_index()
 
             # cut to search region
@@ -238,7 +241,7 @@ class SyncedDataset:
                 data_primary_search[sync_channel_primary], data_secondary_search[sync_channel_secondary], fs
             )
             dict_lags[name] = lag_samples
-            print("Shift: " + name + " " + str(lag_samples))
+            print("End Shift: " + name + " " + str(lag_samples))
 
         return dict_lags
 
@@ -246,14 +249,16 @@ class SyncedDataset:
         dict_resampled = {}
 
         for name in self.datasets_aligned:
+
             df = self.datasets_aligned[name]
 
-            if name == primary:
+            if name == f"{primary}_aligned_":
                 index = df.index
                 df = df.reset_index(drop=True)
                 dict_resampled[name] = df
                 continue
             data_resample = self._resample_sample_wise(df, dict_sample_shift[name])
+            data_resample["Sync_Out"] = self._binarize_signal(data_resample["Sync_Out"])
             dict_resampled[name] = data_resample
 
         if cut_to_shortest:
@@ -261,15 +266,14 @@ class SyncedDataset:
             index = index[:shortest_length]
             for name, data in dict_resampled.items():
                 # cut name after second _ to get rid of _aligned_
-                name = "_".join(name.split("_")[:2])
-
-                print(len(data))
+                name = name.split("_")[0]
 
                 data_aligned = data.iloc[:shortest_length]
                 data_aligned.index = index
                 setattr(self, f"{name}_resampled_", data_aligned)
 
     def _resample_sample_wise(self, df, sample_shift):
+
         df_size = len(df)
 
         df_resample = resample(df, df_size + sample_shift)
@@ -344,7 +348,7 @@ class SyncedDataset:
             lag_samples = self._find_sync_cross_correlation(
                 data_primary_search[sync_channel_primary], data_secondary_search[sync_channel_secondary], fs
             )
-            print(lag_samples)
+            print("Start Shift: ", lag_samples)
 
             dict_data_pad[name] = data_secondary
             dict_lags[name] = lag_samples
@@ -355,28 +359,53 @@ class SyncedDataset:
 
         # align all the signals that are *behind* the primary signal by cutting the beginning
         for name, data in dict_data_pad.items():
-            if dict_lags[name] < 0:
+            if dict_lags[name] <= 0:
                 data = data.iloc[-dict_lags[name] :].reset_index(drop=True)
+                dict_data_pad[name] = data
+                setattr(self, f"{name}_aligned_", data)
 
-            data = data.set_index(data.columns[0])
-            dict_data_pad[name] = data
-            setattr(self, f"{name}_aligned_", data)
+            # data = data.set_index(data.columns[0])
+            # dict_data_pad[name] = data
+            # setattr(self, f"{name}_aligned_", data)
 
         # align all the signals that are *ahead* of the primary signal by cutting the beginning of all other signals
         for name, data in dict_data_pad.items():
             if dict_lags[name] > 0:
-                # shift all the others to match this one
-                for name2, data2 in dict_data_pad.items():
-                    if name2 == name:
-                        continue
-                    data2 = self._reset_and_shift(data2, dict_lags[name])
+                # pad signals
+                nan_rows = pd.DataFrame(np.nan, index=range(dict_lags[name]), columns=data.columns)
+                nan_rows.index.name = data.index.name
+                data = pd.concat([nan_rows, data]).reset_index(drop=True)
+                dict_data_pad[name] = data
+                setattr(self, f"{name}_aligned_", data)
 
-                    setattr(self, f"{name2}_aligned_", data2)
+                # # shift all the others to match this one
+                # for name2, data2 in dict_data_pad.items():
+                #     if name2 == name:
+                #         continue
+                #     data2 = self._reset_and_shift(data2, dict_lags[name])
+                #     print(name, name2)
+                #     setattr(self, f"{name2}_aligned_", data2)
 
-                # shift primary
-                data_primary = getattr(self, f"{primary}_aligned_")
-                data_primary = self._reset_and_shift(data_primary, dict_lags[name])
-                setattr(self, f"{primary}_aligned_", data_primary)
+                # # shift primary
+                # data_primary = getattr(self, f"{primary}_aligned_")
+                # data_primary = self._reset_and_shift(data_primary, dict_lags[name])
+                # setattr(self, f"{primary}_aligned_", data_primary)
+
+        max_positive_lag = max(0, *[lag for lag in dict_lags.values()])
+        if max_positive_lag > 0:
+            data_primary = getattr(self, f"{primary}_aligned_")
+            data_primary = data_primary.iloc[max_positive_lag:]
+            setattr(self, f"{primary}_aligned_", data_primary)
+
+            for name, data in dict_data_pad.items():
+                data = getattr(self, f"{name}_aligned_")
+                data = data.iloc[max_positive_lag:]
+                setattr(self, f"{name}_aligned_", data)
+
+        for name, data in dict_data_pad.items():
+            data = getattr(self, f"{name}_aligned_")
+            data = data.set_index(data.columns[0])
+            setattr(self, f"{name}_aligned_", data)
 
         if reset_time_axis:
             data_primary = getattr(self, f"{primary}_aligned_")
@@ -461,12 +490,12 @@ class SyncedDataset:
 
     @staticmethod
     def _find_sync_peaks(data: np.ndarray, sync_params: Dict[str, Any]) -> np.ndarray:
-        max_expected_peaks = sync_params.get("max_expected_peaks")
-        search_region_samples = sync_params.get("search_region_samples")
-        distance = sync_params.get("distance")
+        max_expected_peaks = sync_params.get("max_expected_peaks", None)
+        search_region_samples = sync_params.get("search_region_samples", None)
+        distance = sync_params.get("distance", None)
         height = sync_params.get("height", 0.1)
-        width = sync_params.get("width")
-        prominence = sync_params.get("prominence")
+        width = sync_params.get("width", None)
+        prominence = sync_params.get("prominence", None)
 
         # normalize data between 0 and 1
         data_norm = (data - np.min(data)) / (np.max(data) - np.min(data))
@@ -493,11 +522,20 @@ class SyncedDataset:
         secondary: Union[np.ndarray, pd.DataFrame],
         fs: float,
     ) -> int:
+
+        # primary -= 0.5
+        # secondary -= 0.5
+
         # find the cross-correlation values and the index of the maximum cross-correlation
         lag_values = np.arange((-len(primary) + 1) / fs, len(primary) / fs, 1 / fs)
 
-        crosscorr = signal.correlate(primary, secondary)
+        crosscorr = signal.correlate(primary, secondary, mode="full")
+
+        # fig, axs = plt.subplots()
+        # axs.plot(crosscorr)
+
         max_crosscorr_idx = np.argmax(crosscorr)
+        # print(max_crosscorr_idx)
 
         # find the lag at the cross-correlation maximum (t-value) and the number of timesteps corresponding to this lag
         lag_samples = int(round(lag_values[max_crosscorr_idx] * fs))
@@ -534,7 +572,7 @@ class SyncedDataset:
         )
 
     def _determine_actual_sampling_rate(self, dataset: Dict[str, Any], **kwargs) -> float:
-        wave_frequency = kwargs.get("wave_frequency")
+        wave_frequency = kwargs.get("wave_frequency", None)
         data = dataset["data"]
         sync_channel = dataset["sync_channel"]
         fs = dataset["sampling_rate"]
@@ -563,18 +601,10 @@ class SyncedDataset:
     def _pad_signal(cls, data: pd.DataFrame, padlen: int, start: bool, fs: float) -> pd.DataFrame:
         if start:
             pad_width = ((padlen, 0), (0, 0))
-            constant_values = ((0, 0), (0, 0))
+            constant_values = ((0.5, None), (None, None))
         else:
             pad_width = ((0, padlen), (0, 0))
-            constant_values = ((0, 0), (0, 0))
-
-        # if start:
-        #    pad_width = ((padlen, 0), (0, 0))
-        #    constant_values = ((0, None), (None, None))
-        # else:
-        #    pad_width = ((0, padlen), (0, 0))
-        #    constant_values = ((None, 0), (None, None))
-
+            constant_values = ((None, 0.5), (None, None))
         data_pad = np.pad(data, pad_width=pad_width, mode="constant", constant_values=constant_values)
         data_pad = pd.DataFrame(data_pad, columns=data.columns)
 
