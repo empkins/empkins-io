@@ -386,13 +386,17 @@ class EmpaticaDataset:
             )
 
         try:
-            df_out = pd.concat(out).droplevel(0)
+            df_out = pd.concat(out).droplevel(0).sort_index()
         except:
             warnings.warn(f"Warning: {file} contains no data for {sensor}. Continuation without this file. ")
             return pd.DataFrame()
 
         if sensor == "tags" or sensor == "systolicPeaks":
             return df_out
+
+        # For some sensors, there are overlapping indices which are not monotonic increasing --> removal of them
+        mask = pd.Series(df_out.index).diff().dt.total_seconds().fillna(1) > 0
+        df_out = df_out[mask.values]
 
         # fill dataframe gaps with nans
         intervall_seconds = 1 / self._get_sampling_rate(sensor, sensor_dict)
