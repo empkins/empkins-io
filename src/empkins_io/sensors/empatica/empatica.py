@@ -1,6 +1,4 @@
 """Class for reading data from empatica. Can be used for single files and folders containing multiple -avro files."""
-from __future__ import annotations
-
 import warnings
 from collections.abc import Sequence
 from functools import lru_cache
@@ -330,7 +328,7 @@ class EmpaticaDataset:
                 label = column.removeprefix(f"{sensor}_").replace("_", " ").title()
                 ax.plot(data.index, data[column], label=label)
             if len(data.columns) > 1:
-                ax.legend()
+                ax.legend(loc="upper right", fontsize="small")
 
         if isinstance(data.index, pd.DatetimeIndex):
             timezone = data.index.tz if data.index.tz is not None else None
@@ -348,6 +346,84 @@ class EmpaticaDataset:
         ax.set_title(sensor_name)
         ax.set_ylabel(y_label)
         ax.grid(True, alpha=0.3)
+        fig.tight_layout()
+        plt.show()
+
+    def plot_multiple_empatica(
+        self,
+        sensors: Sequence[str],
+        timestamps: pd.Series | list | None = None,
+    ) -> None:
+        """
+        Plot multiple Empatica sensors in stacked subplots.
+
+        Parameters
+        ----------
+        sensors : Sequence[str]
+            Sensor names to plot.
+        timestamps : pd.Series | list | None, optional
+            Additional timestamps that are highlighted as vertical dashed lines.
+
+        Raises
+        ------
+        ValueError
+            If no sensors are supplied or an invalid sensor name is provided.
+        """
+        if not sensors:
+            raise ValueError("Please provide at least one sensor.")
+
+        fig, axes = plt.subplots(len(sensors), 1, sharex=True, figsize=(10, max(3, 3 * len(sensors))))
+        if len(sensors) == 1:
+            axes = [axes]
+
+        for ax, sensor in zip(axes, sensors, strict=True):
+            if sensor not in self._sensor_specs:
+                raise ValueError(
+                    f"Supplied sensor ({sensor}) is not allowed. Allowed values: {self._sensor_specs.keys()}"
+                )
+
+            data = self.accelerometer[["accelerometer_x_g", "accelerometer_y_g", "accelerometer_z_g"]] if sensor == "accelerometer" else self.data_as_df(sensor)
+            sensor_spec = self._sensor_specs[sensor]
+            sensor_name = str(sensor_spec["name"])
+            sensor_unit = sensor_spec.get("unit")
+            y_label = sensor_name if not sensor_unit else f"{sensor_name} [{sensor_unit}]"
+
+            if sensor_spec["kind"] == "event":
+                event_x = data.index
+                default_color = plt.rcParams["axes.prop_cycle"].by_key()["color"][0]
+                ax.eventplot(
+                    [event_x.to_numpy()],
+                    orientation="horizontal",
+                    lineoffsets=0,
+                    linelengths=0.8,
+                    linewidths=1.2,
+                    colors=default_color,
+                )
+                ax.set_ylim(-0.75, 0.75)
+                ax.set_yticks([0])
+                ax.set_yticklabels(["events"])
+            else:
+                for column in data.columns:
+                    label = column.removeprefix(f"{sensor}_").replace("_", " ").title()
+                    ax.plot(data.index, data[column], label=label)
+                if len(data.columns) > 1:
+                    ax.legend(loc="upper right", fontsize="small")
+
+            if isinstance(data.index, pd.DatetimeIndex):
+                timezone = data.index.tz if data.index.tz is not None else None
+                ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S", tz=timezone))
+                if self._index_type == "local_datetime" and self.timezone:
+                    ax.set_xlabel(f"date ({self.timezone})")
+
+            if timestamps is not None:
+                for timestamp in timestamps:
+                    ax.axvline(timestamp, linestyle="--", linewidth=1.0, color="0.3", alpha=0.8)
+
+            ax.set_title(sensor_name)
+            ax.set_ylabel(y_label)
+            ax.grid(True, alpha=0.3)
+
+        axes[-1].set_xlabel(self._index_names.get(self._index_type, "index"))
         fig.tight_layout()
         plt.show()
 
@@ -379,7 +455,7 @@ class EmpaticaDataset:
             out[file] = self._add_index(
                 df,
                 self._index_type,
-                self._get_sampling_rate(sensor, sensor_dict),
+                self._sensor_specs[sensor].get("default_sampling_rate_hz"),
                 sensor_dict.get("timestampStart"),
                 explicit_timestamps=sensor_dict.get(timestamp_key) if timestamp_key else None,
                 explicit_timestamp_unit=timestamp_unit,
@@ -399,7 +475,7 @@ class EmpaticaDataset:
         df_out = df_out[mask.values]
 
         # fill dataframe gaps with nans
-        intervall_seconds = 1 / self._get_sampling_rate(sensor, sensor_dict)
+        intervall_seconds = 1 / self._sensor_specs[sensor].get("default_sampling_rate_hz")
         freq_str = f"{intervall_seconds}s"
 
         target_index = pd.date_range(
@@ -442,7 +518,7 @@ class EmpaticaDataset:
         return self._add_index(
             df,
             self._index_type,
-            self._get_sampling_rate(sensor, sensor_dict),
+            self._sensor_specs[sensor].get("default_sampling_rate_hz"),
             sensor_dict.get("timestampStart"),
             explicit_timestamps=sensor_dict.get(timestamp_key) if timestamp_key else None,
             explicit_timestamp_unit=timestamp_unit,
@@ -534,32 +610,6 @@ class EmpaticaDataset:
             Raw channel names of the sensor.
         """
         return self._sensor_specs[sensor]["channels"]  # type: ignore[return-value]
-
-    def _get_sampling_rate(self, sensor: str, sensor_dict: dict) -> int | None:
-        """
-        Return the sampling rate for a sensor.
-
-        Parameters
-        ----------
-        sensor : str
-            Name of the sensor.
-        sensor_dict : dict
-            Raw sensor dictionary from the avro file.
-
-        Returns
-        -------
-        int | None
-            Sampling rate of the sensor or ``None`` for event-based data.
-        """
-        sampling_rate = sensor_dict.get("samplingFrequency")
-        if sampling_rate is None:
-            return None
-        if sampling_rate == 0 or sampling_rate < 1:
-            fallback_sampling_rate = self._sensor_specs[sensor].get("default_sampling_rate_hz")
-            if fallback_sampling_rate is None:
-                raise ValueError(f"Sampling frequency for {sensor} is 0. Please check the data in {self.path}.")
-            return round(fallback_sampling_rate)
-        return round(sampling_rate)
 
     @staticmethod
     def _get_explicit_timestamp_info(sensor_dict: dict) -> tuple[str | None, str | None]:
@@ -658,11 +708,12 @@ class EmpaticaDataset:
 
         with pd.HDFStore(save_path) as store:
             for sensor in sensors:
+                print(sensor)
                 try:
                     if time is None:
                         df = getattr(self, sensor)
                     else:
-                        df, _ = self.cut_data_at_time(sensor, time)
+                        df, _ = self.cut_data_at_time(sensor, time, duration_hours=2.5)
 
                 except:
                     warnings.warn(f"Warning: There is no {sensor} data in the Empatica dataset.")
