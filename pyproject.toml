@@ -37,6 +37,9 @@ dev = [
 
 [tool.uv]
 
+[tool.uv.extra-build-dependencies]
+pandas = ["pkg_resources"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
