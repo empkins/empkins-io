@@ -51,6 +51,10 @@ class MacroBaseDataset(Dataset):
         ("VP_036", "tsst", "talk"),  # no data
         ("VP_037", "tsst", "math"),  # short recording 63.87 seconds
         ("VP_038", "ftsst", "math"),  # short recording of 2.35 seconds
+        ("VP_039", "tsst", "talk"),  # no data
+        ("VP_039", "tsst", "math"),  # no data
+        ("VP_039", "ftsst", "talk"),  # no data
+        ("VP_039", "ftsst", "math"),  # no data
         ("VP_041", "ftsst", "talk"),  # short recording of 3.28 seconds
         ("VP_042", "tsst", "talk"),  # no data
         ("VP_042", "tsst", "math"),  # no data
@@ -159,12 +163,31 @@ class MacroBaseDataset(Dataset):
 
         folder_path = self.base_path.joinpath("data_per_participant", p_id, condition, "zebris", "export", phase)
         try:
+            # TODO: cut the data according to timelogs once they are available
             zebris_dataset = ZebrisDataset.from_folder(folder_path)
             return zebris_dataset.data_as_df()
         except FileNotFoundError as e:
             raise ZebrisDataNotFoundError(
                 f"No Zebris data found for participant {p_id}, condition {condition}, phase {phase}."
             ) from e
+
+    @property
+    def zebris_cut(self):
+        """Return the Zebris data cut to 300 seconds (center of the recording).
+
+        Returns
+        -------
+            :class:`pd.DataFrame`
+                The cut Zebris data with time index in seconds.
+        """
+        data = self.zebris
+        duration = data.index[-1]
+        max_duration = min([300, duration])
+        slice_start = 0.5 * (duration - max_duration)
+        slice_end = slice_start + max_duration
+        data = data.loc[slice_start:slice_end].reset_index(drop=True)
+        data.index /= self.SAMPLING_RATE_ZEBRIS
+        return data
 
     @property
     def zebris_aggregated(self) -> pd.DataFrame | None:

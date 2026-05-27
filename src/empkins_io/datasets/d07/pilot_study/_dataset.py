@@ -72,7 +72,7 @@ class D07PilotStudyDataset(Dataset):
 
         index = pd.DataFrame(index, columns=index_cols)
         index = index.set_index(index_cols)
-        index = index.drop(index=self.data_to_exclude).reset_index()
+        index = index.drop(index=self.data_to_exclude, errors="ignore").reset_index()
         return index
 
     def _find_data_to_exclude(self):
