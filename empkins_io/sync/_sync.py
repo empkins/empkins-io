@@ -329,13 +329,13 @@ class SyncedDataset:
 
             # zero-pad the shorter signal in the end. This is necessary for the cross-correlation
             padlen_samples = len(data_secondary) - len(data_primary)
-
-            if padlen_samples > 0:
-                # the primary signal is shorter than the secondary signal => cut the secondary signal
-                data_secondary = data_secondary.iloc[:-padlen_samples]
-            else:
-                # the secondary signal is shorter than the primary signal => pad the secondary signal
-                data_secondary = self._pad_signal(data_secondary, -padlen_samples, start=False, fs=fs)
+            #
+            # if padlen_samples > 0:
+            #     # the primary signal is shorter than the secondary signal => cut the secondary signal
+            #     data_secondary = data_secondary.iloc[:-padlen_samples]
+            # else:
+            #     # the secondary signal is shorter than the primary signal => pad the secondary signal
+            #     data_secondary = self._pad_signal(data_secondary, -padlen_samples, start=False, fs=fs)
 
             data_primary = data_primary.reset_index()
             data_secondary = data_secondary.reset_index()
@@ -523,16 +523,16 @@ class SyncedDataset:
         fs: float,
     ) -> int:
 
-        # primary -= 0.5
-        # secondary -= 0.5
+        primary -= 0.5
+        secondary -= 0.5
 
         # find the cross-correlation values and the index of the maximum cross-correlation
         lag_values = np.arange((-len(primary) + 1) / fs, len(primary) / fs, 1 / fs)
 
         crosscorr = signal.correlate(primary, secondary, mode="full")
 
-        # fig, axs = plt.subplots()
-        # axs.plot(crosscorr)
+        fig, axs = plt.subplots()
+        axs.plot(crosscorr)
 
         max_crosscorr_idx = np.argmax(crosscorr)
         # print(max_crosscorr_idx)
