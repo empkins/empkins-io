@@ -1,5 +1,7 @@
 from functools import lru_cache
 from typing import Dict, Optional, Sequence, Union, Tuple
+
+import numpy as np
 import pandas as pd
 from tpcp import Dataset
 from pathlib import Path
@@ -16,8 +18,12 @@ from empkins_io.datasets.radarcardia.study.helper import (
     _get_biopac_timelog_shift,
     _load_protocol,
     _save_data_to_location_h5,
+    _save_data_to_location_np_array,
+    _save_data_to_location_dict,
     _save_data_to_location_list_h5,
     _load_data_from_location_h5,
+    _load_data_from_location_np_array,
+    _load_data_from_location_dict,
     _load_data_from_location_list_h5,
     _load_apnea_segmentation,
     _load_visual_segmentation,
@@ -384,6 +390,62 @@ class RadarCardiaStudyDataset(Dataset):
             sub_dir=sub_dir
         )
 
+    def save_data_to_location_array(self, data: np.ndarray, file_name: str, sub_dir: Optional[str] = None):
+        """
+        Save an array as file to "data_per_location" sub-folder for the respective participant. In this folder,
+        all intermediate data can be stored, e.g. the results of the preprocessing steps.
+        Args:
+            data: pd.DataFrame (data frame containing the data to be saved)
+            file_name: str (name of the file to be saved)
+            sub_dir: Optional[str] (path to subdirectory in "data_per_location", e.g., "ensemble_averaging/all")
+        Returns:
+        """
+
+        if not self.is_single(["subject"]):
+            raise ValueError("Data can only be saved for a single participant at once")
+
+        if not self.is_single(["location"]) or not self.is_single(["breathing"]):
+            raise ValueError("Data can only be saved for a single location-breathing combination")
+
+        location = self._get_locationbreathingcombi_from_index()[0]
+
+        _save_data_to_location_np_array(
+            base_path=self.base_path,
+            participant_id=self.subject,
+            data=data,
+            location=location,
+            file_name=file_name,
+            sub_dir=sub_dir
+        )
+
+    def save_data_to_location_dict(self, data: dict, file_name: str, sub_dir: Optional[str] = None):
+        """
+        Save a dictionary as file to "data_per_location" sub-folder for the respective participant. In this folder,
+        all intermediate data can be stored, e.g. the results of the preprocessing steps.
+        Args:
+            data: dict (dictionary containing the data to be saved)
+            file_name: str (name of the file to be saved)
+            sub_dir: Optional[str] (path to subdirectory in "data_per_location", e.g., "ensemble_averaging/all")
+        Returns:
+        """
+
+        if not self.is_single(["subject"]):
+            raise ValueError("Data can only be saved for a single participant at once")
+
+        if not self.is_single(["location"]) or not self.is_single(["breathing"]):
+            raise ValueError("Data can only be saved for a single location-breathing combination")
+
+        location = self._get_locationbreathingcombi_from_index()[0]
+
+        _save_data_to_location_dict(
+            base_path=self.base_path,
+            participant_id=self.subject,
+            data=data,
+            location=location,
+            file_name=file_name,
+            sub_dir=sub_dir
+        )
+
     def save_data_to_location_list(self, data: list, file_name: str, sub_dir: Optional[str] = None):
         """
         Save a list of arrays as file to "data_per_location" sub-folder for the respective participant. In this folder,
@@ -430,6 +492,58 @@ class RadarCardiaStudyDataset(Dataset):
         location = self._get_locationbreathingcombi_from_index()[0]
 
         data = _load_data_from_location_h5(
+            base_path=self.base_path,
+            participant_id=self.subject,
+            location=location,
+            file_name=file_name,
+            sub_dir=sub_dir
+        )
+        return data
+
+    def load_data_from_location_array(self, file_name: str, sub_dir: Optional[str] = None):
+        """
+        Load an array from a file in the "data_per_location" sub-folder for the respective participant.
+        Args:
+            file_name: str (name of the file to be loaded)
+            sub_dir: Optional[str] (path to subdirectory in "data_per_location", e.g., "ensemble_averaging/all")
+        Returns:
+            data: np.ndarray (array containing the loaded data)
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError("Data can only be loaded for a single participant at once")
+
+        if not self.is_single(["location"]) or not self.is_single(["breathing"]):
+            raise ValueError("Data can only be saved for a single location-breathing combination")
+
+        location = self._get_locationbreathingcombi_from_index()[0]
+
+        data = _load_data_from_location_np_array(
+            base_path=self.base_path,
+            participant_id=self.subject,
+            location=location,
+            file_name=file_name,
+            sub_dir=sub_dir
+        )
+        return data
+
+    def _load_data_from_location_dict(self, file_name: str, sub_dir: Optional[str] = None):
+        """
+        Load a dictionary from a file in the "data_per_location" sub-folder for the respective participant.
+        Args:
+            file_name: str (name of the file to be loaded)
+            sub_dir: Optional[str] (path to subdirectory in "data_per_location", e.g., "ensemble_averaging/all")
+        Returns:
+            data: dict (dictionary containing the loaded data)
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError("Data can only be loaded for a single participant at once")
+
+        if not self.is_single(["location"]) or not self.is_single(["breathing"]):
+            raise ValueError("Data can only be saved for a single location-breathing combination")
+
+        location = self._get_locationbreathingcombi_from_index()[0]
+
+        data = _load_data_from_location_dict(
             base_path=self.base_path,
             participant_id=self.subject,
             location=location,

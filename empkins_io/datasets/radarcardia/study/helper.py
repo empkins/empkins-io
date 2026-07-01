@@ -454,6 +454,41 @@ def _save_data_to_location_h5(
     data.to_hdf(data_path, mode="w", key="data", index=True)
 
 
+def _save_data_to_location_np_array(
+        base_path: path_t,
+        participant_id: str,
+        data: np.ndarray,
+        location: str,
+        file_name: str,
+        sub_dir: str
+):
+    data_path = _build_location_data_path(
+        base_path=base_path, participant_id=participant_id, location=location, sub_dir=sub_dir, file_name=file_name
+    )
+    data_path = data_path.with_suffix(".npy")
+    data_path.parent.mkdir(parents=True, exist_ok=True)
+
+    np.save(data_path, data)
+
+
+def _save_data_to_location_dict(
+        base_path: path_t,
+        participant_id: str,
+        data: dict,
+        location: str,
+        file_name: str,
+        sub_dir: str
+):
+    data_path = _build_location_data_path(
+        base_path=base_path, participant_id=participant_id, location=location, sub_dir=sub_dir, file_name=file_name
+    )
+    data_path = data_path.with_suffix(".json")
+    data_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(data_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
+
+
 def _save_data_to_location_list_h5(
         base_path: path_t,
         participant_id: str,
@@ -486,6 +521,38 @@ def _load_data_from_location_h5(
 
     return data
 
+
+def _load_data_from_location_np_array(
+        base_path: path_t,
+        participant_id: str,
+        location: str,
+        file_name: str,
+        sub_dir: str
+):
+    data_path = _build_location_data_path(
+        base_path=base_path, participant_id=participant_id, location=location, sub_dir=sub_dir, file_name=file_name
+    )
+    data_path = data_path.with_suffix(".npy")
+    data = np.load(data_path)
+
+    return data
+
+
+def _load_data_from_location_dict(
+        base_path: path_t,
+        participant_id: str,
+        location: str,
+        file_name: str,
+        sub_dir: str
+):
+    data_path = _build_location_data_path(
+        base_path=base_path, participant_id=participant_id, location=location, sub_dir=sub_dir, file_name=file_name
+    )
+    data_path = data_path.with_suffix(".json")
+    with open(data_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    return data
 
 def _load_data_from_location_list_h5(
         base_path: path_t,
