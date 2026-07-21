@@ -264,12 +264,7 @@ class SyncedDataset:
             index = index[:shortest_length]
             for name, data in dict_resampled.items():
                 # cut name after second _ to get rid of _aligned_
-<<<<<<<< HEAD:src/empkins_io/sync/_sync_keep.py
-                name = name.split("_")[0]
-========
-                name_out = "_".join(name.split("_")[:2])
->>>>>>>> origin/main:src/empkins_io/sync/_sync.py
-
+                name_out = name.split("_")[0]
                 data_aligned = data.iloc[:shortest_length]
                 data_aligned.index = index
                 setattr(self, f"{name_out}_resampled_", data_aligned)
@@ -360,7 +355,6 @@ class SyncedDataset:
 
         # align all the signals that are *behind* the primary signal by cutting the beginning
         for name, data in dict_data_pad.items():
-<<<<<<<< HEAD:src/empkins_io/sync/_sync_keep.py
             if dict_lags[name] <= 0:
                 data = data.iloc[-dict_lags[name] :].reset_index(drop=True)
                 dict_data_pad[name] = data
@@ -369,20 +363,10 @@ class SyncedDataset:
             # data = data.set_index(data.columns[0])
             # dict_data_pad[name] = data
             # setattr(self, f"{name}_aligned_", data)
-========
-            data_out = None
-            if dict_lags[name] < 0:
-                data_out = data.iloc[-dict_lags[name] :].reset_index(drop=True)
-
-            data_out = data.set_index(data.columns[0])
-            dict_data_pad[name] = data_out
-            setattr(self, f"{name}_aligned_", data_out)
->>>>>>>> origin/main:src/empkins_io/sync/_sync.py
 
         # align all the signals that are *ahead* of the primary signal by cutting the beginning of all other signals
         for name, _data in dict_data_pad.items():
             if dict_lags[name] > 0:
-<<<<<<<< HEAD:src/empkins_io/sync/_sync_keep.py
                 # pad signals
                 nan_rows = pd.DataFrame(np.nan, index=range(dict_lags[name]), columns=data.columns)
                 nan_rows.index.name = data.index.name
@@ -397,15 +381,6 @@ class SyncedDataset:
                 #     data2 = self._reset_and_shift(data2, dict_lags[name])
                 #     print(name, name2)
                 #     setattr(self, f"{name2}_aligned_", data2)
-========
-                # shift all the others to match this one
-                for name2, data2 in dict_data_pad.items():
-                    if name2 == name:
-                        continue
-                    data2_out = self._reset_and_shift(data2, dict_lags[name])
-
-                    setattr(self, f"{name2}_aligned_", data2_out)
->>>>>>>> origin/main:src/empkins_io/sync/_sync.py
 
                 # # shift primary
                 # data_primary = getattr(self, f"{primary}_aligned_")
@@ -543,13 +518,10 @@ class SyncedDataset:
         secondary: np.ndarray | pd.DataFrame,
         fs: float,
     ) -> int:
-<<<<<<<< HEAD:src/empkins_io/sync/_sync_keep.py
 
         primary -= 0.5
         secondary -= 0.5
 
-========
->>>>>>>> origin/main:src/empkins_io/sync/_sync.py
         # find the cross-correlation values and the index of the maximum cross-correlation
         lag_values = np.arange((-len(primary) + 1) / fs, len(primary) / fs, 1 / fs)
 
@@ -625,25 +597,11 @@ class SyncedDataset:
     def _pad_signal(cls, data: pd.DataFrame, padlen: int, start: bool, fs: float) -> pd.DataFrame:
         if start:
             pad_width = ((padlen, 0), (0, 0))
-<<<<<<<< HEAD:src/empkins_io/sync/_sync_keep.py
             constant_values = ((0.5, None), (None, None))
         else:
             pad_width = ((0, padlen), (0, 0))
             constant_values = ((None, 0.5), (None, None))
-========
-            constant_values = ((0, 0), (0, 0))
-        else:
-            pad_width = ((0, padlen), (0, 0))
-            constant_values = ((0, 0), (0, 0))
 
-        # if start:
-        #    pad_width = ((padlen, 0), (0, 0))
-        #    constant_values = ((0, None), (None, None))
-        # else:
-        #    pad_width = ((0, padlen), (0, 0))
-        #    constant_values = ((None, 0), (None, None))
-
->>>>>>>> origin/main:src/empkins_io/sync/_sync.py
         data_pad = np.pad(data, pad_width=pad_width, mode="constant", constant_values=constant_values)
         data_pad = pd.DataFrame(data_pad, columns=data.columns)
 
