@@ -1,7 +1,7 @@
 import datetime
 import json
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 import bioread
 import numpy as np
@@ -14,19 +14,14 @@ from empkins_io.sensors.emrad import EmradDataset
 from empkins_io.sync import SyncedDataset
 from empkins_io.utils._types import path_t
 from empkins_io.utils.exceptions import (
-    SamplingRateMismatchError,
     SynchronizationError,
-    TimelogNotFoundError,
 )
 
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/study/helper.py
 import bioread
 import json
 import h5py
 import re
 
-========
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/base/helper.py
 
 def _build_data_path(base_path: path_t, participant_id: str) -> Path:
     data_path = base_path.joinpath(f"data_per_subject/{participant_id}")
@@ -70,23 +65,14 @@ def _build_protocol_path(base_path: path_t, participant_id: str) -> Path:
 
 
 def _load_biopac_data(
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/study/helper.py
         base_path: path_t,
         participant_id: str,
         fs: dict,
         channel_mapping: dict,
         state: str,
         trigger_extraction: dict[str, bool],
-        location: str
-========
-    base_path: path_t,
-    participant_id: str,
-    fs: dict,
-    channel_mapping: dict,
-    state: str,
-    trigger_extraction: bool,
-    location: str,
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/base/helper.py
+        location: str,
+
 ) -> pd.DataFrame:
     if state == "raw_unsynced":
         biopac = _load_biopac_raw_unsynced_data(
@@ -123,23 +109,13 @@ def _load_biopac_data(
 
 
 def _load_radar_data(
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/study/helper.py
         base_path: path_t,
         participant_id: str,
         fs: dict,
         channel_mapping: dict,
         state: str,
         trigger_extraction: dict[str, bool],
-        location: str
-========
-    base_path: path_t,
-    participant_id: str,
-    fs: dict,
-    channel_mapping: dict,
-    state: str,
-    trigger_extraction: bool,
-    location: str,
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/base/helper.py
+        location: str,
 ) -> DataFrame:
     if state == "raw_unsynced":
         radar = _load_radar_raw_unsynced_data(
@@ -176,11 +152,8 @@ def _load_radar_data(
 
 
 def _load_biopac_raw_unsynced_data(
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/study/helper.py
         base_path: path_t, participant_id: str, channel_mapping: dict, trigger_extraction: dict[str, bool]
-========
-    base_path: path_t, participant_id: str, channel_mapping: dict, trigger_extraction: bool
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/base/helper.py
+
 ) -> pd.DataFrame:
     biopac_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
         f"biopac/cleaned/{participant_id}_biopac_data.h5"
@@ -189,16 +162,13 @@ def _load_biopac_raw_unsynced_data(
     if biopac_path.exists() and not trigger_extraction["raw_unsynced"]:
         biopac_df = pd.read_hdf(biopac_path, key="biopac_data")
     else:
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/study/helper.py
+
         print("Extracting Biopac Raw Data")
         biopac_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
             "biopac/raw"
         )
         biopac_file_path = biopac_dir_path.joinpath(f"{participant_id}_biopac_data.acq")
-========
-        biopac_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath("biopac/raw")
-        biopac_file_path = biopac_dir_path.joinpath(f"biopac_data_{participant_id}.acq")
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/base/helper.py
+
         dataset_biopac = BiopacDataset.from_acq_file(biopac_file_path, channel_mapping=channel_mapping)
         biopac_df = dataset_biopac.data_as_df(index="local_datetime")
         fs = dataset_biopac._sampling_rate
@@ -206,7 +176,7 @@ def _load_biopac_raw_unsynced_data(
         # check if biopac sampling rate is the same for each channel
         sampling_rates = set(fs.values())
         if len(sampling_rates) > 1:
-            raise SamplingRateMismatchError(
+            raise ValueError(
                 f"Biopac sampling rates are not the same for every channel! Found sampling rates: {sampling_rates}"
             )
 
@@ -216,11 +186,7 @@ def _load_biopac_raw_unsynced_data(
 
 
 def _load_radar_raw_unsynced_data(
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/study/helper.py
         base_path: path_t, participant_id: str, fs: float, trigger_extraction: dict[str, bool]
-========
-    base_path: path_t, participant_id: str, fs: float, trigger_extraction: bool
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/base/helper.py
 ) -> DataFrame:
     radar_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
         f"emrad/cleaned/{participant_id}_emrad_data.h5"
@@ -229,16 +195,11 @@ def _load_radar_raw_unsynced_data(
     if radar_path.exists() and not trigger_extraction["raw_unsynced"]:
         radar_df = pd.read_hdf(radar_path, key="emrad_data")
     else:
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/study/helper.py
         print("Extracting EMRAD Raw Data")
         radar_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
             "emrad/raw"
         )
         radar_file_path = radar_dir_path.joinpath(f"{participant_id}_emrad_data.h5")
-========
-        radar_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath("emrad/raw")
-        radar_file_path = radar_dir_path.joinpath(f"emrad_data_{participant_id}.h5")
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/base/helper.py
 
         dataset_radar = EmradDataset.from_hd5_file(radar_file_path, sampling_rate_hz=fs)
         radar_df = dataset_radar.data_as_df(index="local_datetime", add_sync_out=True)["rad2"]
@@ -249,21 +210,13 @@ def _load_radar_raw_unsynced_data(
 
 
 def _load_raw_synced_data(
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/study/helper.py
         base_path: path_t,
         participant_id: str,
         fs: dict,
         channel_mapping: dict,
         trigger_extraction: dict[str, bool],
-        data_type: Literal["biopac", "emrad"]
-========
-    base_path: path_t,
-    participant_id: str,
-    fs: dict,
-    channel_mapping: dict,
-    trigger_extraction: bool,
-    data_type: Literal["biopac", "emrad"],
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/base/helper.py
+        data_type: Literal["biopac", "emrad"],
+
 ) -> pd.DataFrame:
     data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
         f"{data_type}/processed/{participant_id}_{data_type}_data.h5"
@@ -284,7 +237,6 @@ def _load_raw_synced_data(
 
 
 def _load_location_synced_data(
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/study/helper.py
         base_path: path_t,
         participant_id: str,
         fs: dict,
@@ -292,15 +244,7 @@ def _load_location_synced_data(
         trigger_extraction: dict[str, bool],
         location: str,
         data_type: Literal["biopac", "emrad"]
-========
-    base_path: path_t,
-    participant_id: str,
-    fs: dict,
-    channel_mapping: dict,
-    trigger_extraction: bool,
-    location: str,
-    data_type: Literal["biopac", "emrad"],
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/base/helper.py
+
 ) -> DataFrame:
     data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
         f"data_per_location/{location}/raw/{participant_id}_{data_type}_data.h5"
@@ -325,19 +269,11 @@ def _load_location_synced_data(
 
 
 def _sync_datasets(
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/study/helper.py
         base_path: path_t,
         participant_id: str,
         channel_mapping: dict,
         fs: dict,
         trigger_extraction: dict[str, bool],
-========
-    base_path: path_t,
-    participant_id: str,
-    channel_mapping: dict,
-    fs: dict,
-    trigger_extraction: bool,
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/base/helper.py
 ):
     biopac_data = _load_biopac_raw_unsynced_data(
         base_path=base_path,
@@ -372,16 +308,12 @@ def _sync_datasets(
 
 
 def _sync_datasets_without_resample(
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/study/helper.py
         base_path: path_t,
         participant_id: str,
         channel_mapping: dict,
         fs: dict,
         trigger_extraction: dict[str, bool],
         location: str
-========
-    base_path: path_t, participant_id: str, channel_mapping: dict, fs: dict, trigger_extraction: bool, location: str
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/base/helper.py
 ):
     biopac_data = _load_raw_synced_data(
         base_path=base_path,
@@ -446,7 +378,7 @@ def _load_timelog(base_path: path_t, participant_id: str) -> pd.DataFrame:
     if timelog_file_path.exists():
         timelog = _load_atimelogger_file(timelog_file_path, timezone="Europe/Berlin")
         return timelog
-    raise TimelogNotFoundError(f"No timelog file was found for {participant_id}!")
+    raise ValueError(f"No timelog file was found for {participant_id}!")
 
 
 def _load_atimelogger_file(file_path: path_t, timezone: datetime.tzinfo | str | None = None) -> pd.DataFrame:
@@ -516,8 +448,6 @@ def _save_data_to_location_h5(
 
     data.to_hdf(data_path, mode="w", key="data", index=True)
 
-
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/study/helper.py
 def _save_data_to_location_np_array(
         base_path: path_t,
         participant_id: str,
@@ -581,17 +511,6 @@ def _load_data_from_location_h5(
     data_path = _build_location_data_path(
         base_path=base_path, participant_id=participant_id, location=location, sub_dir=sub_dir, file_name=file_name
     )
-========
-def _load_data_from_location_h5(base_path: path_t, participant_id: str, location: str, file_name: str, sub_dir: str):
-    if sub_dir is None:
-        data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-            f"data_per_location/{location}/{file_name}_{participant_id}.h5"
-        )
-    else:
-        data_path = _build_data_path(base_path=base_path, participant_id=participant_id).joinpath(
-            f"data_per_location/{location}/{sub_dir}/{file_name}_{participant_id}.h5"
-        )
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/base/helper.py
     data = pd.read_hdf(data_path, key="data")
 
     return data
@@ -666,18 +585,11 @@ def _get_biopac_timelog_shift(base_path: path_t, participant_id: str) -> pd.Time
 
 
 def _calc_biopac_timelog_shift(base_path: path_t, participant_id: str):
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/study/helper.py
-
     # extract sync event marker from biopac file
     biopac_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath(
         "biopac/raw"
     )
     biopac_file_path = biopac_dir_path.joinpath(f"{participant_id}_biopac_data.acq")
-========
-    # biopac sync event marker
-    biopac_dir_path = _build_data_path(base_path, participant_id=participant_id).joinpath("biopac/raw")
-    biopac_file_path = biopac_dir_path.joinpath(f"biopac_data_{participant_id}.acq")
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/base/helper.py
 
     biopac_data: bioread.reader.Datafile = bioread.read(str(biopac_file_path))
     event_marker = biopac_data.event_markers
@@ -744,14 +656,3 @@ def _load_visual_segmentation(base_path: path_t, participant_id: str) -> pd.Data
         seg = pd.read_excel(file_path, index_col=0)
         return seg
     raise FileNotFoundError("Visual segmentation file was not found.")
-
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/study/helper.py
-========
-
-def _load_flipping(base_path: path_t, modality: str) -> pd.DataFrame:
-    file_path = base_path.joinpath(f"flipping_total/{modality}_flipping_total.xlsx")
-    if file_path.exists():
-        data = pd.read_excel(file_path, index_col=0)
-        return data
-    raise FileNotFoundError("Flipping file was not found.")
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/base/helper.py

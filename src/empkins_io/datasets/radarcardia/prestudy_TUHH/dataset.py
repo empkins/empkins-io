@@ -1,9 +1,9 @@
 from collections.abc import Sequence
 from itertools import product
-from typing import ClassVar
+from typing import ClassVar, Optional
 
 import pandas as pd
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/prestudy_TUHH/dataset.py
+
 
 from tpcp import Dataset
 
@@ -11,8 +11,7 @@ from tpcp import Dataset
 
 from biopsykit.io import load_long_format_csv
 from biopsykit.utils.dataframe_handling import multi_xs, wide_to_long
-========
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/prestudy_H/dataset.py
+
 from biopsykit.utils.file_handling import get_subject_dirs
 
 from empkins_io.datasets.radarcardia.base.dataset import BaseDataset
@@ -22,15 +21,10 @@ from empkins_io.utils._types import path_t
 Dataset for Radar and BIOPAC data recorded in Hamburg at 2023-04-25
 """
 
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/prestudy_TUHH/dataset.py
-
 class RadarCardiaPreStudyTUHHDataset(Dataset):
 
     base_path: path_t
-========
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/prestudy_H/dataset.py
 
-class RadarCardiaPreStudyHDataset(BaseDataset):
     BIOPAC_CHANNEL_MAPPING: ClassVar[dict[str, str]] = {
         "ECG (.05 - 150 Hz)": "ecg",
         "Cardiac Output - Z": "icg",
@@ -41,7 +35,6 @@ class RadarCardiaPreStudyHDataset(BaseDataset):
     _SAMPLING_RATES: ClassVar[dict[str, float]] = {"radar_original": 2400, "biopac_original": 2000, "resampled": 1000}
 
     def __init__(
-<<<<<<<< HEAD:src/empkins_io/datasets/radarcardia/prestudy_TUHH/dataset.py
             self,
             base_path: path_t,
             groupby_cols: Optional[Sequence[str]] = None,
@@ -49,15 +42,6 @@ class RadarCardiaPreStudyHDataset(BaseDataset):
     ):
         self.base_path = base_path
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
-========
-        self,
-        base_path: path_t,
-        groupby_cols: Sequence[str] | None = None,
-        subset_index: Sequence[str] | None = None,
-        use_cache: bool = True,
-    ):
-        super().__init__(base_path=base_path, groupby_cols=groupby_cols, subset_index=subset_index, use_cache=use_cache)
->>>>>>>> origin/main:src/empkins_io/datasets/radarcardia/prestudy_H/dataset.py
 
     def create_index(self):
         participant_ids = [
