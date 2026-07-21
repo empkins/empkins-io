@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any, Dict, Optional, Sequence
+from typing import Any
 
 from empkins_io.processing.motion_capture._base import _BaseMotionCaptureProcessor
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
@@ -12,7 +13,7 @@ class CenterOfMassProcessor(_BaseMotionCaptureProcessor):
         super().__init__(data)
 
     def filter_position_drift(
-        self, key: str, filter_params: Optional[Dict[str, Any]] = None
+        self, key: str, filter_params: dict[str, Any] | None = None
     ) -> _BaseMotionCaptureDataFormat:
         """Filter positional displacement drift in center-of-mass data.
 
@@ -37,6 +38,6 @@ class CenterOfMassProcessor(_BaseMotionCaptureProcessor):
         return com_data
 
     def filter_rotation_drift(
-        self, key: str, filter_params: Optional[Sequence[Dict[str, Any]]] = None
+        self, key: str, filter_params: Sequence[dict[str, Any]] | None = None
     ) -> _BaseMotionCaptureDataFormat:
         raise NotImplementedError("Rotation drift filtering not applicable for CenterOfMassData!")

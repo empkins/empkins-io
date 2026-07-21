@@ -1,5 +1,5 @@
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -15,7 +15,7 @@ class CenterOfMassData(_BaseMotionCaptureDataFormat):
 
     axis: Sequence[str]
 
-    def __init__(self, file_path: path_t, system: MOTION_CAPTURE_SYSTEM, frame_time: Optional[float] = 0.017):
+    def __init__(self, file_path: path_t, system: MOTION_CAPTURE_SYSTEM, frame_time: float | None = 0.017):
         """Create new ``CenterOfMassData`` instance.
 
         Parameters
@@ -53,7 +53,7 @@ class CenterOfMassData(_BaseMotionCaptureDataFormat):
                 [body_parts, channels, data.columns], names=["body_part", "channel", "axis"]
             )
         else:
-            data = pd.read_csv(file_path, header=list(range(0, 3)), index_col=0)
+            data = pd.read_csv(file_path, header=list(range(3)), index_col=0)
 
         super().__init__(data=data, system=system, sampling_rate=sampling_rate, channels=channels, axis=axis)
 

@@ -1,6 +1,6 @@
+from collections.abc import Sequence
 from functools import cached_property, lru_cache
 from itertools import product
-from typing import Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -17,11 +17,11 @@ class MacroStudyGaitDataset(MacroBaseDataset):
     def __init__(
         self,
         base_path: path_t,
-        groupby_cols: Optional[Sequence[str]] = None,
-        subset_index: Optional[Sequence[str]] = None,
+        groupby_cols: Sequence[str] | None = None,
+        subset_index: Sequence[str] | None = None,
         *,
-        exclude_without_gait_tests: Optional[bool] = True,
-        use_cache: Optional[bool] = True,
+        exclude_without_gait_tests: bool | None = True,
+        use_cache: bool | None = True,
     ):
         # ensure pathlib
         self.base_path = base_path

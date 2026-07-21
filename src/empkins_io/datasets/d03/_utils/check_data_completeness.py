@@ -21,6 +21,7 @@ def _check_filetype_present(
     file_pattern: str,
     expected_number_of_files: int,
     expected_filesize: float = np.nan,
+    skip_video_length_check: bool = True,
 ) -> dict:
     """Checks if the number of files that match the given pattern is as expected and if the (mean) file size is
     as expected (i.e. at max. 20% below the given expected file size).
@@ -34,7 +35,7 @@ def _check_filetype_present(
     if len(existing_files) == 0:
         # no files found => file size is 0 bytes
         actual_filesize = 0
-    elif file_pattern.endswith(".mp4") and len(existing_files) == 1:
+    elif not skip_video_length_check and (file_pattern.endswith(".mp4") and len(existing_files) == 1):
         try:
             import cv2
         except ImportError as e:

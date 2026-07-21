@@ -1,6 +1,6 @@
 import gzip
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -21,8 +21,8 @@ class CalcData(_BaseMotionCaptureDataFormat):
     def __init__(
         self,
         file_path: path_t,
-        system: Optional[MOTION_CAPTURE_SYSTEM] = "perception_neuron",
-        frame_time: Optional[float] = 0.017,
+        system: MOTION_CAPTURE_SYSTEM | None = "perception_neuron",
+        frame_time: float | None = 0.017,
     ):
         """Create new ``CalcData`` instance.
 
@@ -79,7 +79,7 @@ class CalcData(_BaseMotionCaptureDataFormat):
             with gzip.open(file_path, "rb") as f:
                 _raw_data_str = f.read().decode("utf8")
         else:
-            with open(file_path) as f:
+            with file_path.open() as f:
                 _raw_data_str = f.read()
 
         if "contactL\t" in _raw_data_str:
@@ -150,10 +150,10 @@ class CalcData(_BaseMotionCaptureDataFormat):
         file_path = Path(file_path)
         _assert_file_extension(file_path, ".calc")
 
-        with open(file_path, "w") as fp:
+        with file_path.open("w") as fp:
             self._write_calc_fp(fp)
 
-    def _write_calc_fp(self, fp, encode: Optional[bool] = False):
+    def _write_calc_fp(self, fp, encode: bool | None = False):
         if encode:
             fp.write(self._header_str.encode("utf8"))
             fp.write(

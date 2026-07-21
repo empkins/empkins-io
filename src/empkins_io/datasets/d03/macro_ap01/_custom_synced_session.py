@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pandas as pd
 from nilspodlib import Dataset, SyncedSession
 from packaging.version import Version
@@ -40,10 +38,10 @@ class CustomSyncedSession(SyncedSession):
     def from_folder_path(
         cls,
         base_path,
-        filter_pattern: Optional[str] = "NilsPodX-*.bin",
-        legacy_support: Optional[str] = "resolve",
+        filter_pattern: str | None = "NilsPodX-*.bin",
+        legacy_support: str | None = "resolve",
         force_version=None,
-        tz: Optional[str] = "Europe/Berlin",
+        tz: str | None = "Europe/Berlin",
     ):
         return cls.from_file_paths(
             sorted(base_path.glob(filter_pattern)), legacy_support=legacy_support, force_version=force_version, tz=tz

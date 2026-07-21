@@ -1,6 +1,5 @@
-from typing import Dict, Literal, Sequence
-
-from typing_extensions import get_args
+from collections.abc import Sequence
+from typing import Literal, get_args
 
 from empkins_io.sensors.psg.psg_systems import PSG_SYSTEM
 
@@ -97,7 +96,7 @@ PSG_CHANNELS_MESA = Literal[
 
 PSG_GROUP = Literal["FullPSG", "EEG", "ECG", "EOG", "SpO2", "System", "Resp", "EMG", "Sync", "Activity", "Position"]
 
-PSG_GROUP_MAPPING_SOMNO: Dict[PSG_GROUP, Sequence[PSG_CHANNELS_SOMNO]] = {
+PSG_GROUP_MAPPING_SOMNO: dict[PSG_GROUP, Sequence[PSG_CHANNELS_SOMNO]] = {
     "FullPSG": get_args(PSG_CHANNELS_SOMNO),
     "EEG": [
         "Fp1",
@@ -146,7 +145,7 @@ PSG_GROUP_MAPPING_SOMNO: Dict[PSG_GROUP, Sequence[PSG_CHANNELS_SOMNO]] = {
     "EMG": ["PLMr", "PLMl", "EMG1", "EMG2", "EMG3", "ArmLi", "ArmRe"],
 }
 
-PSG_GROUP_MAPPING_MESA: Dict[PSG_GROUP, Sequence[PSG_CHANNELS_MESA]] = {
+PSG_GROUP_MAPPING_MESA: dict[PSG_GROUP, Sequence[PSG_CHANNELS_MESA]] = {
     "FullPSG": [get_args(PSG_CHANNELS_MESA)],
     "EEG": [
         "EEG1",
@@ -157,7 +156,7 @@ PSG_GROUP_MAPPING_MESA: Dict[PSG_GROUP, Sequence[PSG_CHANNELS_MESA]] = {
         "EEG3_Off",
     ],  # Fz, Cz  # Cz, Oz  # C4, M1
     "ECG": [
-        "EKG" "EKG_Off",
+        "EKGEKG_Off",
         "HR",
         "DHR",
     ],
@@ -186,15 +185,82 @@ PSG_GROUP_MAPPING_MESA: Dict[PSG_GROUP, Sequence[PSG_CHANNELS_MESA]] = {
     ],  # Left & Right Leg EMG
 }
 
+PSG_CHANNELS_PD_SLEEP_LAB = Literal[
+    "Flattening",
+    "Right Leg",
+    "EKG",
+    "Nasendruck",
+    "Left Leg",
+    "Snore",
+    "M1",
+    "C3",
+    "C3-M2",
+    "M2",
+    "C4",
+    "C4-M1",
+    "O2",
+    "O2-M1",
+    "EOG-L",
+    "Left-M1",
+    "EOG-R",
+    "Right-M1",
+    "O1",
+    "ChinA",
+    "ChinR",
+    "Lower.Right-Uppe",
+    "ChinL",
+    "Lower.Left-Lower",
+    "Thorax",
+    "Abdomen",
+    "Thermistor",
+    "Position",
+    "F4",
+    "F4-M1",
+    "pcO2",
+    "SpO2",
+    "SpO2 BB",
+    "Plethysmogram",
+    "Pulse",
+    "RD-Quality",
+    "Herzfrequenz_DR",
+    "SpO2-Qualität_DR",
+    "Atemfluss_DR",
+    "Phase_DR",
+    "RMI_DR",
+    "RR_DR",
+    "XSum_DR",
+    "Atemzugsvolumen_",
+    "XFlow_DR",
+]
 
-def get_full_PSG(system: PSG_SYSTEM) -> Sequence[str]:
+PSG_GROUP_MAPPING_PD_SLEEP_LAB: dict[PSG_GROUP, Sequence[PSG_CHANNELS_PD_SLEEP_LAB]] = {
+    "FullPSG": get_args(PSG_CHANNELS_PD_SLEEP_LAB),
+    "EEG": [
+        "C3",
+        "C4",
+        "O1",
+        "O2",
+        "F4",
+        "F4-M1",
+        "F3",
+        "F3-M2",
+    ],
+    "ECG": ["EKG", "Pulse"],
+    "EOG": ["EOG-L", "EOG-R"],
+    "SpO2": ["SpO2"],
+    "System": ["Thermistor", "Position"],
+    "Resp": ["Nasendruck", "Thorax", "Abdomen", "Atemfluss_DR", "Atemzugsvolumen_", "XFlow_DR"],
+    "EMG": ["Right Leg", "Left Leg", "ChinA", "ChinR", "ChinL", "Lower.Right-Uppe", "Lower.Left-Lower"],
+}
+
+
+def get_full_psg(system: PSG_SYSTEM) -> Sequence[str]:
     """Return full PSG."""
     if system not in get_args(PSG_SYSTEM):
         raise ValueError(f"Invalid 'system'! Expected one of {get_args(PSG_SYSTEM)}, got {system}.")
     if system == "mesa":
         return get_args(PSG_CHANNELS_MESA)
-    else:
-        return get_args(PSG_CHANNELS_SOMNO)
+    return get_args(PSG_CHANNELS_SOMNO)
 
 
 def get_psg_channels_by_group(
@@ -220,5 +286,6 @@ def get_psg_channels_by_group(
         raise ValueError(f"Invalid 'body_part_group'! Expected one of {get_args(PSG_GROUP)}, got {PSG_GROUP}.")
     if system == "mesa":
         return PSG_GROUP_MAPPING_MESA[psg_channel_group]
-    else:
+    if system == "somno":
         return PSG_GROUP_MAPPING_SOMNO[psg_channel_group]
+    return PSG_GROUP_MAPPING_PD_SLEEP_LAB[psg_channel_group]

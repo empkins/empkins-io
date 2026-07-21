@@ -1,5 +1,5 @@
 line-length = 120
-target-version = "py38"
+target-version = "py310"
 
 select = [
     # pyflakes
@@ -29,8 +29,8 @@ select = [
     "T10",
     # flake8-errmsg
     "EM",
-    # flake8-implicit-str-concat
-    "ISC",
+#    # flake8-implicit-str-concat
+#    "ISC",
     # flake8-pytest-style
     "PT",
     # flake8-return
@@ -93,7 +93,6 @@ ignore = [
     # melt over stack
     "PD013"
 ]
-
 
 exclude = [
     "doc/sphinxext/*.py",

@@ -1,6 +1,3 @@
-from empkins_io.sensors.motion_capture.perception_neuron.perception_neuron import (
-    PerceptionNeuronDataset,
-    load_perception_neuron_folder,
-)
+from empkins_io.sensors.motion_capture.perception_neuron._perception_neuron import PerceptionNeuronDataset
 
-__all__ = ["load_perception_neuron_folder", "PerceptionNeuronDataset"]
+__all__ = ["PerceptionNeuronDataset"]

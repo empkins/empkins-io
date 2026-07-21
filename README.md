@@ -9,45 +9,28 @@ A longer description of the project goes here... (*will follow soon*)
 
 ## Installation
 
-To run the code in this repository first install a compatible version of Python (>= 3.8). 
-Then, install [poetry](https://python-poetry.org) which is used to manage dependencies and packaging.
+To work with the project you need to install Python >=3.10 and [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
-Once you installed poetry, run the following commands to clone the repository, initialize a virtual env and install 
-all development dependencies:
+Then run the commands below to install [poethepoet](`https://poethepoet.natn.io`), get the latest source,
+and install the dependencies:
 
-### MaD Lab Gitlab
-With ssh access:
-
-```bash
-git clone git@mad-srv.informatik.uni-erlangen.de:empkins/packages/empkins-io.git
-cd empkins-io
-poetry install
-```
-
-With https access:
-
-```bash
-git clone https://mad-srv.informatik.uni-erlangen.de/empkins/packages/empkins-io.git
-cd empkins-io
-poetry install
-```
-
-### GitHub
 With ssh access:
 
 ```bash
 git clone git@github.com:empkins/empkins-io.git
-cd empkins-io
-poetry install
+uv tool install poethepoet
+uv sync --all-extras --dev
 ```
 
 With https access:
 
 ```bash
 git clone https://github.com/empkins/empkins-io.git
-cd empkins-io
-poetry install
+uv tool install poethepoet
+uv sync --all-extras --dev
 ```
+
+All dependencies are specified in the main `pyproject.toml` when running `uv sync`.
 
 ### Working with the code
 
@@ -71,17 +54,34 @@ remove_ipykernel     Remove the associated IPython kernel.
 ```
 
 **Note**: The `poe` commands are only available if you are in the virtual environment associated with this project. 
-You can either activate the virtual environment manually (e.g., `source .venv/bin/activate`) or use the `poetry shell` 
-command to spawn a new shell with the virtual environment activated.
+You can either activate the virtual environment manually (e.g., `source .venv/bin/activate`) or use the `uv run <task>` 
+command to run a task in the virtual environment.
 
 To add new dependencies you need for this repository:
 ```bash
-poetry add <package_name>
+uv add add <package_name>
 ```
 
 To update dependencies after the `pyproject.toml` file was changed (It is a good idea to run this after a `git pull`):
 ```bash
-poetry update
+uv sync
 ```
 
-For more commands see the [official documentation](https://python-poetry.org/docs/cli/).
+For more commands see the [official documentation](https://docs.astral.sh/uv/).
+
+### Format and Linting
+
+To ensure consistent code structure this project uses black and ruff to automatically check (and fix) the code format.
+
+```
+poe format  # runs ruff format and ruff lint with the autofix flag
+poe lint # runs ruff without autofix (will show issues that can not automatically be fixed)
+```
+
+If you want to check if all code follows the code guidelines, run `poe ci_check`.
+This can be useful in the CI context
+
+
+### Tests
+
+All tests are located in the `tests` folder and can be executed by using `poe test`.

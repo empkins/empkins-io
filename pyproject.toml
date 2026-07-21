@@ -1,45 +1,45 @@
-[tool.poetry]
+[project]
 name = "empkins-io"
 version = "0.1.1"
 description = "A Python package to load and convert data from EmpkinS sensors."
-authors = ["Robert Richer <robert.richer@fau.de>"]
+authors = [
+    { name = "Robert Richer", email = "robert.richer@fau.de" },
+    { name = "Luca Abel", email = "luca.abel@fau.de" },
+]
+requires-python = ">=3.10,<4.0"
+dependencies = [
+    "numpy>=1.19",
+    "scipy>=1.7.0,<2",
+    "seaborn<1",
+    "statsmodels>=0,<1",
+    "pyquaternion>=0.9.9,<0.10",
+    "biopsykit[jupyter]",
+    "h5py>=3.5.0,<4",
+    "tpcp>=1",
+    "resampy>=0.4.2,<0.5",
+    "avro>=1.11.3,<2",
+    "fastavro>=1.4.0,<2",
+    "construct",
+    "PyWavelets",
+    "pandas-stubs>=2.3.3.260113",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.9,<3.11"
-numpy = ">=1.19,<1.25"
-pandas = "^1.2.0"
-scipy = "^1.7.0"
-matplotlib = "^3"
-# until broken changes are fixed, we cant use seaborn >= 0.13
-seaborn = "<0.13"
-statsmodels = "^0"
-pyquaternion = "^0.9.9"
-biopsykit = {path="../BioPsyKit", extras=["jupyter"]}
-#biopsykit = {git="https://github.com/mad-lab-fau/BioPsyKit.git", branch="main", extras=["jupyter"]}
-h5py = "^3.5.0"
-tpcp = "^0.13"
-resampy = "^0.4.2"
-tables = "^3.9.2"
+[project.optional-dependencies]
+opencv = ["opencv-python~=4.8"]
 
-avro = "^1.11.3"
-fastavro = "^1.4.0"
-# opencv is optional, but required for some functions
-opencv-python = {version="^4.8", optional=true}
-construct = "^2.10.70"
-openpyxl = "^3.1.5"
+[dependency-groups]
+dev = [
+    "pytest~=5.2",
+    "black[jupyter, d]>=22,<23",
+    "ruff>=0.0.261,<0.0.262",
+    "poethepoet>=0.11.0,<0.12",
+]
 
-[tool.poetry.extras]
-opencv = ["opencv-python"]
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^5.2"
-black = { version="^22", extras=["jupyter", "d"] }
-ruff = "^0.0.261"
-poethepoet = "^0.11.0"
+[tool.uv]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.black]
 line-length = 120

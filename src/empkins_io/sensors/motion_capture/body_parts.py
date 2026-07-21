@@ -1,8 +1,9 @@
-from typing import Dict, Literal, Sequence
+from collections.abc import Sequence
+from typing import Literal, get_args
 
-from typing_extensions import get_args
-
-from empkins_io.sensors.motion_capture.motion_capture_systems import MOTION_CAPTURE_SYSTEM
+from empkins_io.sensors.motion_capture.motion_capture_systems import (
+    MOTION_CAPTURE_SYSTEM,
+)
 
 BODY_PART_PERCEPTION_NEURON = Literal[
     "Hips",
@@ -120,7 +121,43 @@ BODY_PART_OPENPOSE = Literal[
     "RightHeel",
 ]
 
-BODY_PART_GROUP = Literal["TotalBody", "UpperExtremities", "LowerExtremities", "Trunk"]
+BODY_PART_MEDIAPIPE = Literal[
+    "Nose",
+    "LeftEyeInner",
+    "LeftEye",
+    "LeftEyeOuter",
+    "RightEyeInner",
+    "RightEye",
+    "RightEyeOuter",
+    "LeftEar",
+    "RightEar",
+    "MouthLeft",
+    "MouthRight",
+    "LeftShoulder",
+    "RightShoulder",
+    "LeftElbow",
+    "RightElbow",
+    "LeftWrist",
+    "RightWrist",
+    "LeftPinky",
+    "RightPinky",
+    "LeftIndex",
+    "RightIndex",
+    "LeftThumb",
+    "RightThumb",
+    "LeftHip",
+    "RightHip",
+    "LeftKnee",
+    "RightKnee",
+    "LeftAnkle",
+    "RightAnkle",
+    "LeftHeel",
+    "RightHeel",
+    "LeftFootIndex",
+    "RightFootIndex",
+]
+
+BODY_PART_GROUP = Literal["TotalBody", "UpperExtremities", "LowerExtremities", "Trunk", "Lumbar"]
 
 BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[BODY_PART_GROUP, Sequence[BODY_PART_PERCEPTION_NEURON]] = {
     "TotalBody": get_args(BODY_PART_PERCEPTION_NEURON),
@@ -145,7 +182,7 @@ BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[BODY_PART_GROUP, Sequence[BODY_PART_PE
     "Trunk": ["Hips", "Spine", "Spine1", "Spine2", "Spine3", "Neck"],
 }
 
-BODY_PART_MAPPING_OPENPOSE: Dict[BODY_PART_GROUP, Sequence[BODY_PART_OPENPOSE]] = {
+BODY_PART_MAPPING_OPENPOSE: dict[BODY_PART_GROUP, Sequence[BODY_PART_OPENPOSE]] = {
     "TotalBody": get_args(BODY_PART_OPENPOSE),
     "UpperExtremities": [
         "RightShoulder",
@@ -170,7 +207,7 @@ BODY_PART_MAPPING_OPENPOSE: Dict[BODY_PART_GROUP, Sequence[BODY_PART_OPENPOSE]] 
     "Trunk": ["RightHip", "LeftHip", "RightShoulder", "LeftShoulder", "Neck"],
 }
 
-BODY_PART_MAPPING_XSENS: Dict[BODY_PART_GROUP, Sequence[BODY_PART_XSENS]] = {
+BODY_PART_MAPPING_XSENS: dict[BODY_PART_GROUP, Sequence[BODY_PART_XSENS]] = {
     "TotalBody": get_args(BODY_PART_XSENS),
     "UpperExtremities": [
         "RightShoulder",
@@ -197,6 +234,41 @@ BODY_PART_MAPPING_XSENS: Dict[BODY_PART_GROUP, Sequence[BODY_PART_XSENS]] = {
         "T12",
         "Neck",
     ],
+    "Lumbar": ["jL5S1"],
+}
+
+BODY_PART_MAPPING_MEDIAPIPE: Dict[BODY_PART_GROUP, Sequence[BODY_PART_MEDIAPIPE]] = {
+    "TotalBody": get_args(BODY_PART_MEDIAPIPE),
+    "UpperExtremities": [
+        "LeftElbow",
+        "RightElbow",
+        "LeftWrist",
+        "RightWrist",
+        "LeftPinky",
+        "RightPinky",
+        "LeftIndex",
+        "RightIndex",
+        "LeftThumb",
+        "RightThumb",
+    ],
+    "LowerExtremities": [
+        "LeftHip",
+        "RightHip",
+        "LeftKnee",
+        "RightKnee",
+        "LeftAnkle",
+        "RightAnkle",
+        "LeftHeel",
+        "RightHeel",
+        "LeftFootIndex",
+        "RightFootIndex",
+    ],
+    "Trunk": [
+        "LeftShoulder",
+        "RightShoulder",
+        "RightHip",
+        "LeftHip",
+    ],
 }
 
 
@@ -215,8 +287,10 @@ def get_all_body_parts(system: MOTION_CAPTURE_SYSTEM) -> Sequence[str]:
         raise ValueError(f"Invalid 'system'! Expected one of {get_args(MOTION_CAPTURE_SYSTEM)}, got {system}.")
     if system == "perception_neuron":
         return get_args(BODY_PART_PERCEPTION_NEURON)
-    elif system == "openpose":
+    if system == "openpose":
         return get_args(BODY_PART_OPENPOSE)
+    elif system == "mediapipe":
+        return get_args(BODY_PART_MEDIAPIPE)
     else:
         return get_args(BODY_PART_XSENS)
 
@@ -254,7 +328,9 @@ def get_body_parts_by_group(
         )
     if system == "perception_neuron":
         return BODY_PART_MAPPING_PERCEPTION_NEURON[body_part_group]
-    elif system == "openpose":
+    if system == "openpose":
         return BODY_PART_MAPPING_OPENPOSE[body_part_group]
+    elif system == "mediapipe":
+        return BODY_PART_MAPPING_MEDIAPIPE[body_part_group]
     else:
         return BODY_PART_MAPPING_XSENS[body_part_group]

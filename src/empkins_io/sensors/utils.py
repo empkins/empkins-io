@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import numpy as np
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_is_dtype
@@ -11,7 +9,7 @@ __all__ = ["cut_data_to_overlap"]
 def cut_data_to_overlap(
     reference: pd.DataFrame,
     target: pd.DataFrame,
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Cut target data and simultaneously collected reference data to overlapping regions according to their time axis.
 
     .. note::
@@ -44,6 +42,5 @@ def cut_data_to_overlap(
     if start_idx > end_idx:
         # no overlap
         return pd.DataFrame(columns=reference.columns.copy()), pd.DataFrame(columns=target.columns.copy())
-    else:
-        # extract overlapping regions
-        return reference.between_time(start_idx, end_idx), target.between_time(start_idx, end_idx)
+    # extract overlapping regions
+    return reference.between_time(start_idx, end_idx), target.between_time(start_idx, end_idx)

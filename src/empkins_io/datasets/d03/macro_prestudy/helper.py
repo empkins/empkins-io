@@ -1,10 +1,9 @@
 import json
 import math
-import pathlib
 import shutil
 import tarfile
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -12,7 +11,7 @@ import pandas as pd
 from empkins_io.datasets.d03._utils.dataset_utils import get_uncleaned_openpose_data
 from empkins_io.sensors.motion_capture.perception_neuron import PerceptionNeuronDataset
 from empkins_io.utils._types import path_t
-from empkins_io.utils.exceptions import TimelogNotFoundException
+from empkins_io.utils.exceptions import TimelogNotFoundError
 
 
 def build_data_path(base_path: path_t, subject_id: str, condition: str) -> Path:
@@ -22,9 +21,7 @@ def build_data_path(base_path: path_t, subject_id: str, condition: str) -> Path:
     return path
 
 
-def build_opendbm_tarfile_path(
-    base_path: path_t, subject_id: str, condition: str, suffix: Optional[str] = None
-) -> Path:
+def build_opendbm_tarfile_path(base_path: path_t, subject_id: str, condition: str, suffix: str | None = None) -> Path:
     path = build_data_path(base_path, subject_id, condition)
     path = path.joinpath("video", "processed")
 
@@ -45,50 +42,52 @@ def build_opendbm_extracted_tar_path(base_path: path_t, subject_id: str, conditi
     return path
 
 
-def build_opendbm_raw_data_path(subject_id: str, condition: str, group: str, subgroup: Optional[str] = None) -> list:
+def build_opendbm_raw_data_path(  # noqa: C901, PLR0912
+    subject_id: str, condition: str, group: str, subgroup: str | None = None
+) -> list:
     data_path = []
 
     if subgroup is None:
         if group == "facial":
             path = f"output/raw_variables/{subject_id}_{condition}/{group}/"
             data_path = [
-                    f"{path}face_asymmetry/{subject_id}_{condition}_facasym.csv",
-                    f"{path}face_au/{subject_id}_{condition}_facau.csv",
-                    f"{path}face_expressivity/{subject_id}_{condition}_facemo.csv",
-                    f"{path}face_landmark/{subject_id}_{condition}_faclmk.csv",
-                ]
+                f"{path}face_asymmetry/{subject_id}_{condition}_facasym.csv",
+                f"{path}face_au/{subject_id}_{condition}_facau.csv",
+                f"{path}face_expressivity/{subject_id}_{condition}_facemo.csv",
+                f"{path}face_landmark/{subject_id}_{condition}_faclmk.csv",
+            ]
         elif group == "acoustic":
             path = f"output/raw_variables/{subject_id}_{condition}/{group}/"
             data_path = [
-                    f"{path}formant_freq/{subject_id}_{condition}_formant.csv",
-                    f"{path}harmonic_noise/{subject_id}_{condition}_hnr.csv",
-                    f"{path}intensity/{subject_id}_{condition}_intensity.csv",
-                    f"{path}mfcc/{subject_id}_{condition}_mfcc.csv",
-                    f"{path}pitch/{subject_id}_{condition}_pitch.csv",
-                ]
+                f"{path}formant_freq/{subject_id}_{condition}_formant.csv",
+                f"{path}harmonic_noise/{subject_id}_{condition}_hnr.csv",
+                f"{path}intensity/{subject_id}_{condition}_intensity.csv",
+                f"{path}mfcc/{subject_id}_{condition}_mfcc.csv",
+                f"{path}pitch/{subject_id}_{condition}_pitch.csv",
+            ]
         elif group == "acoustic_seg":
             path = f"output/raw_variables/{subject_id}_{condition}/acoustic/"
             data_path = [
-                    f"{path}glottal_noise_recomputed/{subject_id}_{condition}_gne.csv",
-                    f"{path}jitter_recomputed/{subject_id}_{condition}_jitter.csv",
-                    f"{path}shimmer_recomputed/{subject_id}_{condition}_shimmer.csv",
-                ]
+                f"{path}glottal_noise_recomputed/{subject_id}_{condition}_gne.csv",
+                f"{path}jitter_recomputed/{subject_id}_{condition}_jitter.csv",
+                f"{path}shimmer_recomputed/{subject_id}_{condition}_shimmer.csv",
+            ]
         elif group == "audio_seg":
             path = f"output/raw_variables/{subject_id}_{condition}/"
             data_path = [
-                    f"{path}acoustic/pause_segment_recomputed/{subject_id}_{condition}_pausechar.csv",
-                    f"{path}acoustic/voice_frame_score_recomputed/{subject_id}_{condition}_voiceprev.csv",
-                    f"{path}movement/voice_tremor_recomputed/{subject_id}_{condition}_vtremor.csv",
-                ]
+                f"{path}acoustic/pause_segment_recomputed/{subject_id}_{condition}_pausechar.csv",
+                f"{path}acoustic/voice_frame_score_recomputed/{subject_id}_{condition}_voiceprev.csv",
+                f"{path}movement/voice_tremor_recomputed/{subject_id}_{condition}_vtremor.csv",
+            ]
 
         elif group == "movement":
             path = f"output/raw_variables/{subject_id}_{condition}/{group}/"
             data_path = [
-                    f"{path}gaze/{subject_id}_{condition}_eyegaze.csv",
-                    f"{path}head_movement/{subject_id}_{condition}_headmov.csv",
-                    f"{path}head_pose/{subject_id}_{condition}_headpose.csv",
-                    f"{path}eye_blink_binarized/{subject_id}_{condition}_eyeblinks.csv",
-                ]
+                f"{path}gaze/{subject_id}_{condition}_eyegaze.csv",
+                f"{path}head_movement/{subject_id}_{condition}_headmov.csv",
+                f"{path}head_pose/{subject_id}_{condition}_headpose.csv",
+                f"{path}eye_blink_binarized/{subject_id}_{condition}_eyeblinks.csv",
+            ]
         elif group == "facial_tremor":
             data_path = [
                 f"output/raw_variables/{subject_id}_{condition}/{subject_id}_{condition}_openface_lmk/"
@@ -316,12 +315,7 @@ def get_opendbm_derived_features(
         .joinpath(f"{subject_id}_{condition}_{phase}_derived_features_long.csv")
     )
     tar = tarfile.open(name=tar_path, mode="r")
-    if type(file_path) == pathlib.WindowsPath:
-        file_path = str(file_path)
-        file_path = file_path.replace("\\", "/")
-    else:
-        file_path = str(file_path)
-    file = tar.extractfile(file_path)
+    file = tar.extractfile(str(file_path))
     data = pd.read_csv(file)
     index_cols = list(data.columns)[:-1]
     data = data.set_index(index_cols)
@@ -330,7 +324,7 @@ def get_opendbm_derived_features(
 
 
 def get_times_for_mocap(
-    base_path: path_t, sampling_rate: float, subject_id: str, condition: str, phase: Optional[str] = "total"
+    base_path: path_t, sampling_rate: float, subject_id: str, condition: str, phase: str | None = "total"
 ) -> Sequence[float]:
     data_path = build_data_path(base_path.joinpath("data_per_subject"), subject_id=subject_id, condition=condition)
     time_file = data_path.joinpath(f"{subject_id}_times_{condition}.json")
@@ -345,13 +339,13 @@ def get_times_for_mocap(
     return times_mocap
 
 
-def get_times_for_video(base_path: path_t, subject_id: str, condition: str, phase: Optional[str] = "total") -> list:
+def get_times_for_video(base_path: path_t, subject_id: str, condition: str, phase: str | None = "total") -> list:
     data_path = build_data_path(base_path.joinpath("data_per_subject"), subject_id=subject_id, condition=condition)
     time_file = data_path.joinpath(f"{subject_id}_times_{condition}.json")
     try:
         time_json = json.load(time_file.open(encoding="utf-8"))
     except FileNotFoundError as e:
-        raise TimelogNotFoundException(f"Video timelogs not found for {subject_id} {condition}!") from e
+        raise TimelogNotFoundError(f"Video timelogs not found for {subject_id} {condition}!") from e
     times_video = list(time_json["video"][phase].values())
     return times_video
 
@@ -403,7 +397,7 @@ def apply_diarization_aco_seg(df, diarization, sampling_rate_audio):
     max_time = np.max([df.tail(1)["end_time"], dia_segments.tail(1)["stop"]])
     bin_dia = _binarize_diarization(max_time, dia_segments, sampling_rate_audio)
     start, stop = (df[["start_time", "end_time"]].to_numpy() * sampling_rate_audio).astype(int).T
-    indices = [np.all(bin_dia[t1:t2]) for t1, t2 in zip(start, stop)]
+    indices = [np.all(bin_dia[t1:t2]) for t1, t2 in zip(start, stop, strict=False)]
 
     return df.loc[indices].reset_index(drop=True)
 
@@ -426,7 +420,7 @@ def _binarize_diarization(max_time, diarization, fs):
     return bin_dia
 
 
-def extract_opendbm_data(base_path: path_t, subject_id: str, condition: str, suffix: Optional[str] = None):
+def extract_opendbm_data(base_path: path_t, subject_id: str, condition: str, suffix: str | None = None):
     tarfile_path = build_opendbm_tarfile_path(
         base_path=base_path.joinpath("data_per_subject"), subject_id=subject_id, condition=condition, suffix=suffix
     )
@@ -448,12 +442,12 @@ def write_file_to_opendbm_tar(
     subject_id: str,
     condition: str,
     data: pd.DataFrame,
-    data_type: Optional[str] = None,
-    raw: Optional[bool] = False,
-    derived: Optional[bool] = False,
-    phase: Optional[str] = None,
-    group: Optional[str] = None,
-    subgroup: Optional[str] = None,
+    data_type: str | None = None,
+    raw: bool | None = False,
+    derived: bool | None = False,
+    phase: str | None = None,
+    group: str | None = None,
+    subgroup: str | None = None,
 ):
     tarfile_path = build_opendbm_tarfile_path(
         base_path=base_path.joinpath("data_per_subject"), subject_id=subject_id, condition=condition
@@ -478,7 +472,7 @@ def write_file_to_opendbm_tar(
     data.to_csv(path, index=False)
 
 
-def compress_opendbm_data(base_path: path_t, subject_id: str, condition: str, suffix: Optional[str] = None):
+def compress_opendbm_data(base_path: path_t, subject_id: str, condition: str, suffix: str | None = None):
     tarfile_path = build_opendbm_tarfile_path(
         base_path=base_path.joinpath("data_per_subject"), subject_id=subject_id, condition=condition, suffix=suffix
     )

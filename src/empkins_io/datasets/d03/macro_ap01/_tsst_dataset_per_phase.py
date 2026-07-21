@@ -1,6 +1,6 @@
+from collections.abc import Sequence
 from functools import cached_property, lru_cache
 from itertools import product
-from typing import Dict, Optional, Sequence, Union
 
 import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
@@ -20,20 +20,25 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
 
     PHASES = ("prep", "talk", "math")
 
+    include_prep: bool = False
+
     def __init__(
         self,
         base_path: path_t,
-        groupby_cols: Optional[Sequence[str]] = None,
-        subset_index: Optional[Sequence[str]] = None,
+        groupby_cols: Sequence[str] | None = None,
+        subset_index: Sequence[str] | None = None,
         *,
+        include_prep: bool = False,
         exclude_complete_subjects_if_error: bool = True,
         exclude_without_mocap: bool = True,
         exclude_without_openpose: bool = False,
         exclude_with_arm_errors: bool = False,
         exclude_without_prep: bool = False,
+        exclude_without_gait_tests: bool = False,
         use_cache: bool = True,
         verbose: bool = True,
     ):
+        self.include_prep = include_prep
         super().__init__(
             base_path=base_path,
             groupby_cols=groupby_cols,
@@ -44,6 +49,7 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
             exclude_without_openpose=exclude_without_openpose,
             exclude_with_arm_errors=exclude_with_arm_errors,
             exclude_without_prep=exclude_without_prep,
+            exclude_without_gait_tests=exclude_without_gait_tests,
             verbose=verbose,
         )
 
@@ -52,7 +58,11 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
             subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_*")
         ]
 
-        index = list(product(subject_ids, self.CONDITIONS, self.PHASES))
+        phases = self.PHASES
+        if not self.include_prep:
+            phases = phases[1:]
+
+        index = list(product(subject_ids, self.CONDITIONS, phases))
 
         index_cols = ["subject", "condition", "phase"]
         index = pd.DataFrame(index, columns=index_cols)
@@ -61,8 +71,14 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
 
         return index
 
+    @property
+    def phase(self) -> str_t:
+        if self.is_single(None):
+            return self.index["phase"][0]
+        raise ValueError("Phase can only be accessed for a single phase in the subset")
+
     @cached_property
-    def mocap_data(self) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    def mocap_data(self) -> pd.DataFrame | dict[str, pd.DataFrame]:
         if not self.is_single(["subject", "condition"]):
             raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
 
@@ -75,10 +91,10 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
 
     def _get_mocap_data_per_phase(
         self, subject_id: str, condition: str, phase: str_t, *, verbose: bool = True
-    ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
-        data, start = self._get_mocap_data(subject_id, condition, verbose=verbose)
+    ) -> pd.DataFrame | dict[str, pd.DataFrame]:
+        data = self._get_mocap_data(subject_id, condition, verbose=verbose)
         timelog = self.timelog_test
-        times = _get_times_for_mocap(timelog, start, phase)
+        times = _get_times_for_mocap(timelog, phase)
 
         if isinstance(phase, str):
             return data.loc[times.loc[phase, "start"] : times.loc[phase, "end"]]

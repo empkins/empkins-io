@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_has_column_multiindex
@@ -7,9 +7,9 @@ from scipy.spatial.transform.rotation import Rotation
 
 def euler_to_quat_hierarchical(
     data: pd.DataFrame,
-    columns: Optional[Sequence[str]] = None,
-    seq: Optional[str] = "xyz",
-    degrees: Optional[bool] = False,
+    columns: Sequence[str] | None = None,
+    seq: str | None = "xyz",
+    degrees: bool | None = False,
 ) -> pd.DataFrame:
     """Convert rotation data in a hierarchical dataframe from euler angles to quaternions.
 
@@ -49,7 +49,7 @@ def euler_to_quat_hierarchical(
     return pd.concat(rot_quat_total, axis=1, names=[data.columns.names[0]])
 
 
-def euler_to_quat(data: pd.DataFrame, seq: Optional[str] = "xyz", degrees: Optional[bool] = False):
+def euler_to_quat(data: pd.DataFrame, seq: str | None = "xyz", degrees: bool | None = False):
     """Convert rotation data from euler angles to quaternions.
 
     Parameters
@@ -81,9 +81,9 @@ def euler_to_quat(data: pd.DataFrame, seq: Optional[str] = "xyz", degrees: Optio
 
 def quat_to_euler_hierarchical(
     data: pd.DataFrame,
-    columns: Optional[Sequence[str]] = None,
-    seq: Optional[str] = "xyz",
-    degrees: Optional[bool] = False,
+    columns: Sequence[str] | None = None,
+    seq: str | None = "xyz",
+    degrees: bool | None = False,
 ) -> pd.DataFrame:
     """Convert rotation data from quaternions to euler angles.
 
@@ -122,7 +122,7 @@ def quat_to_euler_hierarchical(
     return pd.concat(rot_euler_total, axis=1, names=[data.columns.names[0]])
 
 
-def quat_to_euler(data: pd.DataFrame, seq: Optional[str] = "xyz", degrees: Optional[bool] = False):
+def quat_to_euler(data: pd.DataFrame, seq: str | None = "xyz", degrees: bool | None = False):
     """Convert rotation data from quaternions to euler angles.
 
     Parameters
@@ -155,7 +155,7 @@ def quat_to_euler(data: pd.DataFrame, seq: Optional[str] = "xyz", degrees: Optio
 
 
 def rotate_quat_hierarchical(
-    data: pd.DataFrame, data_rot: pd.DataFrame, columns: Optional[Sequence[str]] = None
+    data: pd.DataFrame, data_rot: pd.DataFrame, columns: Sequence[str] | None = None
 ) -> pd.DataFrame:
     """Rotate a series of quaternions with rotation quaternion data in a hierarchical dataframe.
 

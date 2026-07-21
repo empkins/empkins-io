@@ -1,24 +1,23 @@
-from functools import lru_cache
-from typing import Dict, Optional, Sequence, Union, Tuple
+from collections.abc import Sequence
 from itertools import product
-import pandas as pd
-from tpcp import Dataset
-from pathlib import Path
-import numpy as np
+from typing import Dict, Optional, Tuple
 
+import numpy as np
+import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
-from empkins_io.sensors.tfm.tfm import TfmLoader
-from empkins_io.utils._types import path_t
+from tpcp import Dataset
+
 from empkins_io.datasets.gapvii.dip_study.helper import (
     _load_general_information,
     _load_radar_data,
-    _update_dates,
     _load_single_date,
     _load_tfm_data,
+    _update_dates,
     _load_b2b_data,
     _sync_datasets,
     _load_tfm_phase_timestamps
 )
+from empkins_io.utils._types import path_t
 
 
 class DipStudyDataset(Dataset):
@@ -41,21 +40,21 @@ class DipStudyDataset(Dataset):
     }
     DEF_DATE = "01.01.1970"
     SUBJECTS_MISSING: Tuple[str] = ("VP_15", "VP_18")
-    RADAR_FAILURE: Tuple[str] = ("", "VP_03")
+    RADAR_FAILURE: Tuple[str] = "VP_03"
     TFM_FAILURE: Tuple[Tuple[str, str]] = (
-    #   ("VP_05", "cpt"),
-    #   ("VP_08", "straw"),
-    #   ("VP_12", "straw"),
+        #   ("VP_05", "cpt"),
+        #   ("VP_08", "straw"),
+        #   ("VP_12", "straw"),
     )
 
     def __init__(
-            self,
-            base_path: path_t,
-            exclude_failed: bool = False,
-            exclude_noisy_tfm: bool = False,
-            groupby_cols: Optional[Sequence[str]] = None,
-            subset_index: Optional[Sequence[str]] = None,
-            use_cache: Optional[bool] = False
+        self,
+        base_path: path_t,
+        exclude_failed: bool = False,
+        exclude_noisy_tfm: bool = False,
+        groupby_cols: Optional[Sequence[str]] = None,
+        subset_index: Optional[Sequence[str]] = None,
+        use_cache: Optional[bool] = False,
     ):
         self.base_path = base_path
         self.exclude_failed = exclude_failed
@@ -92,7 +91,6 @@ class DipStudyDataset(Dataset):
         index = pd.DataFrame(index, columns=["subject", "phase"])
         return index
 
-
     def fill_dates(self):
         subject_ids = self._get_ids()
         subject_date_dict = {}
@@ -106,25 +104,56 @@ class DipStudyDataset(Dataset):
         _update_dates(self.base_path, subject_date_dict, "Sheet1")
 
     @property
+    def subject(self) -> str:
+        if self.is_single(["subject"]):
+            return self.index["subject"][0]
+        raise ValueError("Subject can only be accessed for a single participant at once!")
+
+    @property
+    def phase(self) -> str:
+        if self.is_single(None):
+            return self.index["phase"][0]
+        raise ValueError("Phase can only be accessed for a single participant and phase at once!")
+
+    @property
     def sampling_rates(self) -> Dict[str, float]:
         return self._SAMPLING_RATES
 
     @property
     def condition_order(self):
         if self.is_single(["subject"]):
-            return _load_general_information(base_path=self.base_path, column="condition_order")[self.index["subject"][0]]
+            return _load_general_information(base_path=self.base_path, column="condition_order")[
+                self.index["subject"][0]
+            ]
 
         return _load_general_information(base_path=self.base_path, column="condition_order")
-    
+
+    @property
+    def questionnaire_data(self) -> pd.DataFrame:
+        quest_df = pd.read_csv(
+            self.base_path.joinpath("data_tabular/processed/gap_vii_healthy_total.csv"),
+            index_col="vpn",
+        )
+        quest_df.index.name = "subject"
+        return quest_df
+
+    @property
+    def ipos(self) -> pd.DataFrame:
+        return self.questionnaire_data.filter(like="IPOS")
+
+    @property
+    def distress_thermometer(self) -> pd.DataFrame:
+        return self.questionnaire_data.filter(like="Distress")
+
     @property
     def ordered_phases(self):
         # data = self.tfm_data.values()
         # pre_phases = list(next(iter(data)).keys())
         # phases = [phase.replace("start_", "") for phase in pre_phases if phase != 'start_recording']
 
-        if self.condition_order == 'cpt_first':
+        if self.condition_order == "cpt_first":
             return self._PHASES
-        elif self.condition_order == 'straw_first':
+        elif self.condition_order == "straw_first":
             res = self._PHASES.copy()
             # exchange second and fourth element
             res[1], res[3] = res[3], res[1]
@@ -141,16 +170,12 @@ class DipStudyDataset(Dataset):
     @property
     def straw_duration(self):
         if self.is_single(["subject"]):
-            return _load_general_information(base_path=self.base_path, column="straw_duration")[self.index["subject"][0]]
+            return _load_general_information(base_path=self.base_path, column="straw_duration")[
+                self.index["subject"][0]
+            ]
 
         return _load_general_information(base_path=self.base_path, column="straw_duration")
 
-    @property
-    def subject(self) -> str:
-        if self.is_single(["subject"]):
-            return self.index["subject"][0]
-        return None
-    
     @property
     def date(self) -> str:
         try:
@@ -183,13 +208,69 @@ class DipStudyDataset(Dataset):
         if self.is_single(["subject"]):
             participant_id = self.index["subject"][0]
             data, fs = self._get_tfm_data(participant_id, "all")
-            self._SAMPLING_RATES.update(fs)     
+            self._SAMPLING_RATES.update(fs)
             return data
 
-        raise ValueError(
-            "TFM data can only be accessed for a single participant and a single condition at once!"
-        )
-    
+        raise ValueError("TFM data can only be accessed for a single participant and a single condition at once!")
+
+    @property
+    def ecg(self) -> pd.DataFrame:
+        if self.is_single(None):
+            phase = self.index["phase"][0]
+            return self.tfm_data["ecg_2"][f"start_{phase}"].rename(columns={"ecg_2": "ecg"})
+
+        if self.is_single(["subject"]):
+            return pd.concat(self.tfm_raw_data["ecg_2"]).droplevel(0).rename(columns={"ecg_2": "ecg"})
+
+        raise ValueError("ECG data can only be accessed for a single participant and a single condition at once!")
+
+    @property
+    def icg(self) -> pd.DataFrame:
+        if self.is_single(None):
+            phase = self.index["phase"][0]
+            return self.tfm_data["icg_der"][f"start_{phase}"]
+
+        if self.is_single(["subject"]):
+            return pd.concat(self.tfm_raw_data["icg_der"]).droplevel(0)
+
+        raise ValueError("ECG data can only be accessed for a single participant and a single condition at once!")
+
+    @property
+    def phase_time(self) -> Dict[str, str]:
+        phase_time = {}
+        if self.is_single(None):
+            # get phase times
+            phase_time["start"] = self.ecg.index[0]
+            phase_time["end"] = self.ecg.index[-1]
+            if self.phase == "cpt":
+                phase_time["end"] = phase_time["start"] + pd.Timedelta(seconds=self.cpt_duration)
+            elif self.phase == "straw":
+                phase_time["end"] = phase_time["start"] + pd.Timedelta(seconds=self.straw_duration)
+            return phase_time
+        raise ValueError("Phase time can only be accessed for a single participant and phase at once!")
+
+    def hr(self, start_offset_sec: int = 0) -> pd.DataFrame:
+
+        path = self.base_path.joinpath(f"data_per_subject/{self.subject}/tfm/processed/{self.subject}_hr.csv")
+        if not path.exists():
+            raise FileNotFoundError(f"HR data not found for subject {self.subject}.")
+        hr_data = pd.read_csv(path, index_col=0)
+        hr_data.index = pd.to_datetime(hr_data.index, format="ISO8601")
+
+        if self.is_single(None):
+            return hr_data.loc[self.phase_time["start"] - pd.Timedelta(f"{start_offset_sec}s") : self.phase_time["end"]]
+        if self.is_single(["subject"]):
+            return hr_data
+
+        raise ValueError("HR data can only be accessed for a single participant at once!")
+
+    @property
+    def hrv(self) -> pd.DataFrame:
+        if self.is_single(None):
+            raise ValueError("HRV data can only be accessed for all participants and phases")
+        path = self.base_path.joinpath("data_tabular/processed/hrv_results.csv")
+        return pd.read_csv(path).set_index(["subject", "phase"])
+
     @property
     def b2b_data(self) -> pd.DataFrame:
         if self.is_single(None):
@@ -205,17 +286,14 @@ class DipStudyDataset(Dataset):
             self._SAMPLING_RATES.update(fs)
             return data
 
-        raise ValueError(
-            "B2B data can only be accessed for a single participant and a single condition at once!"
-        )
+        raise ValueError("B2B data can only be accessed for a single participant and a single condition at once!")
 
-    
     @property
     def emrad_raw_data(self) -> Dict[str, np.ndarray]:
         participant_id = self.index["subject"][0]
         data, fs = _load_radar_data(self.base_path, participant_id, self.sampling_rates["radar"])
         return data
-    
+
     @property
     def emrad_data(self) -> pd.DataFrame:
         if self.is_single(None):
@@ -229,9 +307,7 @@ class DipStudyDataset(Dataset):
             data, fs = self._get_radar_data(participant_id, "all")
             return data
 
-        raise ValueError(
-            "Radar data can only be accessed for a single participant and a single condition at once!"
-        )
+        raise ValueError("Radar data can only be accessed for a single participant and a single condition at once!")
 
     @property
     def tfm_phase_timestamps(self) -> pd.DataFrame:
@@ -290,7 +366,7 @@ class DipStudyDataset(Dataset):
         # Check if caching is enabled for data retrieval
         if self.use_cache:
             # TODO implement cache logic
-            data, fs = None, None # Placeholder for future cache implementation
+            data, fs = None, None  # Placeholder for future cache implementation
             pass
         else:
             # Load the TFM data from the dataset for the specified participant and date
@@ -312,7 +388,7 @@ class DipStudyDataset(Dataset):
             tfm_data[signal] = phase_dict
 
         return tfm_data, fs
-    
+
     def _get_b2b_data(self, participant_id: str, phase: str) -> tuple[pd.DataFrame, float]:
         # Check if caching is enabled for data retrieval
         if self.use_cache:
@@ -338,21 +414,18 @@ class DipStudyDataset(Dataset):
             b2b_data[signal] = phase_dict
 
         return b2b_data, fs
-    
+
     def _get_radar_data(self, participant_id: str, phase: str) -> tuple[pd.DataFrame, float]:
         if self.use_cache:
             # TODO implement cache
-            data, fs = None, None # Placeholder for future cache implementation
+            data, fs = None, None  # Placeholder for future cache implementation
             pass
         else:
             # Load radar data for the given participant_id from the base path
             data, fs = _load_radar_data(self.base_path, participant_id, self.sampling_rates["radar"])
 
         emrad_data = None
-        if phase == "all":
-            emrad_data = data
-        else:
-            emrad_data = data
+        emrad_data = data if phase == "all" else data
 
         # Return the filtered data and the sampling frequency
         return emrad_data, fs

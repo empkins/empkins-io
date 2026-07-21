@@ -6,7 +6,9 @@ import pandas as pd
 from biopsykit.io.nilspod import _handle_counter_inconsistencies_session
 
 from empkins_io.datasets.d03._utils.dataset_utils import get_uncleaned_openpose_data
-from empkins_io.datasets.d03.macro_ap01._custom_synced_session import CustomSyncedSession
+from empkins_io.datasets.d03.macro_ap01._custom_synced_session import (
+    CustomSyncedSession,
+)
 from empkins_io.sensors.motion_capture.motion_capture_formats import mvnx
 from empkins_io.utils._types import path_t, str_t
 from empkins_io.utils.exceptions import NilsPodDataNotFoundException
@@ -20,7 +22,11 @@ def _build_data_path(base_path: path_t, subject_id: str, condition: str) -> Path
 
 
 def _load_nilspod_session(base_path: path_t, subject_id: str, condition: str) -> Tuple[pd.DataFrame, float]:
-    data_path = _build_data_path(base_path.joinpath("data_per_subject"), subject_id=subject_id, condition=condition)
+    data_path = _build_data_path(
+        base_path.joinpath("data_per_subject"),
+        subject_id=subject_id,
+        condition=condition,
+    )
     data_path = data_path.joinpath("nilspod/raw")
 
     nilspod_files = sorted(data_path.glob("NilsPodX-*.bin"))

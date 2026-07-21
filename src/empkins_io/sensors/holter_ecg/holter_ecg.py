@@ -1,12 +1,11 @@
 from pathlib import Path
 from typing import Optional
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
 from empkins_io.utils._types import path_t
-
-from biopsykit.utils._datatype_validation_helper import _assert_file_extension
 
 
 class HolterEcgLoader:
@@ -74,17 +73,13 @@ class HolterEcgLoader:
             If any other than the allowed `index` values are used.
 
         """
-
         ecg_data = pd.DataFrame(self.ecg_data)
         data = self._add_index(ecg_data, index)
 
         return data
 
     def _add_index(self, data: pd.DataFrame, index: str) -> pd.DataFrame:
-        index_names = {
-            None: "n_samples",
-            "time": "t"
-        }
+        index_names = {None: "n_samples", "time": "t"}
 
         if index and index not in index_names:
             raise ValueError(f"Supplied value for index ({index}) is not allowed. Allowed values: {index_names.keys()}")
@@ -97,13 +92,10 @@ class HolterEcgLoader:
             data.index -= data.index[0]
             data.index /= self.sampling_rate_hz
             return data
+        return None
 
     @classmethod
-    def from_ecg_file(
-            cls,
-            path: path_t,
-            sampling_rate_hz: Optional[float] = 500
-    ):
+    def from_ecg_file(cls, path: path_t, sampling_rate_hz: Optional[float] = 500):
         """Create a new data loader from a valid .ecg file.
 
         Parameters
@@ -115,7 +107,6 @@ class HolterEcgLoader:
             Sampling rate of the Holter ECG device. Default: 500 Hz
 
         """
-
         path = Path(path)
         _assert_file_extension(path, (".ecg"))
 

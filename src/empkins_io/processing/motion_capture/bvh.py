@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any, Dict, Optional, Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -15,7 +16,7 @@ class BvhProcessor(_BaseMotionCaptureProcessor):
         super().__init__(data)
 
     def filter_position_drift(
-        self, key: str, filter_params: Optional[Dict[str, Any]] = None
+        self, key: str, filter_params: dict[str, Any] | None = None
     ) -> _BaseMotionCaptureDataFormat:
         """Filter positional displacement drift in bvh data.
 
@@ -52,7 +53,7 @@ class BvhProcessor(_BaseMotionCaptureProcessor):
         return bvh_data
 
     def filter_rotation_drift(
-        self, key: str, filter_params: Optional[Sequence[Dict[str, Any]]] = None
+        self, key: str, filter_params: Sequence[dict[str, Any]] | None = None
     ) -> _BaseMotionCaptureDataFormat:
         bvh_data = deepcopy(self.data_dict[key])
         data = bvh_data.data
