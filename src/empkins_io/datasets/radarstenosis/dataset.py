@@ -296,3 +296,20 @@ class RadarCardiaStenosisTest(Dataset):
 
     def add_binary_label(self, multiclass_label):
         return 0 if multiclass_label == 3 else 1
+
+    @property
+    def visual_segmentation(self) -> pd.DataFrame:
+        """
+        Returns the visual heart sound segmentation for the current participant
+        Args:
+        Returns:
+            visual_seg: pd.DataFrame.
+        """
+        if not self.is_single(["subject"]):
+            raise ValueError("Visual Inspection Segmentation can only be accessed for one single participant at once")
+        participant_id = self.index["subject"][0]
+        data = self._get_visual_segmentation(participant_id)
+        if self.is_single(None):
+            loc = self._get_locations_from_index()[0]
+            return data.loc[loc]
+        return data

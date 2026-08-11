@@ -2,16 +2,26 @@
 name = "empkins-io"
 version = "0.1.1"
 description = "A Python package to load and convert data from EmpkinS sensors."
-authors = [{ name = "Robert Richer", email = "robert.richer@fau.de" }]
-requires-python = ">=3.10,<3.13"
+authors = [
+    { name = "Robert Richer", email = "robert.richer@fau.de" },
+    { name = "Luca Abel", email = "luca.abel@fau.de" },
+]
+requires-python = ">=3.10,<4.0"
 dependencies = [
+    "numpy>=1.19",
+    "scipy>=1.7.0,<2",
+    "seaborn<1",
+    "statsmodels>=0,<1",
     "pyquaternion>=0.9.9,<0.10",
-    "biopsykit",
+    "biopsykit[jupyter]",
     "h5py>=3.5.0,<4",
-    "tpcp>=2",
+    "tpcp>=1",
     "resampy>=0.4.2,<0.5",
     "avro>=1.11.3,<2",
     "fastavro>=1.4.0,<2",
+    "construct",
+    "PyWavelets",
+    "pandas-stubs>=2.3.3.260113",
 ]
 
 [project.optional-dependencies]
@@ -19,13 +29,13 @@ opencv = ["opencv-python~=4.8"]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.6.3,<0.7",
-    "ipykernel>=6.29.5,<7",
-    "ipympl>=0.9.6,<0.10",
+    "pytest~=5.2",
+    "black[jupyter, d]>=22,<23",
+    "ruff>=0.0.261,<0.0.262",
+    "poethepoet>=0.11.0,<0.12",
 ]
 
-[tool.uv.sources]
-biopsykit = { path = "../BioPsyKit", editable = true }
+[tool.uv]
 
 [build-system]
 requires = ["hatchling"]
@@ -33,7 +43,7 @@ build-backend = "hatchling.build"
 
 [tool.black]
 line-length = 120
-target-version = ['py310']
+target-version = ['py38']
 exclude = '''
 (
   /(
@@ -52,18 +62,28 @@ exclude = '''
 )
 '''
 
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 120
+skip_gitignore = true
+
 [tool.poe.tasks]
-_format = "ruff format ."
-_auto_fix = "ruff check . --fix-only --show-fixes --exit-zero"
-_auto_fix_unsafe = "ruff check . --fix-only --show-fixes --exit-zero --unsafe-fixes"
-format = ["_auto_fix", "_format"]
-format_unsafe = ["_auto_fix_unsafe", "_format"]
-lint = { cmd = "ruff check src --fix", help = "Lint all files with ruff." }
-_lint_ci = "ruff check src --output-format=github"
-_check_format = "ruff format . --check"
-ci_check = { sequence = ["_check_format", "_lint_ci"], help = "Check all potential format and linting issues." }
+_black = "black ."
+_black_check = "black . --check"
+_isort = "isort **/*.py"
+_isort_check = "isort **/*.py --check-only"
+
+# Reformat all files using black and sort import
+_format_black = "black ."
+_format_ruff = "ruff . --fix-only"
+format = { sequence = ["_format_black", "_format_ruff"], help = "Format all files." }
+lint = { cmd = "ruff empkins_io --fix", help = "Lint all files with ruff." }
+_lint_ci = "ruff empkins_io --format=github"
+_check_black = "black . --check"
+ci_check = { sequence = ["_check_black", "_lint_ci"], help = "Check all potential format and linting issues." }
 test = {cmd = "pytest --cov=empkins_io --cov-report=xml", help = "Run Pytest with coverage." }
-version = { "script" = "_tasks:task_update_version" }
+update_version = {"script" = "_tasks:task_update_version"}
 register_ipykernel = { cmd = "python -m ipykernel install --user --name empkins-io --display-name empkins-io", help = "Add a new jupyter kernel for the project."}
 remove_ipykernel = { cmd = "jupyter kernelspec uninstall empkins-io", help = "Remove the project specific jupyter kernel."}
 default = {sequence = ["format", "lint", "test"], help = "Run the default pipeline, consisting of formatting, linting, and testing."}
