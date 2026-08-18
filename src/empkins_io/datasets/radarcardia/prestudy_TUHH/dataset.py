@@ -14,7 +14,6 @@ from biopsykit.utils.dataframe_handling import multi_xs, wide_to_long
 
 from biopsykit.utils.file_handling import get_subject_dirs
 
-from empkins_io.datasets.radarcardia.base.dataset import BaseDataset
 from empkins_io.utils._types import path_t
 
 """

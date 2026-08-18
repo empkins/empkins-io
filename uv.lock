@@ -169,8 +169,8 @@ wheels = [
 
 [[package]]
 name = "biopsykit"
-version = "0.13.1"
-source = { registry = "https://pypi.org/simple" }
+version = "0.13.2"
+source = { editable = "../BioPsyKit" }
 dependencies = [
     { name = "bioread" },
     { name = "fau-colors" },
@@ -194,16 +194,55 @@ dependencies = [
     { name = "xlrd" },
     { name = "xlsxwriter" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/86/21/7070e5912e1fa83ccfb082b4cfc54445f1632fc4f972ec874df6ec88b779/biopsykit-0.13.1.tar.gz", hash = "sha256:f295ead17b77c1708abc8c7a6039868e63435e8995c3be6e422a086d49aa9fc3", size = 273144, upload-time = "2025-06-24T12:06:28.02Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b6/22/c03d9528308d72e23ad3d2beaf401f69c7c7fe584fab6c590448413707d9/biopsykit-0.13.1-py3-none-any.whl", hash = "sha256:1b8ea4f07a1196d0628d1437b6938e0541558bc4810cd59e46c83a04013276a7", size = 366425, upload-time = "2025-06-24T12:06:26.21Z" },
-]
 
-[package.optional-dependencies]
-jupyter = [
-    { name = "ipympl" },
-    { name = "ipython" },
-    { name = "ipywidgets" },
+[package.metadata]
+requires-dist = [
+    { name = "bioread", specifier = ">=3,<4" },
+    { name = "fau-colors", specifier = "~=1.1" },
+    { name = "ipympl", marker = "extra == 'jupyter'", specifier = ">=0.9,<0.10" },
+    { name = "ipython", marker = "extra == 'jupyter'", specifier = ">=7,<8" },
+    { name = "ipywidgets", marker = "extra == 'jupyter'", specifier = ">=8,<9" },
+    { name = "joblib", specifier = ">=1,<2" },
+    { name = "matplotlib", specifier = "~=3.9" },
+    { name = "mne", marker = "extra == 'mne'", specifier = ">=1.2.1,<2" },
+    { name = "neurokit2", specifier = ">=0,<0.2.11" },
+    { name = "nilspodlib", specifier = ">=4.0.0" },
+    { name = "numpy", specifier = ">=1.26" },
+    { name = "openpyxl", specifier = ">=3,<4" },
+    { name = "pandas", specifier = ">=2,<3" },
+    { name = "pingouin", specifier = ">=0.5.2,<0.6" },
+    { name = "scikit-learn", specifier = "~=1.0" },
+    { name = "scipy", specifier = ">=1,<2" },
+    { name = "seaborn", specifier = ">=0,<1" },
+    { name = "statannotations", specifier = ">=0.7.1,<0.8" },
+    { name = "statsmodels", specifier = ">=0,<1" },
+    { name = "tpcp", specifier = ">=1" },
+    { name = "tqdm", specifier = ">=4,<5" },
+    { name = "ts2vg", specifier = ">=1.2.4,<2" },
+    { name = "xlrd", specifier = ">=2,<3" },
+    { name = "xlsxwriter", specifier = ">=3" },
+]
+provides-extras = ["mne", "jupyter"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "black", specifier = ">=25" },
+    { name = "coverage-badge", specifier = ">=1.0.1,<2" },
+    { name = "ipykernel", specifier = ">=6,<7" },
+    { name = "memory-profiler", specifier = ">=0.57.0,<0.58" },
+    { name = "nbsphinx", specifier = ">=0.8.7,<0.9" },
+    { name = "numpydoc", specifier = ">=1,<2" },
+    { name = "poethepoet", specifier = ">=0.10.0,<0.11" },
+    { name = "pydata-sphinx-theme", specifier = ">=0.6.2,<0.7" },
+    { name = "pytest", specifier = ">=6,<7" },
+    { name = "pytest-cov", specifier = ">=2,<3" },
+    { name = "recommonmark", specifier = ">=0.6.0,<0.7" },
+    { name = "ruff", specifier = ">=0,<1" },
+    { name = "sphinx", specifier = ">=5,<6" },
+    { name = "sphinx-copybutton", specifier = ">=0.4.0,<0.5" },
+    { name = "sphinx-gallery", specifier = ">=0.10.0,<0.11" },
+    { name = "sphinx-issues", specifier = ">=1.2.0,<2" },
+    { name = "toml", specifier = ">=0.10.1,<0.11" },
 ]
 
 [[package]]
@@ -341,18 +380,6 @@ wheels = [
 ]
 
 [[package]]
-name = "comm"
-version = "0.2.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "traitlets" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e9/a8/fb783cb0abe2b5fded9f55e5703015cdf1c9c85b3669087c538dd15a6a86/comm-0.2.2.tar.gz", hash = "sha256:3fd7a84065306e07bea1773df6eb8282de51ba82f77c72f9c85716ab11fe980e", size = 6210, upload-time = "2024-03-12T16:53:41.133Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e6/75/49e5bfe642f71f272236b5b2d2691cf915a7283cc0ceda56357b61daa538/comm-0.2.2-py3-none-any.whl", hash = "sha256:e6fb86cb70ff661ee8c9c14e7d36d6de3b4066f1441be4063df9c5009f0a64d3", size = 7180, upload-time = "2024-03-12T16:53:39.226Z" },
-]
-
-[[package]]
 name = "construct"
 version = "2.10.70"
 source = { registry = "https://pypi.org/simple" }
@@ -456,7 +483,7 @@ version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "avro" },
-    { name = "biopsykit", extra = ["jupyter"] },
+    { name = "biopsykit" },
     { name = "construct" },
     { name = "fastavro" },
     { name = "h5py" },
@@ -490,7 +517,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "avro", specifier = ">=1.11.3,<2" },
-    { name = "biopsykit", extras = ["jupyter"] },
+    { name = "biopsykit", editable = "../BioPsyKit" },
     { name = "construct" },
     { name = "fastavro", specifier = ">=1.4.0,<2" },
     { name = "h5py", specifier = ">=3.5.0,<4" },
@@ -738,24 +765,6 @@ wheels = [
 ]
 
 [[package]]
-name = "ipympl"
-version = "0.9.7"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "ipython" },
-    { name = "ipywidgets" },
-    { name = "matplotlib" },
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "pillow" },
-    { name = "traitlets" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/39/1b/acd3d481869d614a7acbb831bd9304411eae47b05d7607db989613028788/ipympl-0.9.7.tar.gz", hash = "sha256:3e505a56b6e9a7bfc4d40c1a861a0547adb16820eb67ec79131335dd0a5084f0", size = 58547447, upload-time = "2025-03-05T03:51:14.609Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/86/6b/21c62f1b2b5e18c6553f7364487dfdf7eb7952b1000a1b7863c1f97819e9/ipympl-0.9.7-py3-none-any.whl", hash = "sha256:3698ee7eaa0b047a7603517d7aa1b71b32118a5f51754cab45ec5d994f67208f", size = 515702, upload-time = "2025-03-05T03:50:48.616Z" },
-]
-
-[[package]]
 name = "ipython"
 version = "7.34.0"
 source = { registry = "https://pypi.org/simple" }
@@ -779,22 +788,6 @@ wheels = [
 ]
 
 [[package]]
-name = "ipywidgets"
-version = "8.1.5"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "comm" },
-    { name = "ipython" },
-    { name = "jupyterlab-widgets" },
-    { name = "traitlets" },
-    { name = "widgetsnbextension" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c7/4c/dab2a281b07596a5fc220d49827fe6c794c66f1493d7a74f1df0640f2cc5/ipywidgets-8.1.5.tar.gz", hash = "sha256:870e43b1a35656a80c18c9503bbf2d16802db1cb487eec6fab27d683381dde17", size = 116723, upload-time = "2024-08-22T12:19:51.302Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/22/2d/9c0b76f2f9cc0ebede1b9371b6f317243028ed60b90705863d493bae622e/ipywidgets-8.1.5-py3-none-any.whl", hash = "sha256:3290f526f87ae6e77655555baba4f36681c555b8bdbbff430b70e52c34c86245", size = 139767, upload-time = "2024-08-22T12:19:49.494Z" },
-]
-
-[[package]]
 name = "jedi"
 version = "0.19.2"
 source = { registry = "https://pypi.org/simple" }
@@ -813,15 +806,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/64/33/60135848598c076ce4b231e1b1895170f45fbcaeaa2c9d5e38b04db70c35/joblib-1.4.2.tar.gz", hash = "sha256:2382c5816b2636fbd20a09e0f4e9dad4736765fdfb7dca582943b9c1366b3f0e", size = 2116621, upload-time = "2024-05-02T12:15:05.765Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/91/29/df4b9b42f2be0b623cbd5e2140cafcaa2bef0759a00b7b70104dcfe2fb51/joblib-1.4.2-py3-none-any.whl", hash = "sha256:06d478d5674cbc267e7496a410ee875abd68e4340feff4490bcb7afb88060ae6", size = 301817, upload-time = "2024-05-02T12:15:00.765Z" },
-]
-
-[[package]]
-name = "jupyterlab-widgets"
-version = "3.0.13"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/59/73/fa26bbb747a9ea4fca6b01453aa22990d52ab62dd61384f1ac0dc9d4e7ba/jupyterlab_widgets-3.0.13.tar.gz", hash = "sha256:a2966d385328c1942b683a8cd96b89b8dd82c8b8f81dda902bb2bc06d46f5bed", size = 203556, upload-time = "2024-08-22T12:16:08.6Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a9/93/858e87edc634d628e5d752ba944c2833133a28fa87bb093e6832ced36a3e/jupyterlab_widgets-3.0.13-py3-none-any.whl", hash = "sha256:e3cda2c233ce144192f1e29914ad522b2f4c40e77214b0cc97377ca3d323db54", size = 214392, upload-time = "2024-08-22T12:16:06.537Z" },
 ]
 
 [[package]]
@@ -2372,15 +2356,6 @@ wheels = [
 ]
 
 [[package]]
-name = "widgetsnbextension"
-version = "4.0.13"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/56/fc/238c424fd7f4ebb25f8b1da9a934a3ad7c848286732ae04263661eb0fc03/widgetsnbextension-4.0.13.tar.gz", hash = "sha256:ffcb67bc9febd10234a362795f643927f4e0c05d9342c727b65d2384f8feacb6", size = 1164730, upload-time = "2024-08-22T12:18:22.534Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/21/02/88b65cc394961a60c43c70517066b6b679738caf78506a5da7b88ffcb643/widgetsnbextension-4.0.13-py3-none-any.whl", hash = "sha256:74b2692e8500525cc38c2b877236ba51d34541e6385eeed5aec15a70f88a6c71", size = 2335872, upload-time = "2024-08-22T12:18:19.491Z" },
-]
-
-[[package]]
 name = "xarray"
 version = "2024.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2406,11 +2381,11 @@ wheels = [
 
 [[package]]
 name = "xlsxwriter"
-version = "1.4.5"
+version = "3.2.9"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/15/72/75b6c904ebabb3fc22965dd78e080252d5950af652a34cd3e0ed538ab1ff/XlsxWriter-1.4.5.tar.gz", hash = "sha256:0956747859567ec01907e561a7d8413de18a7aae36860f979f9da52b9d58bc19", size = 270337, upload-time = "2021-07-30T13:24:44.942Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/46/2c/c06ef49dc36e7954e55b802a8b231770d286a9758b3d936bd1e04ce5ba88/xlsxwriter-3.2.9.tar.gz", hash = "sha256:254b1c37a368c444eac6e2f867405cc9e461b0ed97a3233b2ac1e574efb4140c", size = 215940, upload-time = "2025-09-16T00:16:21.63Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/34/c0f14cd35304bd1ffeaf9bdb88d1a8b3d7153714dd2540a5f6341acf25ff/XlsxWriter-1.4.5-py2.py3-none-any.whl", hash = "sha256:f9335f1736e2c4fd80e940fe1b6d92d967bf454a1e5d639b0b7a4459ade790cc", size = 149747, upload-time = "2021-07-30T13:24:42.6Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/0c/3662f4a66880196a590b202f0db82d919dd2f89e99a27fadef91c4a33d41/xlsxwriter-3.2.9-py3-none-any.whl", hash = "sha256:9a5db42bc5dff014806c58a20b9eae7322a134abb6fce3c92c181bfb275ec5b3", size = 175315, upload-time = "2025-09-16T00:16:20.108Z" },
 ]
 
 [[package]]
