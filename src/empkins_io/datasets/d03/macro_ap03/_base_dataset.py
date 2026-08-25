@@ -41,6 +41,16 @@ class MacroBaseDataset(Dataset):
 
     PHASES: ClassVar[Sequence[str]] = ["prep", "talk", "math"]
 
+    SUBSET_IRREGULAR_DATA = (
+        ("VP_002", "tsst"),
+        ("VP_015", "ftsst"),
+        ("VP_020", "ftsst"),
+        ("VP_021", "tsst"),
+        ("VP_022", "tsst"),
+        ("VP_102", "ftsst"),
+
+    )
+
     SUBSET_MISSING_CONDITIONS = (
         ("VP_037", "tsst"),
         ("VP_042", "tsst"),
@@ -79,6 +89,23 @@ class MacroBaseDataset(Dataset):
         ("VP_094", "ftsst"),
         ("VP_094", "tsst"),
         ("VP_095", "tsst"),
+        ("VP_103", "ftsst"), #maybe just missed while exporting
+        ("VP_104", "ftsst"),#maybe just missed while exporting
+        ("VP_105", "tsst"),#maybe just missed while exporting
+        ("VP_105", "ftsst"),#maybe just missed while exporting
+        ("VP_112", "tsst"),#maybe just missed while exporting
+        ("VP_114", "ftsst"),#maybe just missed while exporting
+        ("VP_115", "ftsst"),#maybe just missed while exporting
+        ("VP_122", "ftsst"),#maybe just missed while exporting
+        ("VP_134", "tsst"),#maybe just missed while exporting
+        ("VP_144", "tsst"),#maybe just missed while exporting
+        ("VP_146", "tsst"),#maybe just missed while exporting
+        ("VP_146", "ftsst"),#maybe just missed while exporting
+        ("VP_147", "tsst"),#maybe just missed while exporting
+        ("VP_150", "tsst"),#maybe just missed while exporting
+        ("VP_152", "tsst"),#maybe just missed while exporting
+        ("VP_153", "ftsst"),#maybe just missed while exporting
+        ("VP_154", "ftsst"),#maybe just missed while exporting
     )
 
 
@@ -120,6 +147,7 @@ class MacroBaseDataset(Dataset):
         use_phases: bool = False,
         include_prep: bool = False,
         exclude_complete_subjects_if_error: bool = True,
+        exclude_irregular_data = True,
         exclude_without_mocap: bool = True,
         exclude_without_zebris: bool = True,
         exclude_missing_conditions: bool = True,
@@ -132,6 +160,7 @@ class MacroBaseDataset(Dataset):
         self.use_phases = use_phases
         self.include_prep = include_prep
         self.exclude_complete_subjects_if_error = exclude_complete_subjects_if_error
+        self.exclude_irregular_data = exclude_irregular_data
         self.exclude_without_mocap = exclude_without_mocap
         self.exclude_without_zebris = exclude_without_zebris
         self.exclude_missing_conditions = exclude_missing_conditions
@@ -181,6 +210,8 @@ class MacroBaseDataset(Dataset):
             data_to_exclude += self.SUBSETS_WITHOUT_ZEBRIS
         if self.exclude_missing_conditions:
             data_to_exclude += self.SUBSET_MISSING_CONDITIONS
+        if self.exclude_irregular_data:
+            data_to_exclude += self.SUBSET_IRREGULAR_DATA
         if exclude_complete_subjects_if_error:
             data_to_exclude = [x[0] for x in data_to_exclude]
 
