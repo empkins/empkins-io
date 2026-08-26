@@ -4,7 +4,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-
 from empkins_io.processing.motion_capture._base import _BaseMotionCaptureProcessor
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
 from empkins_io.sensors.motion_capture.motion_capture_formats.bvh import BvhData

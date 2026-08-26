@@ -13,7 +13,6 @@ from itertools import product
 from pathlib import Path
 
 import pandas as pd
-
 from empkins_io.utils._types import path_t
 
 

@@ -4,8 +4,6 @@ from pathlib import Path
 from typing import ClassVar
 
 import pandas as pd
-from tpcp import Dataset
-
 from empkins_io.datasets.radarcardia.base.helper import (
     _build_protocol_path,
     _build_timelog_path,
@@ -21,6 +19,7 @@ from empkins_io.datasets.radarcardia.base.helper import (
     _save_data_to_location_h5,
 )
 from empkins_io.utils._types import path_t
+from tpcp import Dataset
 
 _cached_get_biopac_data = lru_cache(maxsize=4)(_load_biopac_data)
 _cached_get_radar_data = lru_cache(maxsize=4)(_load_radar_data)

@@ -1,5 +1,4 @@
 import pandas as pd
-
 from empkins_io.utils.exceptions import CleanedOpenposeDataNotFoundError, OpenposeDataNotFoundError
 
 

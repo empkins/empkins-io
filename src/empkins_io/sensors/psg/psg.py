@@ -7,7 +7,6 @@ from typing import Literal
 import mne
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension, _assert_is_dir
-
 from empkins_io.sensors.psg.psg_channels import PSG_CHANNELS_MESA, PSG_CHANNELS_SOMNO
 from empkins_io.utils._types import path_t
 

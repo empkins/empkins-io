@@ -6,7 +6,6 @@ from typing import Any
 
 import pandas as pd
 import scipy.signal as ss
-
 from empkins_io.processing.utils.rotations import (
     euler_to_quat_hierarchical,
     quat_to_euler_hierarchical,

@@ -7,11 +7,10 @@ import numpy as np
 import pandas as pd
 import resampy
 from biopsykit.utils._datatype_validation_helper import _assert_is_dtype
+from empkins_io.utils.exceptions import SynchronizationError, ValidationError
 from matplotlib import pyplot as plt
 from scipy import signal
 from scipy.signal import find_peaks, periodogram, resample
-
-from empkins_io.utils.exceptions import SynchronizationError, ValidationError
 
 SYNC_TYPE = Literal[
     "peak",

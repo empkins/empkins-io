@@ -1,7 +1,6 @@
 from collections.abc import Sequence
 
 import pandas as pd
-
 from empkins_io.sensors.motion_capture.body_parts import get_all_body_parts
 from empkins_io.sensors.motion_capture.motion_capture_systems import MOTION_CAPTURE_SYSTEM
 from empkins_io.utils._types import T

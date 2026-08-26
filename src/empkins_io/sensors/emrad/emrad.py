@@ -5,10 +5,9 @@ from typing import ClassVar
 import h5py
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
-from typing_extensions import Self
-
 from empkins_io.utils._types import path_t
 from empkins_io.utils.exceptions import InvalidFileFormatError
+from typing_extensions import Self
 
 
 class EmradDataset:

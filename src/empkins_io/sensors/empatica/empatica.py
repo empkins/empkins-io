@@ -8,10 +8,9 @@ import numpy as np
 import pandas as pd
 from avro.datafile import DataFileReader
 from avro.io import DatumReader
+from empkins_io.utils._types import path_t
 from matplotlib import dates as mdates
 from matplotlib import pyplot as plt
-
-from empkins_io.utils._types import path_t
 
 
 class EmpaticaDataset:
@@ -382,7 +381,11 @@ class EmpaticaDataset:
                     f"Supplied sensor ({sensor}) is not allowed. Allowed values: {self._sensor_specs.keys()}"
                 )
 
-            data = self.accelerometer[["accelerometer_x_g", "accelerometer_y_g", "accelerometer_z_g"]] if sensor == "accelerometer" else self.data_as_df(sensor)
+            data = (
+                self.accelerometer[["accelerometer_x_g", "accelerometer_y_g", "accelerometer_z_g"]]
+                if sensor == "accelerometer"
+                else self.data_as_df(sensor)
+            )
             sensor_spec = self._sensor_specs[sensor]
             sensor_name = str(sensor_spec["name"])
             sensor_unit = sensor_spec.get("unit")

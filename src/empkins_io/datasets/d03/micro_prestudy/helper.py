@@ -7,7 +7,6 @@ import pandas as pd
 from biopsykit.io import load_pandas_dict_excel, load_time_log
 from biopsykit.io.nilspod import load_dataset_nilspod
 from biopsykit.utils.data_processing import resample_sec
-
 from empkins_io.datasets.d03.micro_prestudy.constants import (
     ARTIFACT_MAPPING,
     STUDY_PART_DICT_RADAR,

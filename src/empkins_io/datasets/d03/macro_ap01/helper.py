@@ -4,7 +4,6 @@ from typing import Dict, Optional, Tuple
 
 import pandas as pd
 from biopsykit.io.nilspod import _handle_counter_inconsistencies_session
-
 from empkins_io.datasets.d03._utils.dataset_utils import get_uncleaned_openpose_data
 from empkins_io.datasets.d03.macro_ap01._custom_synced_session import (
     CustomSyncedSession,

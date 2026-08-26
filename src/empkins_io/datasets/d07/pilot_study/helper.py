@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pandas as pd
-
 from empkins_io.sensors.motion_capture.xsens import XSensDataset
 
 

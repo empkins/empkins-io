@@ -9,12 +9,11 @@ import numpy as np
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_is_dtype
 from biopsykit.utils.array_handling import sanitize_input_1d
+from empkins_io.utils._types import arr_t
 from scipy.interpolate import interp1d
 from scipy.ndimage.interpolation import shift
 from scipy.optimize import minimize
 from statsmodels.tsa.stattools import ccovf
-
-from empkins_io.utils._types import arr_t
 
 __all__ = ["chisqr_align", "phase_align", "upsample", "signal_align"]
 

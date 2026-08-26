@@ -9,14 +9,6 @@ import pandas as pd
 from biopsykit.io import load_atimelogger_file
 from biopsykit.io.biopac import BiopacDataset
 from biopsykit.io.nilspod import _handle_counter_inconsistencies_session
-from nilspodlib.exceptions import (
-    InvalidInputFileError,
-    SessionValidationError,
-    SynchronisationError,
-)
-from pandas import DataFrame
-from tpcp import Dataset
-
 from empkins_io.datasets.d03.micro_gapvii._custom_synced_session import (
     CustomSyncedSession,
 )
@@ -27,6 +19,13 @@ from empkins_io.utils.exceptions import (
     NilsPodDataNotFoundException,
     SamplingRateMismatchException,
 )
+from nilspodlib.exceptions import (
+    InvalidInputFileError,
+    SessionValidationError,
+    SynchronisationError,
+)
+from pandas import DataFrame
+from tpcp import Dataset
 
 
 def _build_data_path(base_path: path_t, participant_id: str, condition: str) -> Path:

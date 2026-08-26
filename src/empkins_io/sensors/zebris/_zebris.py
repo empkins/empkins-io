@@ -3,8 +3,6 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import pandas as pd
-from typing_extensions import Self
-
 from empkins_io.sensors.zebris._helper import (
     _read_force_curve_csv,
     _read_gait_line_csv,
@@ -13,6 +11,7 @@ from empkins_io.sensors.zebris._helper import (
     _read_stance_average_csv,
 )
 from empkins_io.utils._types import path_t, str_t
+from typing_extensions import Self
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 

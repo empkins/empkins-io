@@ -8,8 +8,6 @@ import numpy as np
 import pandas as pd
 from biopsykit.io.biopac import BiopacDataset
 from biopsykit.utils.time import tz
-from pandas import DataFrame
-
 from empkins_io.sensors.emrad import EmradDataset
 from empkins_io.sync import SyncedDataset
 from empkins_io.utils._types import path_t
@@ -18,6 +16,7 @@ from empkins_io.utils.exceptions import (
     SynchronizationError,
     TimelogNotFoundError,
 )
+from pandas import DataFrame
 
 
 def _build_data_path(base_path: path_t, participant_id: str) -> Path:

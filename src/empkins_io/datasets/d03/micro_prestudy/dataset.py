@@ -7,8 +7,6 @@ import pandas as pd
 from biopsykit.io import load_long_format_csv
 from biopsykit.utils.dataframe_handling import multi_xs
 from biopsykit.utils.file_handling import get_subject_dirs, mkdirs
-from tpcp import Dataset
-
 from empkins_io.datasets.d03.micro_prestudy.constants import (
     ARTIFACTS,
     CONDITIONS,
@@ -27,6 +25,7 @@ from empkins_io.datasets.d03.micro_prestudy.helper import (
     load_mis_data,
 )
 from empkins_io.utils._types import path_t, str_t
+from tpcp import Dataset
 
 _cached_load_emotion_data = lru_cache(maxsize=20)(load_emotion_data)
 _cached_load_dominant_emotion_data = lru_cache(maxsize=20)(load_dominant_emotion_data)

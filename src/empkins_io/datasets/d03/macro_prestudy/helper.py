@@ -7,7 +7,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 from empkins_io.datasets.d03._utils.dataset_utils import get_uncleaned_openpose_data
 from empkins_io.sensors.motion_capture.perception_neuron import PerceptionNeuronDataset
 from empkins_io.utils._types import path_t

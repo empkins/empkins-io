@@ -10,9 +10,6 @@ from biopsykit.signals.ecg.preprocessing import EcgPreprocessingNeurokit
 from biopsykit.signals.ecg.segmentation import HeartbeatSegmentationNeurokit
 from biopsykit.signals.icg.preprocessing import IcgPreprocessingBandpass
 from biopsykit.utils.file_handling import get_subject_dirs
-from pandas import DataFrame
-from tpcp import Dataset
-
 from empkins_io.datasets.d03._utils.check_data_completeness import (
     check_data_completeness,
 )
@@ -37,6 +34,8 @@ from empkins_io.datasets.d03.micro_gapvii.helper import (
     load_speaker_diarization,
 )
 from empkins_io.utils._types import path_t
+from pandas import DataFrame
+from tpcp import Dataset
 
 _cached_get_biopac_data = lru_cache(maxsize=4)(_load_biopac_data)
 _cached_get_radar_data = lru_cache(maxsize=4)(_load_radar_data)

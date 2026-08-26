@@ -13,8 +13,6 @@ from biopsykit.io import (
     load_questionnaire_data,
 )
 from biopsykit.utils.file_handling import get_subject_dirs
-from tpcp import Dataset
-
 from empkins_io.datasets.d03.macro_ap01.helper import (
     _build_data_path,
     _load_nilspod_session,
@@ -24,6 +22,7 @@ from empkins_io.utils.exceptions import (
     HeartRateDataNotFoundError,
     TimelogNotFoundError,
 )
+from tpcp import Dataset
 
 _cached_load_nilspod_data = lru_cache(maxsize=4)(_load_nilspod_session)
 

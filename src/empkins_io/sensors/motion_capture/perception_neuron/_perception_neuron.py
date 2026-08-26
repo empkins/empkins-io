@@ -1,7 +1,6 @@
 from collections.abc import Sequence
 
 import pandas as pd
-
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
 from empkins_io.sensors.motion_capture.motion_capture_formats.bvh import BvhData
 from empkins_io.sensors.motion_capture.motion_capture_formats.calc import CalcData

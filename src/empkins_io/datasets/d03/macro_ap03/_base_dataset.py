@@ -4,10 +4,9 @@ from typing import ClassVar
 
 import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
-from tpcp import Dataset
-
 from empkins_io.sensors.zebris._zebris import ZebrisDataset
 from empkins_io.utils._types import path_t
+from tpcp import Dataset
 
 # _cached_load_nilspod_data = lru_cache(maxsize=4)(_load_nilspod_session)
 

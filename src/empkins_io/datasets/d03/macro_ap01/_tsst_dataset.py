@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Optional
 
 import pandas as pd
-
 from empkins_io.datasets.d03._utils.dataset_utils import get_cleaned_openpose_data
 from empkins_io.datasets.d03.macro_ap01._base_dataset import MacroBaseDataset
 from empkins_io.datasets.d03.macro_ap01.helper import (

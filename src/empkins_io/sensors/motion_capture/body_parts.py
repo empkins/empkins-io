@@ -159,7 +159,7 @@ BODY_PART_MEDIAPIPE = Literal[
 
 BODY_PART_GROUP = Literal["TotalBody", "UpperExtremities", "LowerExtremities", "Trunk", "Lumbar"]
 
-BODY_PART_MAPPING_PERCEPTION_NEURON: Dict[BODY_PART_GROUP, Sequence[BODY_PART_PERCEPTION_NEURON]] = {
+BODY_PART_MAPPING_PERCEPTION_NEURON: dict[BODY_PART_GROUP, Sequence[BODY_PART_PERCEPTION_NEURON]] = {
     "TotalBody": get_args(BODY_PART_PERCEPTION_NEURON),
     "UpperExtremities": [
         "RightShoulder",
@@ -237,7 +237,7 @@ BODY_PART_MAPPING_XSENS: dict[BODY_PART_GROUP, Sequence[BODY_PART_XSENS]] = {
     "Lumbar": ["jL5S1"],
 }
 
-BODY_PART_MAPPING_MEDIAPIPE: Dict[BODY_PART_GROUP, Sequence[BODY_PART_MEDIAPIPE]] = {
+BODY_PART_MAPPING_MEDIAPIPE: dict[BODY_PART_GROUP, Sequence[BODY_PART_MEDIAPIPE]] = {
     "TotalBody": get_args(BODY_PART_MEDIAPIPE),
     "UpperExtremities": [
         "LeftElbow",

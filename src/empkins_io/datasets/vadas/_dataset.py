@@ -4,9 +4,8 @@ from typing import ClassVar
 
 import biopsykit
 import pandas as pd
-from tpcp import Dataset
-
 from empkins_io.utils._types import path_t
+from tpcp import Dataset
 
 
 class VadasDataset(Dataset):
