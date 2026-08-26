@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from functools import cached_property, lru_cache
 from itertools import product
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Optional, Union
 
 import pandas as pd
 from biopsykit.io import load_atimelogger_file
@@ -11,16 +11,27 @@ from tpcp import Dataset
 
 __all__ = ["D07PilotStudyDataset"]
 
+from empkins_io.datasets.d07.pilot_study._helper import _load_nilspod_session
 from empkins_io.datasets.d07.pilot_study.helper import _load_mocap_data
 from empkins_io.utils._types import path_t
 
 _cached_load_mocap_data = lru_cache(maxsize=4)(_load_mocap_data)
+_cached_load_nilspod_session = lru_cache(maxsize=5)(_load_nilspod_session)
 
 
 class D07PilotStudyDataset(Dataset):
     base_path: path_t
     use_cache: bool
     exclude_missing: bool
+
+    SAMPLING_RATE_MOCAP = 60
+    SAMPLING_RATE_ECG = 256
+
+    NILSPOD_MAPPING: ClassVar[dict[str, str]] = {
+        "chest": "b0c2",  # ecg
+        "sync": "9e02",  # sync with mocap
+        "board": "e76b",  # sync with video (clapper board)
+    }
 
     SUBSETS_NO_MOCAP: ClassVar[str] = [
         ("VP_07", "Control"),
@@ -83,12 +94,16 @@ class D07PilotStudyDataset(Dataset):
         return data_to_exclude
 
     @property
+    def sampling_rate_ecg(self) -> int:
+        return self.SAMPLING_RATE_ECG
+
+    @property
     def timelog(self):
-        if not self.is_single(["participant", "condition"]):
-            raise ValueError("Time logs can only be accessed for a single participant and condition!")
+        if not self.is_single(["participant"]):
+            raise ValueError("Time logs can only be accessed for a single participant!")
 
         p_id = self.index["participant"][0]
-        condition = self.index["condition"][0]
+        conditions = self.index["condition"].unique()
         phases = self.index["phase"].unique()
         file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/timelogs/cleaned/{p_id}_timelog.csv")
 
@@ -108,7 +123,7 @@ class D07PilotStudyDataset(Dataset):
         data = data.rename(columns=condition_order_map, level="condition")
 
         data = data.reindex(phases, level="phase", axis=1)
-        data = data.reindex([condition], level="condition", axis=1)
+        data = data.reindex(conditions, level="condition", axis=1)
         return data
 
     @cached_property
@@ -149,3 +164,62 @@ class D07PilotStudyDataset(Dataset):
         data = pd.read_csv(file_path, index_col=0)
 
         return data.reindex(self.index["participant"].unique())
+
+    @cached_property
+    def ecg(self) -> pd.DataFrame:
+        """Load and return ECG data.
+
+        The ECG data can only be loaded as a single phase or the entire recording
+
+        Returns
+        -------
+        :class:`~pandas.DataFrame`
+            ECG data
+
+        """
+        nilspod_data = self.nilspod_session
+        ecg_data = nilspod_data[self.NILSPOD_MAPPING["chest"]][["ecg"]]
+        return ecg_data
+
+    @cached_property
+    def nilspod_session(self) -> pd.DataFrame:
+        participant = self.index["participant"][0]
+        if self.is_single(None) or len(self.index["phase"].unique()) == len(self.PHASES):
+
+            condition = self.index["condition"].unique()
+            phase = self.index["phase"].unique()
+
+            if not self.is_single(None) and len(condition) != len(self.CONDITIONS):
+                raise ValueError(
+                    "Nilspod data can only be accessed for a single participant in its entirety or for a single phase!"
+                )
+
+            if len(condition) > 1:
+                condition = None
+            if len(phase) > 1:
+                phase = None
+
+            data = self._load_nilspod_session(participant, condition, phase)
+            return data
+
+        raise ValueError(
+            "Nilspod data can only be accessed for a single participant in its entirety or for a single phase!"
+        )
+
+    def _load_nilspod_session(
+        self, participant: str, condition: Optional[str] = None, phase: Optional[Sequence[str]] = None
+    ) -> Union[pd.DataFrame, dict[str, pd.DataFrame]]:
+        data_path = self.base_path.joinpath(f"data_per_participant/{participant}/nilspod/raw")
+        data = _cached_load_nilspod_session(data_path) if self.use_cache else _load_nilspod_session(data_path)
+
+        if condition is None:
+            # all conditions => return all data
+            return data
+
+        timelog = self.timelog
+
+        start_ts = timelog[(condition, phase, "start")].iloc[0]
+        end_ts = timelog[(condition, phase, "end")].iloc[0]
+
+        data = data.loc[start_ts:end_ts]
+        return data
