@@ -35,10 +35,7 @@ dev = [
     "poethepoet>=0.11.0,<0.12",
 ]
 
-[tool.uv.sources]
-#biopsykit = { git = "https://github.com/mad-lab-fau/BioPsyKit.git", branch = "main" }
- biopsykit = { path = "/Users/richer/Documents/PhD/Code_Repositories/BioPsyKit/BioPsyKit", editable = true }
-
+[tool.uv]
 
 [build-system]
 requires = ["hatchling"]
