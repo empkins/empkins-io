@@ -9,8 +9,9 @@ from empkins_io.datasets.d03.macro_ap01._custom_synced_session import (
     CustomSyncedSession,
 )
 from empkins_io.sensors.motion_capture.motion_capture_formats import mvnx
+
 from empkins_io.utils._types import path_t, str_t
-from empkins_io.utils.exceptions import NilsPodDataNotFoundException
+from empkins_io.utils.exceptions import NilsPodDataNotFoundError
 
 
 def _build_data_path(base_path: path_t, subject_id: str, condition: str) -> Path:
@@ -21,6 +22,30 @@ def _build_data_path(base_path: path_t, subject_id: str, condition: str) -> Path
 
 
 def _load_nilspod_session(base_path: path_t, subject_id: str, condition: str) -> Tuple[pd.DataFrame, float]:
+    data_path = _build_data_path(
+        base_path.joinpath("nilspod/raw"),
+        subject_id=subject_id,
+        condition=condition,
+    )
+
+    nilspod_files = sorted(data_path.glob("NilsPodX-*.bin"))
+    if len(nilspod_files) == 0:
+        raise NilsPodDataNotFoundError("No NilsPod files found in directory!")
+
+    session = CustomSyncedSession.from_folder_path(data_path)
+    # fix for "classical nilspod bug" where last sample counter is corrupted
+    session = session.cut(stop=-10)
+    session = session.align_to_syncregion()
+
+    _handle_counter_inconsistencies_session(session, handle_counter_inconsistency="ignore")
+
+    # convert dataset to dataframe and localize timestamp
+    df = session.data_as_df(index="local_datetime", concat_df=True)
+    df.index.name = "time"
+    fs = session.info.sampling_rate_hz[0]
+    return df, fs
+
+"""def _load_nilspod_session(base_path: path_t, subject_id: str, condition: str) -> Tuple[pd.DataFrame, float]:
     data_path = _build_data_path(
         base_path.joinpath("data_per_subject"),
         subject_id=subject_id,
@@ -44,7 +69,7 @@ def _load_nilspod_session(base_path: path_t, subject_id: str, condition: str) ->
     df.index.name = "time"
     fs = session.info.sampling_rate_hz[0]
     return df, fs
-
+"""
 
 def _load_tsst_mocap_data(
     base_path: path_t, subject_id: str, condition: str, *, verbose: bool = True
@@ -114,7 +139,6 @@ def _get_times_for_mocap(
         if isinstance(phase, str):
             phase = [phase]
         timelog = timelog.loc[:, phase]
-
     timelog = (timelog - start_time).apply(lambda x: x.dt.total_seconds())
     timelog = timelog.T["time"].unstack("start_end")
     return timelog

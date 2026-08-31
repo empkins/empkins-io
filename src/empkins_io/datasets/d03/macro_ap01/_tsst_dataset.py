@@ -13,8 +13,8 @@ from empkins_io.datasets.d03.macro_ap01.helper import (
 )
 from empkins_io.utils._types import path_t
 from empkins_io.utils.exceptions import (
-    SyncDataNotFoundException,
-    TimestampDataNotFoundException,
+    SyncDataNotFoundError,
+    TimestampDataNotFoundError,
 )
 
 _cached_load_mocap_data = lru_cache(maxsize=4)(_load_tsst_mocap_data)

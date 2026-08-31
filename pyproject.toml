@@ -35,7 +35,8 @@ dev = [
     "poethepoet>=0.11.0,<0.12",
 ]
 
-[tool.uv]
+[tool.uv.extra-build-dependencies]
+pandas = ["pkg_resources"]
 
 [build-system]
 requires = ["hatchling"]

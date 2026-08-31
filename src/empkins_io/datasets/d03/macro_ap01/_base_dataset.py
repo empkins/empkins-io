@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from functools import cached_property, lru_cache
 from itertools import product
 from pathlib import Path
+from typing import ClassVar
 
 import pandas as pd
 from biopsykit.io import (
@@ -29,7 +30,7 @@ _cached_load_nilspod_data = lru_cache(maxsize=4)(_load_nilspod_session)
 
 class MacroBaseDataset(Dataset):
     base_path: path_t
-    data_tabular_path: path_t
+    #data_tabular_path: path_t
     use_cache: bool
     _sample_times_saliva: tuple[int] = (-40, -1, 15, 25, 35, 45, 60, 75)
     _sample_times_bloodspot: tuple[int] = (-40, 60)
@@ -227,11 +228,26 @@ class MacroBaseDataset(Dataset):
     def timelog_gait(self) -> pd.DataFrame:
         return self._load_time_log("gait")
 
-    def _load_time_log(self, timelog_type: str):
+    """def _load_time_log(self, timelog_type: str):
         subject_id = self.subject
         condition = self.condition
         data_path = _build_data_path(self.base_path.joinpath("data_per_subject"), subject_id, condition)
         file_path = data_path.joinpath(f"timelog/cleaned/{subject_id}_{condition}_timelog_{timelog_type}.csv")
+        if not file_path.exists():
+            raise TimelogNotFoundError(
+                f"No time log data was found for {timelog_type} in the {condition} condition of {subject_id}!"
+            )
+        timelog = load_atimelogger_file(file_path, timezone="Europe/Berlin")
+        # convert all column names of the multi-level column index to lower case
+        timelog.columns = timelog.columns.set_levels([level.str.lower() for level in timelog.columns.levels])
+
+        return timelog"""
+
+    def _load_time_log(self, timelog_type: str):
+        subject_id = self.subject
+        condition = self.condition
+        data_path = _build_data_path(self.base_path.joinpath(f"timelogs/cleaned/{timelog_type}"), subject_id, condition)
+        file_path = data_path.joinpath(f"{subject_id}_{condition}_timelog_{timelog_type}.csv")
         if not file_path.exists():
             raise TimelogNotFoundError(
                 f"No time log data was found for {timelog_type} in the {condition} condition of {subject_id}!"
@@ -252,11 +268,20 @@ class MacroBaseDataset(Dataset):
         if self.is_single(["condition"]):
             raise ValueError("Questionnaire data can not be accessed for a single condition!")
         data = load_questionnaire_data(
-            self.data_tabular_path.joinpath("_archive/old/merged_total/questionnaire_data.xlsx")
+            self.base_path.joinpath("questionnaire/questionnaire_data.xlsx")
         )
         subject_ids = self.index["subject"].unique()
         return data.loc[subject_ids]
 
+    """def questionnaire(self) -> pd.DataFrame:
+        if self.is_single(["condition"]):
+            raise ValueError("Questionnaire data can not be accessed for a single condition!")
+        data = load_questionnaire_data(
+            self.data_tabular_path.joinpath("_archive/old/merged_total/questionnaire_data.xlsx")
+        )
+        subject_ids = self.index["subject"].unique()
+        return data.loc[subject_ids]
+"""
     @property
     def gender(self) -> pd.Series:
         return self.questionnaire["Gender"]
@@ -267,7 +292,7 @@ class MacroBaseDataset(Dataset):
 
     @property
     def questionnaire_scores(self) -> pd.DataFrame:
-        data_path = self.base_path.joinpath("data_tabular/questionnaires/processed/questionnaire_data_processed.csv")
+        data_path = self.base_path.joinpath("questionnaire/processed/questionnaire_data_processed.csv")
         if not data_path.exists():
             raise ValueError(
                 "Processed questionnaire data not available! "
@@ -277,10 +302,21 @@ class MacroBaseDataset(Dataset):
         subject_ids = self.index["subject"].unique()
         conditions = self.index["condition"].unique()
         return data.reindex(subject_ids, level="subject").reindex(conditions, level="condition")
+    """def questionnaire_scores(self) -> pd.DataFrame:
+        data_path = self.base_path.joinpath("data_tabular/questionnaires/processed/questionnaire_data_processed.csv")
+        if not data_path.exists():
+            raise ValueError(
+                "Processed questionnaire data not available! "
+                "Please run the 'questionnaires/Questionnaire_Processing.ipynb' notebook first!"
+            )
+        data = load_long_format_csv(data_path)
+        subject_ids = self.index["subject"].unique()
+        conditions = self.index["condition"].unique()
+        return data.reindex(subject_ids, level="subject").reindex(conditions, level="condition")"""
 
     @property
     def questionnaire_scores_relative(self) -> pd.DataFrame:
-        data_path = self.base_path.joinpath("questionnaires/processed/questionnaire_data_processed_relative.csv")
+        data_path = self.base_path.joinpath("questionnaire/processed/questionnaire_data_processed_relative.csv")
         if not data_path.exists():
             raise ValueError(
                 "Processed relative questionnaire data not available! "
@@ -320,22 +356,34 @@ class MacroBaseDataset(Dataset):
 
     @property
     def codebook(self) -> pd.DataFrame:
-        return load_codebook(self.base_path.joinpath("data_tabular/questionnaires/codebook.csv"))
+        return load_codebook(self.base_path.joinpath("questionnaire/codebook.csv"))
 
     @property
     def condition_order(self) -> pd.DataFrame:
-        data = pd.read_csv(self.data_tabular_path.joinpath("_extras/condition_order.csv"))
+        data = pd.read_csv(self.base_path.joinpath("_extras/condition_order.csv"))
         data = data.set_index("subject")[["condition_order"]]
         subject_ids = self.index["subject"].unique()
         return data.loc[subject_ids]
 
+    """def condition_order(self) -> pd.DataFrame:
+        data = pd.read_csv(self.data_tabular_path.joinpath("_extras/condition_order.csv"))
+        data = data.set_index("subject")[["condition_order"]]
+        subject_ids = self.index["subject"].unique()
+        return data.loc[subject_ids]
+"""
     @property
     def day_condition_map(self) -> pd.DataFrame:
-        data = pd.read_csv(self.data_tabular_path.joinpath("_extras/condition_order.csv"))
+        data = pd.read_csv(self.base_path.joinpath("_extras/condition_order.csv"))
         data = data.set_index("subject")[["T1", "T2"]].stack()
         data.index = data.index.set_names("day", level=-1)
         data = pd.DataFrame(data, columns=["condition"])
         return data
+    """def day_condition_map(self) -> pd.DataFrame:
+        data = pd.read_csv(self.data_tabular_path.joinpath("_extras/condition_order.csv"))
+        data = data.set_index("subject")[["T1", "T2"]].stack()
+        data.index = data.index.set_names("day", level=-1)
+        data = pd.DataFrame(data, columns=["condition"])
+        return data"""
 
     @property
     def cort_non_responder(self) -> pd.Series:
@@ -382,12 +430,20 @@ class MacroBaseDataset(Dataset):
         conditions = self.index["condition"].unique()
         return data.reindex(subject_ids, level="subject").reindex(conditions, level="condition")
 
-    @property
-    def ecg_output_path(self) -> Path:
+
+    """def ecg_output_path(self) -> Path:
         if not self.is_single(None):
             raise ValueError("Path can only be accessed for a single condition of a single participant!")
         data_path = self.base_path.joinpath("data_per_subject").joinpath(
             f"{self.group.subject}/{self.group.condition}/nilspod/processed/ecg"
+        )
+        return data_path"""
+    @property
+    def ecg_output_path(self) -> Path:
+        if not self.is_single(None):
+            raise ValueError("Path can only be accessed for a single condition of a single participant!")
+        data_path = self.base_path.joinpath("nilspod/processed/ecg").joinpath(
+            f"{self.group.subject}/{self.group.condition}"
         )
         return data_path
 
@@ -420,7 +476,7 @@ class MacroBaseDataset(Dataset):
         return data.reindex(subject_ids).dropna()
 
     def _load_questionnaire_data(self) -> pd.DataFrame:
-        data_path = self.base_path.joinpath("questionnaire_total/processed/empkins_macro_questionnaire_data.csv")
+        data_path = self.base_path.joinpath("questionnaire/questionnaire_total/processed/empkins_macro_questionnaire_data.csv")
         data = load_questionnaire_data(data_path)
         subject_ids = self.index["subject"].unique()
         return data.loc[subject_ids]
@@ -430,7 +486,7 @@ class MacroBaseDataset(Dataset):
         return data["data"].unstack("type")[[score_type]].dropna()
 
     def _load_saliva_data(self, saliva_type: str) -> pd.DataFrame:
-        data_path = self.data_tabular_path.joinpath(f"saliva/final/{saliva_type}.csv")
+        data_path = self.base_path.joinpath(f"saliva/final/{saliva_type}.csv")
         if not data_path.exists():
             raise ValueError(
                 "Processed saliva data not available! "
@@ -443,7 +499,7 @@ class MacroBaseDataset(Dataset):
         return data.reindex(subject_ids, level="subject").reindex(conditions, level="condition")
 
     def _load_saliva_features(self, saliva_type: str) -> pd.DataFrame:
-        data_path = self.data_tabular_path.joinpath(f"saliva/final/{saliva_type}.csv")
+        data_path = self.base_path.joinpath(f"saliva/final/{saliva_type}.csv")
 
         data = pd.read_csv(data_path)
 
