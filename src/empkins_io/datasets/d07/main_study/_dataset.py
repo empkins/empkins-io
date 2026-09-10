@@ -9,7 +9,7 @@ from biopsykit.io import load_atimelogger_file
 from biopsykit.utils.file_handling import get_subject_dirs
 from tpcp import Dataset
 
-__all__ = ["D07PilotStudyDataset"]
+__all__ = ["D07MainStudyDataset"]
 
 from empkins_io.datasets.d07._helper import _load_mocap_data
 from empkins_io.utils._types import path_t
@@ -17,14 +17,12 @@ from empkins_io.utils._types import path_t
 _cached_load_mocap_data = lru_cache(maxsize=4)(_load_mocap_data)
 
 
-class D07PilotStudyDataset(Dataset):
+class D07MainStudyDataset(Dataset):
     base_path: path_t
     use_cache: bool
     exclude_missing: bool
 
     SUBSETS_NO_MOCAP: ClassVar[str] = [
-        ("VP_07", "Control"),
-        ("VP_12", "Control"),
     ]
 
     data_to_exclude: Sequence[str]
@@ -90,7 +88,7 @@ class D07PilotStudyDataset(Dataset):
         p_id = self.index["participant"][0]
         condition = self.index["condition"][0]
         phases = self.index["phase"].unique()
-        file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/timelogs/cleaned/{p_id}_timelog.csv")
+        file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/timelogs/cleaned/D07_{p_id}_timelog.csv")
 
         data = load_atimelogger_file(file_path, handle_multiple="fix")
         data = data.rename(columns=self.PHASE_MAPPER, level="phase")
@@ -119,8 +117,9 @@ class D07PilotStudyDataset(Dataset):
         condition = self.group_label.condition
         phase = self.group_label.phase
 
-        file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/mocap/export/")
+        file_path = self.base_path.joinpath(f"data_per_participant/{p_id}/mocap/processed")
         mocap_files = sorted(file_path.glob(f"D07_{p_id}_{condition.lower()}*.mvnx"))
+
         if len(mocap_files) == 1:
             data = self._get_mocap_data(mocap_files[0])
         elif len(mocap_files) == 0:
@@ -130,6 +129,7 @@ class D07PilotStudyDataset(Dataset):
             for file in mocap_files:
                 df = self._get_mocap_data(file)
                 data = pd.concat([data, df])
+            data = data.sort_index()
 
         timelog = self.timelog
         start_ts = timelog[(condition, phase, "start")].iloc[0]

@@ -1,4 +1,3 @@
-import logging
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -13,9 +12,6 @@ from empkins_io.sensors.zebris._helper import (
     _read_stance_average_csv,
 )
 from empkins_io.utils._types import path_t, str_t
-
-logging.basicConfig(level=logging.INFO, format="%(message)s")
-
 
 class ZebrisDataset:
     """_sensor_dict = {
