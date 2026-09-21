@@ -1,11 +1,13 @@
 from pathlib import Path
 
+from typing import Dict
+
 import pandas as pd
 from openpyxl import load_workbook
 from pandas import DataFrame
 
 from empkins_io.sensors.emrad import EmradDataset
-from empkins_io.sensors.tfm import TfmLoader
+from empkins_io.sensors.tfm.tfm import TfmLoader
 from empkins_io.sync import SyncedDataset
 
 import pandas as pd
@@ -156,17 +158,3 @@ def _load_radar_data(base_path: path_t, participant_id: str, sampling_rate_hz: f
     # Return the DataFrame (data) and the sampling rate (fs)
     return data, fs
 
-
-def _sync_datasets(tfm_data, fs_tfm, emrad_data, fs_emrad) -> Dict[str, pd.DataFrame]:
-
-    synced_dataset = SyncedDataset(sync_type="m-sequence")
-    synced_dataset.add_dataset("tfm", data=tfm_data, sync_channel_name="ext_1", sampling_rate=fs_tfm)
-    synced_dataset.add_dataset("rad1", data=emrad_data["rad1"], sync_channel_name="Sync_Out", sampling_rate=fs_emrad)
-    synced_dataset.add_dataset("rad2", data=emrad_data["rad2"], sync_channel_name="Sync_Out", sampling_rate=fs_emrad)
-    synced_dataset.add_dataset("rad3", data=emrad_data["rad3"], sync_channel_name="Sync_Out", sampling_rate=fs_emrad)
-    synced_dataset.add_dataset("rad4", data=emrad_data["rad4"], sync_channel_name="Sync_Out", sampling_rate=fs_emrad)
-
-    synced_dataset.resample_datasets(fs_out=500, method="dynamic", wave_frequency=10)
-    synced_dataset.align_and_cut_m_sequence(primary="rad1", reset_time_axis=True, cut_to_shortest=True)
-
-    return synced_dataset.datasets_aligned
