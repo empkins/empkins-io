@@ -1,3 +1,3 @@
-from empkins_io.sync._sync_keep import SyncedDataset
+from empkins_io.sync._sync import SyncBase, SyncedDataset, SyncedDatasetMSequence
 
-__all__ = ["SyncedDataset"]
+__all__ = ["SyncBase", "SyncedDataset", "SyncedDatasetMSequence"]

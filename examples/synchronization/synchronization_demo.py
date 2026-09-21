@@ -10,7 +10,7 @@ from pathlib import Path
 import pandas as pd
 
 from biopsykit.io.biopac import BiopacDataset
-from empkins_io.sync import SyncedDataset
+from empkins_io.sync import SyncedDataset, SyncedDatasetMSequence
 
 data_path = Path("data/sync_demo")
 nilspod_sync = "9e02"
@@ -141,12 +141,29 @@ print(synced_dataset.biopac_aligned_)
 np_data, np_fs = load_nilspod_data("m-sequence")
 bp_data, bp_fs = load_biopac_data("m-sequence")
 
-synced_dataset = SyncedDataset(sync_type="m-sequence")
+synced_dataset = SyncedDatasetMSequence()
 synced_dataset.add_dataset("nilspod", np_data, sync_channel_name="analog_1", sampling_rate=np_fs)
 synced_dataset.add_dataset("biopac", bp_data, sync_channel_name="sync", sampling_rate=bp_fs)
 synced_dataset.resample_datasets(np_fs, method="static", wave_frequency=50)
-synced_dataset.align_and_cut_m_sequence(primary="biopac", cut_to_shortest=True, reset_time_axis=True)
+# region (in samples) that is searched for the sync sequence: the first/last 100 s of the recording
+sync_region_samples = int(100 * np_fs)
+
+# align the start of the datasets, searching the sync sequence at the beginning of the recording
+synced_dataset.align_and_cut_start_m_sequence(
+    primary="biopac",
+    cut_to_shortest=True,
+    reset_time_axis=True,
+    sync_params={"sync_region_samples": (0, sync_region_samples)},
+)
+
+# align the end of the datasets, i.e., compensate the clock drift between the devices. The search region has to
+# cover the end of the recording, so that the measured shift corresponds to the drift of the whole recording.
+synced_dataset.align_and_cut_end_m_sequence(
+    primary="biopac",
+    cut_to_shortest=True,
+    sync_params={"sync_region_samples": (-sync_region_samples, None)},
+)
 
 # final synchronized output
-print(synced_dataset.nilspod_aligned_)
-print(synced_dataset.biopac_aligned_)
+print(synced_dataset.nilspod_synced_)
+print(synced_dataset.biopac_synced_)
