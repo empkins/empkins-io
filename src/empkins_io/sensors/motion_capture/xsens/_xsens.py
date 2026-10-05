@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pandas as pd
-
 from empkins_io.sensors.motion_capture.motion_capture_formats.mvnx import MvnxData
 from empkins_io.utils._types import path_t
 from empkins_io.utils.exceptions import InvalidFileFormatError

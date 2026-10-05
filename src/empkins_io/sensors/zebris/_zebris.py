@@ -3,8 +3,6 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import pandas as pd
-from typing_extensions import Self
-
 from empkins_io.sensors.zebris._helper import (
     _read_force_curve_csv,
     _read_gait_line_csv,
@@ -13,6 +11,7 @@ from empkins_io.sensors.zebris._helper import (
     _read_stance_average_csv,
 )
 from empkins_io.utils._types import path_t, str_t
+from typing_extensions import Self
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
@@ -81,10 +80,12 @@ class ZebrisDataset:
             read_raw_pressure_data (bool): Flag indicating whether to include processing of raw pressure
                                            data. Defaults to False.
 
-        Returns:
+        Returns
+        -------
             Self: A new instance of the class initialized with the parsed data.
 
-        Raises:
+        Raises
+        ------
             FileNotFoundError: If the folder path does not exist or is not a directory.
         """
         # ensure pathlib
@@ -101,7 +102,8 @@ class ZebrisDataset:
         """
         A class initializer that dynamically sets attributes from a dictionary with DataFrame values.
 
-        Attributes:
+        Attributes
+        ----------
         data_dict (dict[str, pd.DataFrame]): A dictionary where keys are attribute names
         and values are pandas DataFrame objects.
 
@@ -132,12 +134,14 @@ class ZebrisDataset:
             read_stance_average (bool, optional): Whether to read stance average files. Defaults to False.
             read_raw_pressure_data (bool, optional): Whether to read raw pressure data. Defaults to False.
 
-        Returns:
+        Returns
+        -------
             dict[str, pd.DataFrame]: A dictionary containing processed data categories as
             DataFrame objects. Keys include "data", "aggregated_data", "metadata", and
             "stance_average_data" depending on the data processed.
 
-        Raises:
+        Raises
+        ------
             NotImplementedError: If read_raw_pressure_data is set to True as it is not currently implemented.
         """
         return_dict = {}

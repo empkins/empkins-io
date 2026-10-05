@@ -4,7 +4,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from biopsykit.utils._datatype_validation_helper import _assert_file_extension
-
 from empkins_io.sensors.motion_capture.motion_capture_formats._base_format import _BaseMotionCaptureDataFormat
 from empkins_io.sensors.motion_capture.motion_capture_systems import MOTION_CAPTURE_SYSTEM
 from empkins_io.utils._types import check_file_exists, path_t

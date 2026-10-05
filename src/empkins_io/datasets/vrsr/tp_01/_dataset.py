@@ -4,10 +4,9 @@ from typing import ClassVar
 
 import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
-from tpcp import Dataset
-
 from empkins_io.datasets.vrsr.tp_01.helper import _load_ecg_data, _load_raw_log
 from empkins_io.utils._types import path_t
+from tpcp import Dataset
 
 _cached_load_ecg_data = lru_cache(maxsize=4)(_load_ecg_data)
 
