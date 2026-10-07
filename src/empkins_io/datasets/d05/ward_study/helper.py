@@ -1,11 +1,9 @@
 from pathlib import Path
 import pandas as pd
-from datetime import timedelta
-
 from ._columns import COMPLETED_COLS
 
 def get_raw_data_file(base_path: Path, load_only_completed: bool):
-    # TODO: low_memory=False to suppress the warnings of different dtypes in columns
+    # low_memory=False to suppress the warnings of different dtypes in columns
     data = pd.read_csv(base_path, low_memory=False)
 
     # Remove Part 53 since he does not have any values

@@ -70,7 +70,7 @@ class WardStudyDataset(Dataset):
             "end": "complex_int_end_time"
         },
         "consent": {
-            #this only has a date without exact time!!!
+            # this only has a date without exact time!!!
             "time": "consent_date"
         },
         "study": {
@@ -103,6 +103,12 @@ class WardStudyDataset(Dataset):
         "progress": {
             "time": "progress_report_time" 
         }
+        # currently missing:
+        # handover_date
+        # ondemand_effect_time
+        # complex_int_time
+        # all saliva dates
+        # all (date_dmy) except regular medication & consent_date
     }
 
     INSTRUMENT_DEVICES = {
