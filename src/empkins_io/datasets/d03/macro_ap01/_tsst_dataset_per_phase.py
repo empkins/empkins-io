@@ -6,7 +6,10 @@ import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
 from empkins_io.datasets.d03._utils.dataset_utils import get_cleaned_openpose_data
 from empkins_io.datasets.d03.macro_ap01 import MacroStudyTsstDataset
-from empkins_io.datasets.d03.macro_ap01.helper import _get_times_for_mocap, _load_tsst_mocap_data
+from empkins_io.datasets.d03.macro_ap01.helper import (
+    _get_times_for_mocap,
+    _load_tsst_mocap_data,
+)
 from empkins_io.utils._types import path_t, str_t
 
 _cached_load_mocap_data = lru_cache(maxsize=4)(_load_tsst_mocap_data)
@@ -54,7 +57,10 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
 
     def create_index(self):
         subject_ids = [
-            subject_dir.name for subject_dir in get_subject_dirs(self.base_path.joinpath("data_per_subject"), "VP_*")
+            subject_dir.name
+            for subject_dir in get_subject_dirs(
+                self.base_path.joinpath("data_per_subject"), "VP_*"
+            )
         ]
 
         phases = self.PHASES
@@ -79,21 +85,27 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
     @cached_property
     def mocap_data(self) -> pd.DataFrame | dict[str, pd.DataFrame]:
         if not self.is_single(["subject", "condition"]):
-            raise ValueError("Data can only be accessed for a single recording of a single participant in the subset")
+            raise ValueError(
+                "Data can only be accessed for a single recording of a single participant in the subset"
+            )
 
         subject_id = self.index["subject"][0]
         condition = self.index["condition"][0]
-        phase = self.index["phase"][0] if self.is_single(None) else list(self.index["phase"])
+        phase = (
+            self.index["phase"][0]
+            if self.is_single(None)
+            else list(self.index["phase"])
+        )
 
-        data_total = self._get_mocap_data_per_phase(subject_id, condition, phase)
+        data_total = self._get_mocap_data_per_phase(subject_id, condition, phase=phase)
         return data_total
 
     def _get_mocap_data_per_phase(
         self, subject_id: str, condition: str, phase: str_t, *, verbose: bool = True
     ) -> pd.DataFrame | dict[str, pd.DataFrame]:
-        data = self._get_mocap_data(subject_id, condition, verbose=verbose)
+        data, start_time = self._get_mocap_data(subject_id, condition, verbose=verbose)
         timelog = self.timelog_test
-        times = _get_times_for_mocap(timelog, phase)
+        times = _get_times_for_mocap(timelog, start_time, phase)
 
         if isinstance(phase, str):
             return data.loc[times.loc[phase, "start"] : times.loc[phase, "end"]]
@@ -111,7 +123,9 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
         and the data was interpolated linearly and lowpass filtered.
         """
         if not self.is_single(["subject", "condition"]):
-            raise ValueError("OpenPose data can only be accessed for a single condition of a single participant!")
+            raise ValueError(
+                "OpenPose data can only be accessed for a single condition of a single participant!"
+            )
 
         if self.is_single(None):
             raise NotImplementedError(
@@ -120,7 +134,9 @@ class MacroStudyTsstDatasetPerPhase(MacroStudyTsstDataset):
             )
 
         file_path = self.body_video_path.joinpath("cleaned/openpose.csv")
-        openpose_cleaned_for_subject_and_condition = get_cleaned_openpose_data(file_path)
+        openpose_cleaned_for_subject_and_condition = get_cleaned_openpose_data(
+            file_path
+        )
 
         # MISSING: crop data to single phase, if this feature is needed
         return openpose_cleaned_for_subject_and_condition

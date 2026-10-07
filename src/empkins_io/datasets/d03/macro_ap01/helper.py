@@ -124,8 +124,9 @@ def _get_times_for_mocap(
             phase = [phase]
         timelog = timelog.loc[:, phase]
 
-    # make start_time tz aware
-    start_time = pd.to_datetime(start_time).tz_localize("UTC")
+    # make start_time tz aware if its not tz aware yet
+    if start_time.tzinfo is None:
+        start_time = pd.to_datetime(start_time).tz_localize("UTC")
 
     timelog = (timelog - start_time).apply(lambda x: x.dt.total_seconds())
 
