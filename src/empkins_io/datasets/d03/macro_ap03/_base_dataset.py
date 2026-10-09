@@ -449,12 +449,16 @@ class MacroBaseDataset(Dataset):
             ) from e
 """
     @property
-    def video_path(self) -> Path:
+    def body_video_path(self) -> Path:
         if not self.is_single(["participant", "condition"]):
-            raise ValueError("Video path can only be accessed for a single recording of a single participant in the subset")
+            raise ValueError("Body video path can only be accessed for a single recording of a single participant in the subset.")
 
         path = self.base_path / "video" / "body" / "raw" / f"video_body_{self.participant}_{self.condition}.mp4"
         if not path.is_file():
             raise FileNotFoundError(f"No body video found for participant {self.participant} with condition {self.condition}.")
         
         return path
+
+    @property
+    def face_video_path(self) -> Path:
+        raise NotImplementedError("Face video path property is not implemented yet.")
