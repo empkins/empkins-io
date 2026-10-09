@@ -1,6 +1,9 @@
 from collections.abc import Sequence
 from itertools import product
 from typing import ClassVar
+from pathlib import Path
+
+from tpcp import Dataset
 
 import pandas as pd
 from biopsykit.utils.file_handling import get_subject_dirs
@@ -186,7 +189,7 @@ class MacroBaseDataset(Dataset):
 
         index = pd.DataFrame(index, columns=index_cols)
         index = index.set_index(index_cols)
-        index = index.drop(index=self.data_to_exclude).reset_index()
+        index = index.drop(index=self.data_to_exclude, errors="ignore").reset_index()
 
         return index
     """def create_index(self):
@@ -445,3 +448,17 @@ class MacroBaseDataset(Dataset):
                 f"No aggregated Zebris data found for participant {p_id}, condition {condition}, phase {phase}."
             ) from e
 """
+    @property
+    def body_video_path(self) -> Path:
+        if not self.is_single(["participant", "condition"]):
+            raise ValueError("Body video path can only be accessed for a single recording of a single participant in the subset.")
+
+        path = self.base_path / "video" / "body" / "raw" / f"video_body_{self.participant}_{self.condition}.mp4"
+        if not path.is_file():
+            raise FileNotFoundError(f"No body video found for participant {self.participant} with condition {self.condition}.")
+        
+        return path
+
+    @property
+    def face_video_path(self) -> Path:
+        raise NotImplementedError("Face video path property is not implemented yet.")
