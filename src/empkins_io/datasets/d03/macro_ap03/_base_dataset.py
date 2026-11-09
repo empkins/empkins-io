@@ -470,7 +470,7 @@ class MacroBaseDataset(Dataset):
 
         file_path = self.base_path / "timelogs" / "converted_body_labels_macro2.xlsx"
         if not file_path.is_file():
-            raise TimelogNotFoundError(f"No phase timelog found at {file_path}.")
+            raise TimelogNotFoundError("Please run converting_body_timestamps.ipynb first to generate the timelog file of the body videos.")
 
         timelog = pd.read_excel(file_path)
         row = timelog[(timelog["subject"] == self.participant) & (timelog["condition"] == self.condition)]
