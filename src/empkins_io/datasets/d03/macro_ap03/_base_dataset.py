@@ -462,3 +462,25 @@ class MacroBaseDataset(Dataset):
     @property
     def face_video_path(self) -> Path:
         raise NotImplementedError("Face video path property is not implemented yet.")
+
+    @property
+    def phase_timelog_body(self) -> pd.DataFrame:
+        if not self.is_single(["participant", "condition"]):
+            raise ValueError("Phase timelog can only be accessed for a single recording of a single participant in the subset.")
+
+        file_path = self.base_path / "timelogs" / "converted_body_labels_macro2.xlsx"
+        if not file_path.is_file():
+            raise TimelogNotFoundError("Please run converting_body_timestamps.ipynb first to generate the timelog file of the body videos.")
+
+        timelog = pd.read_excel(file_path)
+        row = timelog[(timelog["subject"] == self.participant) & (timelog["condition"] == self.condition)]
+
+        if self.use_phases:
+            if not self.is_single(["participant", "condition", "phase"]):
+                raise ValueError("Phase timelog can only be accessed for a single recording of a single participant regarding a specific phase in the subset.")
+
+            columns = [f"start_{self.phase}"]
+        else:
+            columns = ["start_talk", "start_math"]
+
+        return row[columns].reset_index(drop=True)
