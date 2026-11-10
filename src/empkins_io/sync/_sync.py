@@ -670,7 +670,12 @@ class SyncedDatasetMSequence(SyncBase):
         primary : str
             Name of the primary dataset.
         cut_to_shortest : bool, optional
-            If True, cut all datasets to the length of the shortest dataset. Default: ``False``
+            If True, cut all datasets to the end of the shortest sync sequence, i.e., the last sample at which
+            the sync signal is 1 is determined for each dataset and all datasets are cut to the earliest of
+            these samples. This removes the part of the recording after the sync sequence of the "fastest"
+            device has ended and leaves all datasets with the same length.
+            note:: This assumes that the sync sequence is also present at the *end* of the recording.
+            Default: ``False``
         reset_time_axis : bool, optional
             If True, set the start of all secondary time axes to the start of the primary dataset.
             Default: ``False``
@@ -733,7 +738,7 @@ class SyncedDatasetMSequence(SyncBase):
             self._reset_time_axis(primary, suffix="_aligned_")
 
         if cut_to_shortest:
-            self._cut_to_shortest(suffix="_aligned_")
+            self._cut_to_shortest_sync_sequence(suffix="_aligned_")
 
     @staticmethod
     def _assert_binary_sync_channel(sync_data: pd.Series, name: str) -> None:
@@ -760,6 +765,32 @@ class SyncedDatasetMSequence(SyncBase):
                 f"Check the sync channel for correct input."
             )
         return data.iloc[idx_first[0] :]
+
+    def _cut_to_shortest_sync_sequence(self, suffix: str) -> None:
+        """Cut all datasets to the end of the shortest sync sequence.
+
+        For each dataset, the last sample at which the sync signal is 1 is determined. All datasets are then cut
+        to the earliest of these samples, so that they all end with the sync sequence and have the same length.
+
+        """
+        last_sync_samples = {}
+        for name in self.datasets:
+            data = getattr(self, f"{name}{suffix}")
+            sync_channel = self.datasets[name]["sync_channel"]
+            sync_binary = self._binarize_signal(data[sync_channel]).to_numpy()
+            idx_sync = np.flatnonzero(sync_binary == 1.0)
+            if len(idx_sync) == 0:
+                raise SynchronizationError(
+                    f"Sync channel of dataset '{name}' does not contain any sample with the value 1. "
+                    f"Check the sync channel for correct input."
+                )
+            last_sync_samples[name] = idx_sync[-1]
+
+        # cut all datasets to the earliest end of the sync sequence
+        cut_sample = min(last_sync_samples.values())
+        for name in self.datasets:
+            data = getattr(self, f"{name}{suffix}")
+            setattr(self, f"{name}{suffix}", data.iloc[: cut_sample + 1])
 
     def _get_sync_data(self, dataset: dict[str, Any]) -> pd.DataFrame:
         """Return a copy of the (resampled) data of a dataset with a binarized sync channel."""
